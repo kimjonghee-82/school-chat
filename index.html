@@ -81,6 +81,12 @@
         #game-start-overlay button { width: auto; font-size: 24px; padding: 15px 40px; border-radius: 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); background-color: #ff9800; }
         #game-start-overlay button:hover { background-color: #e68a00; }
         .waiting-text { color: white; font-size: 22px; font-weight: bold; text-align: center; line-height: 1.5; }
+
+        /* 🚨 전체화면 애니메이션 효과 */
+        @keyframes alert-bounce {
+            0% { transform: scale(0.7); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
     </style>
 </head>
 <body>
@@ -187,6 +193,23 @@
     </div>
 </div>
 
+<div id="fullscreen-alert-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 10000; justify-content: center; align-items: center; flex-direction: column;">
+    <div style="background: white; color: #333; padding: 40px; border-radius: 16px; width: 85%; max-width: 480px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); animation: alert-bounce 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+        <h1 style="margin: 0 0 10px 0; color: #8e44ad; font-size: 30px;">👨‍🏫 선생님의 특급 호출!</h1>
+        <div style="font-size: 45px; margin: 15px 0;">🔔🔊🏃‍♂️</div>
+        <p style="font-size: 18px; margin: 15px 0; line-height: 1.6; font-weight: bold; color: #444;">
+            선생님이 타자 연습 미션을 내렸습니다!<br>
+            지금 즉시 <span id="alert-game-name" style="color: #d32f2f; background: #ffebee; padding: 2px 8px; border-radius: 4px;">[게임이름]</span> 에 입장하세요!
+        </p>
+        <button onclick="window.openGameFromAlert()" style="background: #8e44ad; color: white; font-size: 20px; padding: 16px 20px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 15px; box-shadow: 0 4px 10px rgba(142,68,173,0.4);">
+            🎯 지금 즉시 게임 시작하기
+        </button>
+        <button onclick="window.closeFullscreenAlert()" style="background: #eee; color: #666; font-size: 13px; padding: 8px; border: none; border-radius: 6px; cursor: pointer; width: 100%; margin-top: 12px;">
+            닫기
+        </button>
+    </div>
+</div>
+
 <script>
     let database;
     try {
@@ -209,6 +232,11 @@
     let localGameScores = {};     
     let localClassScores = {};    
     let lastGameTrigger = {};
+
+    // 🚨 전체화면 알림용 제어 변수들
+    let sessionStartTime = Date.now();
+    let lastAlertTimestamps = {};
+    let alertTargetGameUrl = "";
 
     window.onload = function() {
         if(localStorage.getItem('school_chat_grade')) document.getElementById('grade').value = localStorage.getItem('school_chat_grade');
@@ -235,6 +263,9 @@
 
             myInfo = { grade: grade, classNum: classNum, name: name, isTeacher: isTeacher };
             document.getElementById('login-screen').style.display = 'none';
+
+            // 로그인 순간의 시간을 기록하여 로그인 전 과거의 팝업 알림이 뜨는 현상 방지
+            sessionStartTime = Date.now();
 
             if (isTeacher) {
                 document.getElementById('teacher-screen').style.display = 'flex';
@@ -313,7 +344,6 @@
         return `[${rank}위] `;
     }
 
-    // 🔗 URL 주소를 감지하여 새 창 이동용 하이퍼링크로 변경하는 함수
     function linkify(text) {
         if (!text) return "";
         let escaped = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -323,7 +353,6 @@
         });
     }
 
-    // 🧹 특정 채팅방의 대화 내용만 초기화(교사 권한)
     function clearRoomMessages(roomId) {
         if (!confirm("🧹 이 방의 모든 대화 내용을 정말 초기화하시겠습니까?\n(방 목록과 게임 점수는 유지되고 대화 기록만 지워집니다.)")) return;
         database.ref('messages').once('value', function(snapshot) {
@@ -351,6 +380,45 @@
                 }
             }
         });
+
+        // 🚨 [새로 추가] 선생님 전체화면 강제 팝업 신호 감지 리스너
+        database.ref('gameAlerts').on('value', function(snapshot) {
+            if (!myInfo || myInfo.isTeacher) return; // 교사는 팝업 알림 무시
+            
+            snapshot.forEach(function(child) {
+                const roomId = child.key;
+                const alertData = child.val();
+                
+                // 학생이 속한 방에 알림이 왔고, 방금 발생한 신상 알림인 경우에만 오픈
+                if (localRooms[roomId] && localRooms[roomId].members && localRooms[roomId].members[myInfo.name]) {
+                    const thresholdTime = lastAlertTimestamps[roomId] || sessionStartTime;
+                    if (alertData.timestamp > thresholdTime) {
+                        lastAlertTimestamps[roomId] = alertData.timestamp;
+                        showFullscreenAlert(alertData.gameName, alertData.gameUrl);
+                    }
+                }
+            });
+        });
+    }
+
+    // 🚨 학생 화면에 전체화면 알림 띄우기
+    function showFullscreenAlert(gameName, gameUrl) {
+        alertTargetGameUrl = gameUrl;
+        document.getElementById('alert-game-name').innerText = `🎯 ${gameName}`;
+        document.getElementById('fullscreen-alert-modal').style.display = 'flex';
+    }
+
+    // 🚨 전체화면 알림에서 [게임 시작하기] 버튼 클릭 시
+    function openGameFromAlert() {
+        if (alertTargetGameUrl) {
+            window.open(alertTargetGameUrl, '_blank');
+        }
+        closeFullscreenAlert();
+    }
+
+    // 🚨 전체화면 알림 닫기
+    function closeFullscreenAlert() {
+        document.getElementById('fullscreen-alert-modal').style.display = 'none';
     }
 
     function updateViews() {
@@ -433,7 +501,7 @@
             currentTeacherTarget = "";
             document.getElementById('selected-room-title').innerText = "채팅창 하나를 클릭하세요!";
             document.getElementById('teacher-input-area').style.display = 'none';
-            document.getElementById('teacher-game-area').style.display = 'none'; // 선택 취소 시 숨김
+            document.getElementById('teacher-game-area').style.display = 'none';
         }
     }
 
@@ -529,7 +597,6 @@
                 card.style.border = currentTeacherTarget === room.roomId ? "3px solid #2196F3" : "1px solid #ccc";
                 card.style.cursor = "pointer";
                 
-                // 💡 클릭 시 드롭다운 게임 전송 영역도 함께 나타나도록 수정
                 card.onclick = function() {
                     currentTeacherTarget = room.roomId;
                     document.getElementById('selected-room-title').innerText = room.title;
@@ -823,7 +890,7 @@
         });
     }
 
-    // 🎯 선생님이 고른 드롭다운 게임 링크 전송 함수
+    // 🎯 선생님이 고른 드롭다운 게임 전체화면 전송 함수
     function sendSelectedGameLink() {
         if (!currentTeacherTarget) {
             alert("❌ 먼저 게임을 전송할 학생들 채팅방을 하나 클릭해서 선택해주세요!");
@@ -831,18 +898,17 @@
         }
         
         const selectEl = document.getElementById('hancom-game-select');
-        const selectedValue = selectEl.value; // 예: "주소|게임이름"
+        const selectedValue = selectEl.value; 
         const parts = selectedValue.split('|');
         const gameUrl = parts[0];
         const gameName = parts[1];
         
-        if (confirm(`📢 선택한 방에 [${gameName}] 시작 링크를 전송하시겠습니까?`)) {
+        if (confirm(`📢 선택한 방 학생들에게 [${gameName}] 강제 화면 알림을 전송하시겠습니까?`)) {
             const now = new Date();
             const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
             
-            // 학생들에게 보낼 메시지 (자동으로 파란색 링크로 변환됨)
-            const gameMsg = `🚨 [선생님 호출] 지금 바로 🎯${gameName}🎯 연습을 시작하세요!\n아래 주소를 눌러 바로 입장!\n👉 ${gameUrl}`;
-
+            // 1. 혹시 모를 기록용으로 채팅창에도 일반 백업 메시지 업로드
+            const gameMsg = `🚨 [선생님 전체화면 호출] 🎯${gameName}🎯 게임 시작 요청이 전송되었습니다.`;
             database.ref('messages').push({ 
                 roomId: currentTeacherTarget, 
                 sender: "👨‍🏫 선생님(시스템)", 
@@ -852,7 +918,14 @@
                 classNum: myInfo.classNum 
             });
             
-            alert(`✅ ${gameName} 안내 링크가 성공적으로 전송되었습니다!`);
+            // 2. 🚨 핵심: 실시간 팝업을 트리거하기 위한 고유 노드 데이터 갱신
+            database.ref(`gameAlerts/${currentTeacherTarget}`).set({
+                gameName: gameName,
+                gameUrl: gameUrl,
+                timestamp: Date.now()
+            });
+            
+            alert(`✅ ${gameName} 전체화면 강제 호출 신호가 전송되었습니다!`);
         }
     }
 
@@ -871,6 +944,10 @@
     window.linkify = linkify;
     window.clearRoomMessages = clearRoomMessages;
     window.sendSelectedGameLink = sendSelectedGameLink; 
+    
+    // 알림 전용 함수 추가 등록
+    window.openGameFromAlert = openGameFromAlert;
+    window.closeFullscreenAlert = closeFullscreenAlert;
 </script>
 </body>
 </html>
