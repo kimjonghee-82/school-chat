@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>스쿨 톡 (Premium Control Version)</title>
+    <title>스쿨 톡 (Strict Control Version)</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
@@ -38,7 +38,7 @@
         .user-list li { padding: 12px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 13px; border-radius: 4px; transition: 0.2s; }
         .user-list li:hover { background: #e2f0d9; color: #2e7d32; font-weight: bold; }
         
-        /* 학생 그리드 (Flex 분할) */
+        /* 학생 그리드 */
         #student-grid { display: flex; flex-wrap: wrap; gap: 10px; padding: 10px; flex: 1; background: #e9ecef; box-sizing: border-box; overflow-y: auto; }
         
         /* 개별 채팅창 카드 스타일 */
@@ -53,7 +53,6 @@
         .chat-card-header button { background: #fff; color: #333; font-size: 11px; padding: 3px 6px; border-radius: 4px; border: 1px solid #ccc; width: auto; font-weight: normal; cursor: pointer; }
         .chat-card-header button:hover { background: #eee; }
         
-        /* 폭파/나가기 특수 버튼 색상 */
         .chat-card-header button.btn-danger { background: #ff5252; color: white; border: none; font-weight: bold; }
         .chat-card-header button.btn-danger:hover { background: #e04444; }
         .chat-card-header button.btn-warning { background: #ff9800; color: white; border: none; font-weight: bold; }
@@ -236,7 +235,6 @@
                 if(u.grade === myInfo.grade && u.name !== myInfo.name) {
                     let li = document.createElement('li');
                     li.innerText = `👤 [${u.classNum}] ${u.name}`;
-                    // 👉 2. 학생 이름 선택 시 1:1 채팅방 개설 확인 알림창 띄우기 적용됨
                     li.onclick = () => confirmAndCreateRoom(u.name, u.classNum);
                     ul.appendChild(li);
                 }
@@ -290,22 +288,21 @@
         }
     }
 
+    // 2. 단체방 외 일반 채팅방 딱 1개만 소유/참가하도록 검사
     function confirmAndCreateRoom(targetName, targetClass) {
-        // 👉 1. 방 제한 4개 검사 로직
-        let myActiveCount = 0;
+        let generalRoomCount = 0;
         for(let id in localRooms) {
             let r = localRooms[id];
-            if(r.members && r.members[myInfo.name] === true) {
-                myActiveCount++;
+            if(!r.isDefault && r.members && r.members[myInfo.name] === true) {
+                generalRoomCount++;
             }
         }
 
-        if (myActiveCount >= 4) {
-            alert("❌ 채팅방은 최대 4개까지만 참여 및 개설할 수 있습니다! 불필요한 방을 나가거나 없애주세요.");
+        if (generalRoomCount >= 1) {
+            alert("❌ 단체방 외에 일반 대화방은 최대 1개까지만 가질 수 있습니다!\n새 방을 만들려면 기존 방을 나가거나 폭파해야 합니다.");
             return;
         }
 
-        // 👉 2. 알림창 띄우기
         const choice = confirm(`💬 ${targetName} 학생과 1:1 대화방을 개설하시겠습니까?`);
         if (!choice) return;
 
@@ -315,20 +312,25 @@
             title: `${myInfo.name}, ${targetName}의 대화방`,
             grade: myInfo.grade,
             classNum: myInfo.classNum,
-            creator: myInfo.name, // 👉 3. 방을 만든 사람(주인장) 표시용
+            creator: myInfo.name, 
             members: { [myInfo.name]: true, [targetName]: true }
         });
     }
 
+    // 1. 단체방 외 일반 채팅방은 5명까지만 제한
     function inviteFriend(roomId, currentMemberCount) {
-        if(currentMemberCount >= 50) {
-            alert("이 방은 정원이 꽉 찼습니다! (최대 50명 한정)");
+        const room = localRooms[roomId];
+        if(!room.isDefault && currentMemberCount >= 50) { // 정원 5명 제한
+            alert("❌ 이 방은 정원이 꽉 찼습니다! 일반 채팅방은 방장 포함 최대 5명까지만 모일 수 있습니다.");
+            return;
+        } else if(room.isDefault && currentMemberCount >= 50) { // 단체방 기본 한도
+            alert("단체방 인원이 꽉 찼습니다.");
             return;
         }
+
         const friendName = prompt("이 방에 추가할 학생의 이름을 정확하게 입력하세요:");
         if(!friendName) return;
 
-        const room = localRooms[roomId];
         if(room.members && room.members[friendName]) {
             alert("이미 이 방에 참여하고 있는 학생입니다.");
             return;
@@ -344,17 +346,17 @@
         alert(`${friendName} 학생에게 방 참여 요청 알림을 발송했습니다!`);
     }
 
+    // 초대를 받을 때도 참여 한도 검사
     function respondInvite(inviteKey, roomId, isAccept) {
         if(isAccept) {
-            // 초대 수락 시에도 4개 제한 확인
-            let myActiveCount = 0;
+            let generalRoomCount = 0;
             for(let id in localRooms) {
                 let r = localRooms[id];
-                if(r.members && r.members[myInfo.name] === true) myActiveCount++;
+                if(!r.isDefault && r.members && r.members[myInfo.name] === true) generalRoomCount++;
             }
 
-            if(myActiveCount >= 4) {
-                alert("❌ 이미 4개의 방에 참여하고 있어 초대를 수락할 수 없습니다!");
+            if(generalRoomCount >= 1) {
+                alert("❌ 이미 다른 일반 대화방에 참여 중이어서 초대를 수락할 수 없습니다!");
                 database.ref(`invitations/${inviteKey}`).remove();
                 return;
             }
@@ -367,8 +369,8 @@
             }
 
             const currentCount = room.members ? Object.keys(room.members).length : 0;
-            if(currentCount >= 50) {
-                alert("방의 정원(50명)이 초과되어 들어갈 수 없습니다!");
+            if(!room.isDefault && currentCount >= 5) {
+                alert("❌ 해당 대화방의 인원 제한(5명)이 가득 차 수락할 수 없습니다.");
                 database.ref(`invitations/${inviteKey}`).remove();
                 return;
             }
@@ -377,13 +379,11 @@
         database.ref(`invitations/${inviteKey}`).remove();
     }
 
-    // 👉 3. 주인장의 방 폭파 기능
     function destroyRoom(roomId) {
         const choice = confirm("⚠️ 정말로 이 방을 삭제하시겠습니까?\n방 안의 모든 대화 기록과 방 자체가 영구 삭제됩니다.");
         if (!choice) return;
 
         database.ref(`rooms/${roomId}`).remove();
-
         database.ref('messages').once('value', snapshot => {
             snapshot.forEach(child => {
                 if(child.val().roomId === roomId) {
@@ -391,10 +391,9 @@
                 }
             });
         });
-        alert("💥 방이 공중분해(삭제) 되었습니다.");
+        alert("💥 방이 삭제되었습니다.");
     }
 
-    // 👉 3. 초대받은 사람의 방 나가기 기능
     function leaveRoom(roomId) {
         const choice = confirm("🚪 이 채팅방에서 나가시겠습니까?");
         if (!choice) return;
@@ -415,12 +414,9 @@
             }
         }
 
-        // 👉 1. 학생 화면에 4개까지만 렌더링되도록 방어벽 설정
-        const visibleRooms = myActiveRooms.slice(0, 4);
-
-        visibleRooms.forEach(room => {
+        myActiveRooms.forEach(room => {
             const memberCount = Object.keys(room.members || {}).length;
-            const isCreator = room.creator === myInfo.name; 
+            const isCreator = room.creator === myInfo.name;
 
             const card = document.createElement('div');
             card.className = 'chat-card';
@@ -430,9 +426,8 @@
             if(room.isDefault) header.style.background = '#4CAF50';
             else header.style.background = '#673AB7';
 
-            // 👉 3. 방장(주인장)일 때와 손님일 때 버튼 다르게 렌더링
             let actionButtonHtml = "";
-            if (!room.isDefault) { 
+            if (!room.isDefault) {
                 if (isCreator) {
                     actionButtonHtml = `<button class="btn-danger" onclick="destroyRoom('${room.roomId}')">❌ 방 폭파</button>`;
                 } else {
@@ -440,8 +435,11 @@
                 }
             }
 
+            // 헤더 글씨에 정원 분모 유연하게 반영
+            const maxLimit = room.isDefault ? 50 : 5;
+
             header.innerHTML = `
-                <div>${room.title} (${memberCount}/50)</div>
+                <div>${room.title} (${memberCount}/${maxLimit}명)</div>
                 <div class="btn-group">
                     <button onclick="inviteFriend('${room.roomId}', ${memberCount})">➕ 초대</button>
                     ${actionButtonHtml}
@@ -455,116 +453,4 @@
             localMessages.forEach(m => {
                 if(m.roomId === room.roomId) {
                     const isMe = m.sender === myInfo.name;
-                    const msgLine = document.createElement('div');
-                    msgLine.className = `msg-line ${isMe ? 'me' : 'other'}`;
-                    msgLine.innerHTML = `
-                        <div class="msg-sender">${isMe ? '나' : m.sender}</div>
-                        <div class="msg-text">${m.text}</div>
-                        <div class="msg-time">${m.time}</div>
-                    `;
-                    msgArea.appendChild(msgLine);
-                }
-            });
-            card.appendChild(msgArea);
-
-            const inputArea = document.createElement('div');
-            inputArea.className = 'chat-card-input-area';
-            inputArea.innerHTML = `
-                <input type="text" id="input-${room.roomId}" placeholder="글을 바로 작성하세요..." onkeypress="if(event.keyCode==13) sendMultiMessage('${room.roomId}')">
-                <button onclick="sendMultiMessage('${room.roomId}')" style="border:none; color:white; cursor:pointer;">전송</button>
-            `;
-            card.appendChild(inputArea);
-
-            grid.appendChild(card);
-            msgArea.scrollTop = msgArea.scrollHeight;
-        });
-    }
-
-    function sendMultiMessage(roomId) {
-        const input = document.getElementById(`input-${roomId}`);
-        const text = input.value.trim();
-        if(text === "") return;
-
-        const now = new Date();
-        const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-
-        database.ref('messages').push({
-            roomId: roomId,
-            sender: myInfo.name,
-            text: text,
-            time: timeStr,
-            grade: myInfo.grade,
-            classNum: myInfo.classNum
-        });
-
-        input.value = "";
-        input.focus();
-    }
-
-    function renderTeacherDashboard() {
-        const grid = document.getElementById('teacher-grid');
-        grid.innerHTML = "";
-
-        for (let id in localRooms) {
-            const room = localRooms[id];
-            if (room.grade === myInfo.grade && room.classNum === myInfo.classNum) {
-                
-                const card = document.createElement('div');
-                card.className = 'chat-card';
-                card.style.border = currentTeacherTarget === room.roomId ? "3px solid #2196F3" : "1px solid #ccc";
-                card.style.cursor = "pointer";
-                card.onclick = () => {
-                    currentTeacherTarget = room.roomId;
-                    document.getElementById('selected-room-title').innerText = room.title;
-                    document.getElementById('teacher-input-area').style.display = 'flex';
-                    updateViews();
-                };
-
-                const header = document.createElement('div');
-                header.className = 'chat-card-header';
-                header.style.background = room.isDefault ? '#4CAF50' : '#2196F3';
-                header.innerText = `🔍 [관찰중] ${room.title} (개설자: ${room.creator || '알수없음'})`;
-                card.appendChild(header);
-
-                const msgArea = document.createElement('div');
-                msgArea.className = 'chat-card-messages';
-
-                localMessages.forEach(m => {
-                    if(m.roomId === room.roomId) {
-                        const div = document.createElement('div');
-                        div.style.marginBottom = "5px";
-                        div.innerHTML = `<strong>${m.sender}:</strong> ${m.text} <span style="font-size:9px; color:#888;">(${m.time})</span>`;
-                        msgArea.appendChild(div);
-                    }
-                });
-
-                card.appendChild(msgArea);
-                grid.appendChild(card);
-                msgArea.scrollTop = msgArea.scrollHeight;
-            }
-        }
-    }
-
-    function sendTeacherMessage() {
-        const input = document.getElementById('teacher-msg-input');
-        const text = input.value.trim();
-        if (text === "" || !currentTeacherTarget) return;
-
-        const now = new Date();
-        const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-
-        database.ref('messages').push({
-            roomId: currentTeacherTarget,
-            sender: `${myInfo.name}(선생님)`,
-            text: text,
-            time: timeStr,
-            grade: myInfo.grade,
-            classNum: myInfo.classNum
-        });
-
-        input.value = "";
-    }
-</script>
-
-</body>
-</html>
+                    const msgLine = document.
