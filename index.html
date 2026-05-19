@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>스쿨 톡 (Web Version)</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <style>
+        body { font-family: 'Malgun Gothic', sans-serif; background-color: #f0f2f5; margin: 0; padding: 0; }
+        .container { max-width: 900px; margin: 20px auto; background: white; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); overflow: hidden; }
+        
+        /* 로그인 화면 스타일 */
+        #login-screen { text-align: center; padding: 50px; }
+        .login-box { display: inline-block; text-align: left; background: #f9f9f9; padding: 30px; border-radius: 10px; }
+        select, input { padding: 10px; margin: 5px 0 15px 0; width: 100%; box-sizing: border-box; border: 1px solid #ccc; border-radius: 5px; }
+        button { background-color: #4CAF50; color: white; border: none; padding: 10px 20px; font-size: 16px; border-radius: 5px; cursor: pointer; width: 100%; }
+        button:hover { background-color: #45a049; }
+
+        /* 채팅 화면 스타일 */
+        #chat-screen { display: none; height: 80vh; display: flex; flex-direction: column; }
+        .header { background: #4CAF50; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .header button { background: #ff5252; width: auto; padding: 5px 15px; }
+        
+        .main-area { display: flex; flex: 1; overflow: hidden; }
+        
+        /* 사이드바 */
+        .sidebar { width: 250px; background: #f9f9f9; border-right: 1px solid #ddd; padding: 15px; overflow-y: auto; }
+        .sidebar h3 { margin-top: 0; font-size: 16px; border-bottom: 2px solid #ddd; padding-bottom: 10px; }
+        .user-list { list-style: none; padding: 0; }
+        .user-list li { padding: 8px; border-bottom: 1px solid #eee; cursor: pointer; }
+        .user-list li:hover { background-color: #eee; }
+        
+        /* 채팅창 */
+        .chat-area { flex: 1; display: flex; flex-direction: column; }
+        .chat-target-header { padding: 10px; background: #e9ecef; border-bottom: 1px solid #ddd; font-weight: bold; }
+        .chat-target-select { width: auto; display: inline-block; margin: 0 0 0 10px; padding: 5px; }
+        
+        .messages { flex: 1; padding: 20px; overflow-y: auto; background: #e5ddd5; }
+        .message-box { margin-bottom: 15px; display: flex; flex-direction: column; }
+        .message-box.me { align-items: flex-end; }
+        .message-box.other { align-items: flex-start; }
+        .name { font-size: 12px; margin-bottom: 3px; color: #555; }
+        .text { background: white; padding: 10px 15px; border-radius: 15px; max-width: 70%; display: inline-block; word-wrap: break-word; }
+        .message-box.me .text { background: #dcf8c6; }
+        .time { font-size: 10px; color: #999; margin-top: 3px; }
+
+        .input-area { padding: 15px; background: #f0f0f0; display: flex; }
+        .input-area input { margin: 0; border-radius: 20px; padding: 10px 20px; flex: 1; border: 1px solid #ccc; }
+        .input-area button { width: 80px; margin-left: 10px; border-radius: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="login-screen">
+        <h2>💬 스쿨 톡 에 오신 것을 환영합니다!</h2>
+        <div class="login-box">
+            <label>학년</label>
+            <select id="grade">
+                <option value="1학년">1학년</option>
+                <option value="2학년">2학년</option>
+                <option value="3학년">3학년</option>
+            </select>
+            
+            <label>반</label>
+            <select id="classNum">
+                <script>
+                    for(let i=1; i<=10; i++) document.write(`<option value="${i}반">${i}반</option>`);
+                </script>
+            </select>
+            
+            <label>본인 이름 (실명)</label>
+            <input type="text" id="username" placeholder="이름을 입력하세요">
+            
+            <button onclick="login()">입장하기</button>
+        </div>
+    </div>
+
+    <div id="chat-screen" style="display: none;">
+        <div class="header">
+            <span id="welcome-msg">환영합니다!</span>
+            <button onclick="location.reload()">로그아웃</button>
+        </div>
+        
+        <div class="main-area">
+            <div class="sidebar">
+                <h3>👥 우리 학년 접속자</h3>
+                <ul class="user-list" id="user-list-ul">
+                    </ul>
+            </div>
+            
+            <div class="chat-area">
+                <div class="chat-target-header">
+                    대화 상대: 
+                    <select id="target-select" class="chat-target-select" onchange="changeTarget()">
+                        </select>
+                </div>
+                
+                <div class="messages" id="messages-container">
+                    </div>
+                
+                <div class="input-area">
+                    <input type="text" id="msg-input" placeholder="메시지를 입력하세요..." onkeypress="if(event.keyCode==13) sendMessage()">
+                    <button onclick="sendMessage()">전송</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- 파이어베이스 설정 ---
+    const firebaseConfig = {
+        databaseURL: "https://school-chat-7051e-default-rtdb.firebaseio.com/"
+    };
+    // 파이어베이스 초기화
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    // 전역 변수
+    let myInfo = {};
+    let currentTarget = "";
+    let allMessages = [];
+
+    // 1. 로그인 기능
+    function login() {
+        const grade = document.getElementById('grade').value;
+        const classNum = document.getElementById('classNum').value;
+        const name = document.getElementById('username').value.trim();
+
+        if (name === "") {
+            alert("이름을 입력해주세요!");
+            return;
+        }
+
+        myInfo = { grade, classNum, name };
+        currentTarget = `${grade} ${classNum} 단체방`;
+
+        // DB에 유저 정보 저장 (이미 있는지 확인)
+        const usersRef = database.ref('users');
+        usersRef.orderByChild('name').equalTo(name).once('value', snapshot => {
+            let isExist = false;
+            snapshot.forEach(child => {
+                let val = child.val();
+                if(val.grade === grade && val.classNum === classNum) isExist = true;
+            });
+            if(!isExist) usersRef.push(myInfo);
+        });
+
+        // 화면 전환
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('chat-screen').style.display = 'flex';
+        document.getElementById('welcome-msg').innerText = `🏫 ${grade} ${classNum} ${name}님`;
+
+        startRealtimeUpdates();
+    }
+
+    // 2. 실시간 데이터 업데이트 (유저 목록 & 메시지)
+    function startRealtimeUpdates() {
+        // --- 접속자 목록 업데이트 ---
+        database.ref('users').on('value', snapshot => {
+            const userListUl = document.getElementById('user-list-ul');
+            const targetSelect = document.getElementById('target-select');
+            
+            userListUl.innerHTML = "";
+            targetSelect.innerHTML = `<option value="${myInfo.grade} ${myInfo.classNum} 단체방">${myInfo.grade} ${myInfo.classNum} 단체방</option>`;
+
+            let users = [];
+            snapshot.forEach(child => users.push(child.val()));
+
+            // 같은 학년 유저들만 필터링 후 반별로 정렬
+            users.filter(u => u.grade === myInfo.grade)
+                 .sort((a, b) => a.classNum.localeCompare(b.classNum))
+                 .forEach(u => {
+                     // 사이드바 추가
+                     let li = document.createElement('li');
+                     li.innerText = `${u.classNum} - ${u.name}` + (u.name === myInfo.name ? " (나)" : "");
+                     userListUl.appendChild(li);
+
+                     // 대화 상대 선택창에 추가 (나 자신 제외)
+                     if(u.name !== myInfo.name) {
+                         let option = document.createElement('option');
+                         option.value = u.name;
+                         option.innerText = `👤 ${u.classNum} ${u.name} (1:1)`;
+                         targetSelect.appendChild(option);
+                     }
