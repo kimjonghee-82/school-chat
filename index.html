@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>스쿨 톡 (Real-time Ranking Version)</title>
+    <title>스쿨 톡 (Lag-Free Ranking Version)</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
@@ -180,8 +180,8 @@
     let localUsers = {};
     let localRooms = {};
     let localMessages = [];
-    let localGameScores = {};     // 방별 게임 점수
-    let localClassScores = {};    // 학급 전체 게임 최고 점수 (실시간 랭킹 산정용)
+    let localGameScores = {};     
+    let localClassScores = {};    
     let lastGameTrigger = {};
 
     window.onload = function() {
@@ -262,26 +262,19 @@
         }
     }
 
-    // 🏆 학급 전체 점수 기반 랭킹 계산 함수
     function getRankString(userName) {
         if (!localClassScores || Object.keys(localClassScores).length === 0) return "";
-        
         const scoreArray = [];
         for (let name in localClassScores) {
             scoreArray.push({ name: name, score: localClassScores[name].score });
         }
-        
-        // 점수 내림차순 정렬
         scoreArray.sort((a, b) => b.score - a.score);
-        
         let rank = -1;
         for (let i = 0; i < scoreArray.length; i++) {
             if (scoreArray[i].name === userName) {
-                rank = i + 1;
-                break;
+                rank = i + 1; break;
             }
         }
-        
         if (rank === -1) return "";
         if (rank === 1) return `[🏆1위] `;
         if (rank === 2) return `[🥈2위] `;
@@ -290,42 +283,11 @@
     }
 
     function startRealtimeListening() {
-        // 1. 유저 목록
-        database.ref('users').on('value', snapshot => {
-            localUsers = snapshot.val() || {};
-            updateViews();
-        });
-
-        // 2. 채팅방 목록
-        database.ref('rooms').on('value', snapshot => {
-            localRooms = {};
-            snapshot.forEach(child => { localRooms[child.key] = child.val(); });
-            updateViews();
-        });
-
-        // 3. 채팅 메시지
-        database.ref('messages').on('value', snapshot => {
-            localMessages = [];
-            snapshot.forEach(child => { localMessages.push(child.val()); });
-            updateViews();
-        });
-
-        // 4. 방별 게임 점수 (인게임 리더보드용)
-        database.ref('gameScores').on('value', snapshot => {
-            localGameScores = {};
-            snapshot.forEach(roomSnap => {
-                localGameScores[roomSnap.key] = roomSnap.val();
-            });
-            updateLeaderboard(); 
-        });
-
-        // ★ 5. 학급 전체 게임 점수 (실시간 프로필 뱃지용) ★
-        database.ref(`classScores/${myInfo.grade}_${myInfo.classNum}`).on('value', snapshot => {
-            localClassScores = snapshot.val() || {};
-            updateViews(); // 랭킹이 바뀔 때마다 채팅방/유저목록 즉시 다시 그리기
-        });
-
-        // 6. 게임 시작 신호
+        database.ref('users').on('value', snapshot => { localUsers = snapshot.val() || {}; updateViews(); });
+        database.ref('rooms').on('value', snapshot => { localRooms = {}; snapshot.forEach(child => { localRooms[child.key] = child.val(); }); updateViews(); });
+        database.ref('messages').on('value', snapshot => { localMessages = []; snapshot.forEach(child => { localMessages.push(child.val()); }); updateViews(); });
+        database.ref('gameScores').on('value', snapshot => { localGameScores = {}; snapshot.forEach(roomSnap => { localGameScores[roomSnap.key] = roomSnap.val(); }); updateLeaderboard(); });
+        database.ref(`classScores/${myInfo.grade}_${myInfo.classNum}`).on('value', snapshot => { localClassScores = snapshot.val() || {}; updateViews(); });
         database.ref('gameState').on('value', snapshot => {
             const states = snapshot.val() || {};
             for (let rid in states) {
@@ -338,12 +300,8 @@
     }
 
     function updateViews() {
-        if(myInfo.isTeacher) {
-            renderTeacherDashboard();
-        } else {
-            renderUserList();
-            renderStudentMultiScreen();
-        }
+        if(myInfo.isTeacher) renderTeacherDashboard();
+        else { renderUserList(); renderStudentMultiScreen(); }
     }
 
     function renderUserList() {
@@ -353,7 +311,6 @@
             let u = localUsers[key];
             if(u.grade === myInfo.grade && u.name !== myInfo.name) {
                 let li = document.createElement('li');
-                // 유저 이름 앞에 실시간 랭킹 뱃지 추가!
                 let rankStr = getRankString(u.name); 
                 li.innerText = `${rankStr} 👤 [${u.classNum}] ${u.name}`;
                 li.onclick = () => confirmAndCreateRoom(u.name);
@@ -441,7 +398,6 @@
             localMessages.forEach(m => {
                 if(m.roomId === room.roomId) {
                     const isMe = m.sender === myInfo.name;
-                    // 채팅을 보낸 사람의 이름 앞에도 실시간 랭킹 추가!
                     const displaySender = isMe ? '나' : getRankString(m.sender) + m.sender;
                     
                     msgArea.innerHTML += `
@@ -505,7 +461,6 @@
                 msgArea.className = 'chat-card-messages';
                 localMessages.forEach(m => {
                     if(m.roomId === room.roomId) {
-                        // 선생님 화면에서도 학생의 랭킹을 실시간으로 확인 가능
                         msgArea.innerHTML += `<div style="margin-bottom:5px;"><strong>${getRankString(m.sender)}${m.sender}:</strong> ${m.text} <span style="font-size:9px; color:#888;">(${m.time})</span></div>`;
                     }
                 });
@@ -522,253 +477,4 @@
         if(text === "") return;
         const now = new Date();
         const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-        database.ref('messages').push({ roomId: roomId, sender: myInfo.name, text: text, time: timeStr, grade: myInfo.grade, classNum: myInfo.classNum });
-        input.value = "";
-    }
-    
-    function sendTeacherMessage() {
-        const input = document.getElementById('teacher-msg-input');
-        const text = input.value.trim();
-        if (text === "" || !currentTeacherTarget) return;
-        const now = new Date();
-        const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-        database.ref('messages').push({ roomId: currentTeacherTarget, sender: `${myInfo.name}(선생님)`, text: text, time: timeStr, grade: myInfo.grade, classNum: myInfo.classNum });
-        input.value = "";
-    }
-
-    // ==============================================================================
-    // 🎮 산성비 게임 핵심 로직 (실시간 동기화 버전)
-    // ==============================================================================
-    
-    let currentGameRoomId = "";
-    let isCurrentRoomHost = false; 
-    let gameLoop;
-    let wordSpawnTimer;
-    let gameWords = []; 
-    let gameScore = 0;
-    let gameLives = 5;
-    let isGameRunning = false;
-    
-    const DICTIONARY = ["초등학교", "선생님", "쉬는시간", "점심시간", "국어", "수학", "사회", "과학", "영어", "체육", "미술", "음악", "실과", "도덕", "숙제", "시험", "여름방학", "겨울방학", "파이어베이스", "자바스크립트", "코딩", "스마트폰", "컴퓨터", "키보드", "우정", "친구", "행복", "사랑", "열정", "노력"];
-
-    function openGame(roomId, roomTitle, isHost) {
-        currentGameRoomId = roomId;
-        isCurrentRoomHost = isHost;
-        document.getElementById('game-room-name').innerText = `🎮 ${roomTitle} 게임장`;
-        document.getElementById('game-modal').style.display = 'flex';
-        
-        showGameOverlay(); 
-        gameScore = 0;
-        gameLives = 5;
-        updateGameUI();
-        clearSky();
-        updateLeaderboard();
-    }
-
-    function closeGame() {
-        stopGame();
-        document.getElementById('game-modal').style.display = 'none';
-        currentGameRoomId = "";
-    }
-
-    function emitStartGameSignal() {
-        if (!isCurrentRoomHost) return;
-        database.ref(`gameState/${currentGameRoomId}`).set({ trigger: Date.now() });
-    }
-
-    function showGameOverlay(isGameOver = false) {
-        const overlay = document.getElementById('game-start-overlay');
-        overlay.style.display = 'flex';
-
-        if (isCurrentRoomHost) {
-            const btnText = isGameOver ? `🔄 다 같이 다시 하기 (내 점수: ${gameScore})` : `▶ 방장 권한으로 다 함께 시작!`;
-            overlay.innerHTML = `<button onclick="emitStartGameSignal()">${btnText}</button>`;
-        } else {
-            const statusText = isGameOver ? "게임이 종료되었습니다.<br>방장의 다음 게임 시작을 기다리는 중입니다..." : "방장(또는 선생님)이 게임을 시작할 때까지 기다려주세요!";
-            overlay.innerHTML = `
-                <div class="waiting-text">
-                    ⏳ 대기 중...<br>
-                    <span style="font-size:16px; font-weight:normal;">${statusText}</span>
-                </div>
-            `;
-        }
-    }
-
-    function startGameLocally() {
-        if(isGameRunning) return;
-        document.getElementById('game-start-overlay').style.display = 'none';
-        document.getElementById('game-input').disabled = false;
-        document.getElementById('game-input').focus();
-        
-        gameScore = 0;
-        gameLives = 5;
-        gameWords = [];
-        clearSky();
-        updateGameUI();
-        isGameRunning = true;
-
-        // 게임 시작 시 0점으로 랭킹 초기 등록
-        updateRealTimeScore(gameScore);
-
-        gameLoop = setInterval(moveWords, 33);
-        wordSpawnTimer = setInterval(spawnWord, 1500);
-    }
-
-    function stopGame() {
-        isGameRunning = false;
-        clearInterval(gameLoop);
-        clearInterval(wordSpawnTimer);
-        document.getElementById('game-input').disabled = true;
-        document.getElementById('game-input').value = "";
-    }
-
-    function gameOver() {
-        stopGame();
-        alert(`😭 게임 오버!\n최종 점수: ${gameScore}점`);
-        
-        // 최종 점수 한번 더 전송 보장
-        updateRealTimeScore(gameScore);
-        showGameOverlay(true); 
-    }
-
-    function spawnWord() {
-        const sky = document.getElementById('game-sky');
-        const wordText = DICTIONARY[Math.floor(Math.random() * DICTIONARY.length)];
-        const span = document.createElement('span');
-        span.className = 'falling-word';
-        span.innerText = wordText;
-        
-        span.style.left = `${Math.floor(Math.random() * 75) + 5}%`;
-        span.style.top = '0px';
-        
-        sky.appendChild(span);
-        gameWords.push({ element: span, text: wordText, top: 0 });
-    }
-
-    function moveWords() {
-        const skyHeight = document.getElementById('game-sky').clientHeight;
-        for (let i = gameWords.length - 1; i >= 0; i--) {
-            let w = gameWords[i];
-            w.top += 2; 
-            w.element.style.top = w.top + 'px';
-
-            if (w.top > skyHeight - 30) {
-                w.element.remove();
-                gameWords.splice(i, 1);
-                
-                gameLives--;
-                updateGameUI();
-                
-                const sky = document.getElementById('game-sky');
-                sky.style.background = "#ff5252";
-                setTimeout(() => { if(isGameRunning) sky.style.background = "linear-gradient(to bottom, #0f2027, #203a43, #2c5364)"; }, 100);
-
-                if (gameLives <= 0) {
-                    gameOver();
-                    break;
-                }
-            }
-        }
-    }
-
-    function checkGameWord() {
-        const inputEl = document.getElementById('game-input');
-        const typedWord = inputEl.value.trim();
-        if (typedWord === "") return;
-
-        let matched = false;
-        for (let i = 0; i < gameWords.length; i++) {
-            if (gameWords[i].text === typedWord) {
-                gameWords[i].element.remove();
-                gameWords.splice(i, 1);
-                matched = true;
-                break;
-            }
-        }
-
-        if (matched) {
-            gameScore += 10;
-            updateGameUI();
-            
-            // ★ 핵심: 단어를 맞출 때마다 실시간으로 점수를 서버에 쏘아 랭킹을 즉각 업데이트합니다!
-            updateRealTimeScore(gameScore);
-        }
-        inputEl.value = ""; 
-    }
-
-    function updateGameUI() {
-        document.getElementById('game-score').innerText = gameScore;
-        let hearts = "";
-        for(let i=0; i<gameLives; i++) hearts += "❤️";
-        document.getElementById('game-lives').innerText = hearts || "💀";
-    }
-
-    function clearSky() {
-        document.getElementById('game-sky').querySelectorAll('.falling-word').forEach(el => el.remove());
-        gameWords = [];
-        document.getElementById('game-sky').style.background = "linear-gradient(to bottom, #0f2027, #203a43, #2c5364)";
-    }
-
-    // --- 실시간 랭킹 데이터베이스 연동 함수 ---
-    function updateRealTimeScore(score) {
-        if (!currentGameRoomId) return;
-        const myNameTag = myInfo.isTeacher ? `${myInfo.name}(선생님)` : myInfo.name;
-        
-        // 1. 현재 방의 게임 리더보드 점수 즉시 갱신
-        database.ref(`gameScores/${currentGameRoomId}/${myNameTag}`).set({
-            score: score,
-            timestamp: Date.now()
-        });
-
-        // 2. 학급 전체 글로벌 랭킹 점수 갱신 (내 기존 최고 기록을 넘었을 때만)
-        const currentGlobalBest = (localClassScores[myNameTag] && localClassScores[myNameTag].score) || 0;
-        if (score > currentGlobalBest) {
-            database.ref(`classScores/${myInfo.grade}_${myInfo.classNum}/${myNameTag}`).set({
-                score: score,
-                timestamp: Date.now()
-            });
-        }
-    }
-
-    function updateLeaderboard() {
-        if (!currentGameRoomId) return;
-        
-        const listEl = document.getElementById('leaderboard-list');
-        listEl.innerHTML = "";
-        
-        const roomScores = localGameScores[currentGameRoomId] || {};
-        const scoreArray = [];
-        
-        for (let userName in roomScores) {
-            scoreArray.push({ name: userName, score: roomScores[userName].score });
-        }
-        scoreArray.sort((a, b) => b.score - a.score);
-
-        if (scoreArray.length === 0) {
-            listEl.innerHTML = `<li style="text-align:center; color:#888;">아직 점수가 없습니다.<br>게임을 시작해보세요!</li>`;
-            return;
-        }
-
-        const myNameTag = myInfo.isTeacher ? `${myInfo.name}(선생님)` : myInfo.name;
-
-        scoreArray.forEach((data, index) => {
-            let medal = "";
-            if (index === 0) medal = "🥇 1위";
-            else if (index === 1) medal = "🥈 2위";
-            else if (index === 2) medal = "🥉 3위";
-            else medal = `${index + 1}위`;
-
-            const isMe = data.name === myNameTag;
-            
-            listEl.innerHTML += `
-                <li class="${isMe ? 'me' : ''}">
-                    <span class="rank-badge">${medal}</span>
-                    <span style="flex:1; margin-left:10px;">${data.name}</span>
-                    <span style="font-weight:bold; color:#d32f2f;">${data.score}점</span>
-                </li>
-            `;
-        });
-    }
-</script>
-</body>
-</html>
+        database.ref('messages').push({ roomId: roomId, sender: myInfo.name, text: text, time: timeStr, grade: myInfo.grade, class
