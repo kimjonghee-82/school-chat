@@ -58,7 +58,7 @@
         #teacher-grid { display: flex; flex-wrap: wrap; gap: 12px; padding: 12px; flex: 1; overflow-y: auto; background: #f5f5f5; box-sizing: border-box; }
         #teacher-grid .chat-card { flex: 1 1 calc(33.33% - 12px); min-width: 340px; height: calc(50% - 6px); }
 
-        /* 🎮 산성비 게임 전용 스타일 */
+        /* 🎮 산성비 게임 전용 스타일 (내부) */
         #game-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; justify-content: center; align-items: center; }
         .game-wrapper { display: flex; width: 850px; height: 550px; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         .game-play-area { flex: 1; display: flex; flex-direction: column; background: #1e1e1e; position: relative; }
@@ -142,20 +142,33 @@
             <div style="display: flex; flex-direction: column; flex: 1; overflow: hidden; background: #f5f5f5;">
                 
                 <div style="padding: 12px 20px; background: #e3f2fd; font-weight: bold; border-bottom: 1px solid #bbdefb; color: #1565c0; flex-shrink: 0; display: flex; justify-content: space-between; align-items: center;">
-                    <div>📢 참여할 대화방 선택: <span id="selected-room-title" style="color: #d32f2f; background: white; padding: 2px 8px; border-radius: 4px; border: 1px solid #ccc;">채팅창 하나를 클릭하세요!</span></div>
+                    <div>📢 참여 방: <span id="selected-room-title" style="color: #d32f2f; background: white; padding: 2px 8px; border-radius: 4px; border: 1px solid #ccc;">채팅창 하나를 클릭하세요!</span></div>
                     
-                    <div id="teacher-game-area" style="display: none; align-items: center; gap: 8px;">
-                        <select id="hancom-game-select" style="margin: 0; padding: 6px; width: 140px; border-radius: 4px; border: 1px solid #1565c0; font-size: 13px;">
-                            <option value="https://www.hancomtaja.com/ko/typing|낱말연습">📖 낱말연습</option>
-                            <option value="https://www.hancomtaja.com/ko/typing|단문연습">📝 단문연습</option>
-                            <option value="https://www.hancomtaja.com/ko/game|판뒤집기">🔄 판뒤집기</option>
-                            <option value="https://www.hancomtaja.com/ko/game|산성비">☔ 산성비</option>
-                            <option value="https://www.hancomtaja.com/ko/game|워드크러시">💥 워드크러시</option>
-                            <option value="https://www.hancomtaja.com/ko/game|타자실험실">🧪 타자실험실</option>
-                            <option value="https://www.hancomtaja.com/ko/topik|맞춤법 퀴즈">✅ 맞춤법 퀴즈</option>
-                            <option value="https://www.hancomtaja.com/ko/topik|초성 퀴즈">💡 초성 퀴즈</option>
-                        </select>
-                        <button onclick="window.sendSelectedGameLink()" style="background-color: #8e44ad; border:none; padding:7px 12px; color:white; border-radius:4px; font-weight: bold; cursor: pointer; font-size: 12px;">게임 전송 🚀</button>
+                    <div id="teacher-game-area" style="display: none; align-items: center; gap: 15px;">
+                        
+                        <div style="display: flex; align-items: center; gap: 5px;">
+                            <select id="hancom-game-select" style="margin: 0; padding: 6px; width: 130px; border-radius: 4px; border: 1px solid #1565c0; font-size: 13px;">
+                                <option value="https://tt.hancomtaja.com/ko?pr=W|낱말연습">📖 낱말연습</option>
+                                <option value="https://tt.hancomtaja.com/ko?pr=SW|단문연습">📝 단문연습</option>
+                                <option value="https://acidrain.hancomtaja.com/?gamekey=acidrain|산성비">☔ 산성비</option>
+                                <option value="https://wcs.hancomtaja.com/ko?mode=WCS|워드크러시">💥 워드크러시</option>
+                                <option value="https://lab.hancomtaja.com/|타자실험실">🧪 타자실험실</option>
+                                <option value="https://checkspelling.hancomtaja.com/|맞춤법 퀴즈">✅ 맞춤법 퀴즈</option>
+                                <option value="https://checkspelling.hancomtaja.com/?mode=chosung|초성 퀴즈">💡 초성 퀴즈</option>
+                            </select>
+                            <button onclick="window.sendSelectedGameLink()" style="background-color: #8e44ad; border:none; padding:7px 12px; color:white; border-radius:4px; font-weight: bold; cursor: pointer; font-size: 12px;">게임 전송 🚀</button>
+                        </div>
+
+                        <span style="color:#bbdefb;">|</span>
+
+                        <div style="display: flex; align-items: center; gap: 5px;">
+                            <button onclick="window.toggleMissionInput()" style="background-color: #ff5722; border:none; padding:7px 12px; color:white; border-radius:4px; font-weight: bold; cursor: pointer; font-size: 12px;">미션 전달 🔗</button>
+                            <div id="custom-mission-area" style="display: none; align-items: center; gap: 5px;">
+                                <input type="text" id="custom-mission-url" placeholder="URL 입력 (http://...)" style="margin: 0; padding: 6px; width: 160px; border-radius: 4px; border: 1px solid #ff5722; font-size: 13px; font-weight: normal;">
+                                <button onclick="window.sendCustomMission()" style="background-color: #d84315; border:none; padding:7px 12px; color:white; border-radius:4px; font-weight: bold; cursor: pointer; font-size: 12px;">전송</button>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
 
@@ -197,11 +210,9 @@
     <div style="background: white; color: #333; padding: 40px; border-radius: 16px; width: 85%; max-width: 480px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); animation: alert-bounce 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
         <h1 style="margin: 0 0 10px 0; color: #8e44ad; font-size: 30px;">👨‍🏫 선생님의 특급 호출!</h1>
         <div style="font-size: 45px; margin: 15px 0;">🔔🔊🏃‍♂️</div>
-        <p style="font-size: 18px; margin: 15px 0; line-height: 1.6; font-weight: bold; color: #444;">
-            선생님이 타자 연습 미션을 내렸습니다!<br>
-            지금 즉시 <span id="alert-game-name" style="color: #d32f2f; background: #ffebee; padding: 2px 8px; border-radius: 4px;">[게임이름]</span> 에 입장하세요!
-        </p>
-        <button onclick="window.openGameFromAlert()" style="background: #8e44ad; color: white; font-size: 20px; padding: 16px 20px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 15px; box-shadow: 0 4px 10px rgba(142,68,173,0.4);">
+        <p id="alert-desc-text" style="font-size: 18px; margin: 15px 0; line-height: 1.6; color: #444;">
+            </p>
+        <button id="alert-action-btn" onclick="window.openGameFromAlert()" style="background: #8e44ad; color: white; font-size: 20px; padding: 16px 20px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 15px; box-shadow: 0 4px 10px rgba(142,68,173,0.4);">
             🎯 지금 즉시 게임 시작하기
         </button>
         <button onclick="window.closeFullscreenAlert()" style="background: #eee; color: #666; font-size: 13px; padding: 8px; border: none; border-radius: 6px; cursor: pointer; width: 100%; margin-top: 12px;">
@@ -394,21 +405,36 @@
                     const thresholdTime = lastAlertTimestamps[roomId] || sessionStartTime;
                     if (alertData.timestamp > thresholdTime) {
                         lastAlertTimestamps[roomId] = alertData.timestamp;
-                        showFullscreenAlert(alertData.gameName, alertData.gameUrl);
+                        showFullscreenAlert(alertData.gameName, alertData.gameUrl, alertData.type);
                     }
                 }
             });
         });
     }
 
-    // 🚨 학생 화면에 전체화면 알림 띄우기
-    function showFullscreenAlert(gameName, gameUrl) {
+    // 🚨 학생 화면에 전체화면 알림 띄우기 (타입에 따라 문구 변경)
+    function showFullscreenAlert(gameName, gameUrl, type) {
         alertTargetGameUrl = gameUrl;
-        document.getElementById('alert-game-name').innerText = `🎯 ${gameName}`;
+        
+        const descText = document.getElementById('alert-desc-text');
+        const actionBtn = document.getElementById('alert-action-btn');
+
+        if (type === 'custom') {
+            descText.innerHTML = `선생님이 <strong>새로운 웹사이트 미션</strong>을 전달하셨습니다!<br>지금 즉시 <span style="color: #d32f2f; background: #ffebee; padding: 2px 8px; border-radius: 4px; font-weight:bold;">${gameName}</span> 으로 이동하세요!`;
+            actionBtn.innerHTML = `🔗 미션 링크로 이동하기`;
+            actionBtn.style.background = "#ff5722"; 
+            actionBtn.style.boxShadow = "0 4px 10px rgba(255,87,34,0.4)";
+        } else {
+            descText.innerHTML = `선생님이 <strong>타자 연습 미션</strong>을 내렸습니다!<br>지금 즉시 <span style="color: #d32f2f; background: #ffebee; padding: 2px 8px; border-radius: 4px; font-weight:bold;">🎯 ${gameName}</span> 에 입장하세요!`;
+            actionBtn.innerHTML = `🎯 지금 즉시 게임 시작하기`;
+            actionBtn.style.background = "#8e44ad"; 
+            actionBtn.style.boxShadow = "0 4px 10px rgba(142,68,173,0.4)";
+        }
+        
         document.getElementById('fullscreen-alert-modal').style.display = 'flex';
     }
 
-    // 🚨 전체화면 알림에서 [게임 시작하기] 버튼 클릭 시
+    // 🚨 전체화면 알림에서 버튼 클릭 시 이동
     function openGameFromAlert() {
         if (alertTargetGameUrl) {
             window.open(alertTargetGameUrl, '_blank');
@@ -416,7 +442,6 @@
         closeFullscreenAlert();
     }
 
-    // 🚨 전체화면 알림 닫기
     function closeFullscreenAlert() {
         document.getElementById('fullscreen-alert-modal').style.display = 'none';
     }
@@ -890,7 +915,7 @@
         });
     }
 
-    // 🎯 선생님이 고른 드롭다운 게임 전체화면 전송 함수
+    // 🎯 한컴 타자 게임 전송
     function sendSelectedGameLink() {
         if (!currentTeacherTarget) {
             alert("❌ 먼저 게임을 전송할 학생들 채팅방을 하나 클릭해서 선택해주세요!");
@@ -907,7 +932,6 @@
             const now = new Date();
             const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
             
-            // 1. 혹시 모를 기록용으로 채팅창에도 일반 백업 메시지 업로드
             const gameMsg = `🚨 [선생님 전체화면 호출] 🎯${gameName}🎯 게임 시작 요청이 전송되었습니다.`;
             database.ref('messages').push({ 
                 roomId: currentTeacherTarget, 
@@ -918,14 +942,66 @@
                 classNum: myInfo.classNum 
             });
             
-            // 2. 🚨 핵심: 실시간 팝업을 트리거하기 위한 고유 노드 데이터 갱신
             database.ref(`gameAlerts/${currentTeacherTarget}`).set({
                 gameName: gameName,
                 gameUrl: gameUrl,
-                timestamp: Date.now()
+                timestamp: Date.now(),
+                type: 'hancom'
             });
             
             alert(`✅ ${gameName} 전체화면 강제 호출 신호가 전송되었습니다!`);
+        }
+    }
+
+    // 🔗 커스텀 미션 입력창 토글 함수
+    function toggleMissionInput() {
+        const area = document.getElementById('custom-mission-area');
+        area.style.display = area.style.display === 'none' ? 'flex' : 'none';
+    }
+
+    // 🔗 커스텀 URL 미션 전송
+    function sendCustomMission() {
+        if (!currentTeacherTarget) {
+            alert("❌ 먼저 미션을 전송할 학생들 채팅방을 하나 클릭해서 선택해주세요!");
+            return;
+        }
+        
+        const urlInput = document.getElementById('custom-mission-url').value.trim();
+        if (!urlInput) {
+            alert("❌ 전달할 URL 주소를 입력해주세요!");
+            return;
+        }
+
+        // 간단한 주소 형식 보정
+        let finalUrl = urlInput;
+        if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
+            finalUrl = 'https://' + finalUrl;
+        }
+
+        if (confirm(`📢 선택한 방 학생들에게 [${finalUrl}] 미션 화면 알림을 전송하시겠습니까?`)) {
+            const now = new Date();
+            const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+            
+            const gameMsg = `🚨 [선생님 전체화면 호출] 새로운 외부 미션 링크가 전송되었습니다.`;
+            database.ref('messages').push({ 
+                roomId: currentTeacherTarget, 
+                sender: "👨‍🏫 선생님(시스템)", 
+                text: gameMsg, 
+                time: timeStr, 
+                grade: myInfo.grade, 
+                classNum: myInfo.classNum 
+            });
+            
+            database.ref(`gameAlerts/${currentTeacherTarget}`).set({
+                gameName: "🔗 선생님의 특별 미션",
+                gameUrl: finalUrl,
+                timestamp: Date.now(),
+                type: 'custom'
+            });
+            
+            alert(`✅ 미션 알림이 전송되었습니다!`);
+            document.getElementById('custom-mission-url').value = ""; // 전송 후 입력창 초기화
+            toggleMissionInput(); // 창 닫기
         }
     }
 
@@ -943,9 +1019,11 @@
     window.leaveRoom = leaveRoom;
     window.linkify = linkify;
     window.clearRoomMessages = clearRoomMessages;
-    window.sendSelectedGameLink = sendSelectedGameLink; 
     
-    // 알림 전용 함수 추가 등록
+    // 알림 및 전송 도구 함수 추가 등록
+    window.sendSelectedGameLink = sendSelectedGameLink; 
+    window.toggleMissionInput = toggleMissionInput;
+    window.sendCustomMission = sendCustomMission;
     window.openGameFromAlert = openGameFromAlert;
     window.closeFullscreenAlert = closeFullscreenAlert;
 </script>
