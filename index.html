@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>스쿨 톡 (Teacher Admin Version)</title>
+    <title>스쿨 톡 (One Room Limit Version)</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
@@ -277,14 +277,25 @@
     }
 
     function confirmAndCreateRoom(targetName) {
-        let generalRoomCount = 0;
+        let myGeneralRoomCount = 0;
+        let targetGeneralRoomCount = 0;
+
+        // 방 전체를 돌면서 나와 상대방이 이미 다른 방에 있는지 체크
         for(let id in localRooms) {
             let r = localRooms[id];
-            if(!r.isDefault && r.members && r.members[myInfo.name] === true) generalRoomCount++;
+            if(!r.isDefault && r.members) {
+                if(r.members[myInfo.name] === true) myGeneralRoomCount++;
+                if(r.members[targetName] === true) targetGeneralRoomCount++;
+            }
         }
 
-        if (generalRoomCount >= 1) {
+        if (myGeneralRoomCount >= 1) {
             alert("❌ 이미 참여 중인 개인 채팅방이 있습니다! 기존 방을 없애거나 나간 후 새로 만들어주세요.");
+            return;
+        }
+
+        if (targetGeneralRoomCount >= 1) {
+            alert(`❌ ${targetName} 학생은 이미 다른 개인 채팅방에 참여 중이라 1:1 방을 만들 수 없습니다.`);
             return;
         }
 
@@ -308,12 +319,29 @@
             alert("❌ 인원 초과! 개인 채팅방은 방장 포함 최대 5명까지만 들어올 수 있습니다.");
             return;
         }
+        
         const friendName = prompt("초대할 학생의 이름을 정확하게 입력하세요:");
         if(!friendName) return;
+        
         if(room.members && room.members[friendName]) {
             alert("이미 방에 있는 학생입니다.");
             return;
         }
+
+        // 초대하려는 친구가 이미 다른 개인방에 있는지 체크
+        let targetGeneralRoomCount = 0;
+        for(let id in localRooms) {
+            let r = localRooms[id];
+            if(!r.isDefault && r.members && r.members[friendName] === true) {
+                targetGeneralRoomCount++;
+            }
+        }
+
+        if (targetGeneralRoomCount >= 1) {
+            alert(`❌ ${friendName} 학생은 이미 다른 개인 채팅방에 참여 중이라 초대할 수 없습니다.`);
+            return;
+        }
+
         database.ref('invitations').push({ roomId: roomId, roomTitle: room.title, from: myInfo.name, to: friendName, status: 'pending' });
         alert(`${friendName} 학생에게 초대장을 보냈습니다!`);
     }
@@ -342,7 +370,6 @@
         database.ref(`invitations/${inviteKey}`).remove();
     }
 
-    // 완전히 방을 삭제하는 함수
     function destroyRoom(roomId) {
         if (!confirm("⚠️ 정말 이 방을 완전히 삭제하시겠습니까?\n방과 대화 내용이 모두 사라집니다.")) return;
         database.ref(`rooms/${roomId}`).remove();
@@ -351,7 +378,6 @@
         });
     }
 
-    // 기본 단체방의 메시지만 싹 비워주는 함수
     function clearRoomMessages(roomId) {
         if (!confirm("⚠️ 이 단체방의 모든 대화 내용을 지우시겠습니까? (방은 남고 내용만 사라집니다)")) return;
         database.ref('messages').once('value', snapshot => {
@@ -365,6 +391,12 @@
     }
 
     function renderStudentMultiScreen() {
+        let activeInputId = document.activeElement ? document.activeElement.id : null;
+        let savedTexts = {};
+        document.querySelectorAll('.chat-card-input-area input').forEach(input => {
+            savedTexts[input.id] = input.value;
+        });
+
         const grid = document.getElementById('student-grid');
         grid.innerHTML = "";
 
@@ -418,14 +450,29 @@
 
             const inputArea = document.createElement('div');
             inputArea.className = 'chat-card-input-area';
+            
+            let currentInputId = `input-${room.roomId}`;
             inputArea.innerHTML = `
-                <input type="text" id="input-${room.roomId}" placeholder="대화 입력..." onkeypress="if(event.keyCode==13) sendMultiMessage('${room.roomId}')">
+                <input type="text" id="${currentInputId}" placeholder="대화 입력..." onkeypress="if(event.keyCode==13) sendMultiMessage('${room.roomId}')">
                 <button onclick="sendMultiMessage('${room.roomId}')">전송</button>
             `;
             card.appendChild(inputArea);
             grid.appendChild(card);
             msgArea.scrollTop = msgArea.scrollHeight;
+
+            let newInput = document.getElementById(currentInputId);
+            if (newInput && savedTexts[currentInputId]) {
+                newInput.value = savedTexts[currentInputId];
+            }
         });
+
+        if (activeInputId) {
+            let activeEl = document.getElementById(activeInputId);
+            if (activeEl) {
+                activeEl.focus();
+                activeEl.selectionStart = activeEl.selectionEnd = activeEl.value.length;
+            }
+        }
     }
 
     function sendMultiMessage(roomId) {
@@ -465,7 +512,6 @@
                 header.className = 'chat-card-header';
                 header.style.background = room.isDefault ? '#4CAF50' : '#2196F3';
                 
-                // [선생님 권한 업그레이드] 개인방은 방 폭파, 단체방은 대화 내용 초기화
                 let teacherActionBtn = "";
                 if(!room.isDefault) {
                     teacherActionBtn = `<button class="btn-danger" onclick="event.stopPropagation(); destroyRoom('${room.roomId}')">❌ 방 폭파</button>`;
