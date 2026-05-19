@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>스쿨 톡 (Final Optimized Version)</title>
+    <title>스쿨 톡 (Teacher Admin Version)</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
@@ -33,13 +33,12 @@
         .user-list li { padding: 12px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 13px; border-radius: 4px; transition: 0.2s; }
         .user-list li:hover { background: #e2f0d9; color: #2e7d32; font-weight: bold; }
         
-        /* [수정 1] 학생 그리드를 가로 정렬 및 세로 100% 꽉 차도록 변경 */
         #student-grid { display: flex; flex-direction: row; gap: 12px; padding: 12px; flex: 1; background: #e9ecef; box-sizing: border-box; overflow-x: auto; align-items: stretch; }
         .chat-card { background: white; border-radius: 8px; border: 1px solid #ccc; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); box-sizing: border-box; flex: 1; min-width: 340px; height: 100%; }
 
         .chat-card-header { background: #4CAF50; color: white; padding: 10px 12px; font-weight: bold; font-size: 14px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
         .chat-card-header .btn-group { display: flex; gap: 5px; }
-        .chat-card-header button { background: #fff; color: #333; font-size: 11px; padding: 3px 6px; border-radius: 4px; border: 1px solid #ccc; width: auto; font-weight: normal; cursor: pointer; }
+        .chat-card-header button { background: #fff; color: #333; font-size: 11px; padding: 4px 8px; border-radius: 4px; border: 1px solid #ccc; width: auto; font-weight: normal; cursor: pointer; }
         .chat-card-header button:hover { background: #eee; }
         .chat-card-header button.btn-danger { background: #ff5252; color: white; border: none; font-weight: bold; }
         .chat-card-header button.btn-danger:hover { background: #e04444; }
@@ -61,7 +60,7 @@
 
         #teacher-screen { display: none; height: 100%; flex-direction: column; flex: 1; overflow: hidden; }
         #teacher-grid { display: flex; flex-wrap: wrap; gap: 12px; padding: 12px; flex: 1; overflow-y: auto; background: #f5f5f5; box-sizing: border-box; }
-        #teacher-grid .chat-card { flex: 1 1 calc(33.33% - 12px); min-width: 320px; height: calc(50% - 6px); }
+        #teacher-grid .chat-card { flex: 1 1 calc(33.33% - 12px); min-width: 340px; height: calc(50% - 6px); }
     </style>
 </head>
 <body>
@@ -138,7 +137,7 @@
     }
 
     let myInfo = {};
-    let myUserRef = null; // 실시간 유저 감지용 변수
+    let myUserRef = null;
     let currentTeacherTarget = "";
     let localRooms = {};
     let localMessages = [];
@@ -193,11 +192,9 @@
                     } else {
                         database.ref(`rooms/${defaultRoomId}/members/${name}`).set(true);
                     }
-                    // [수정 2] 창을 완전히 닫거나 튕겼을 때 단체방 멤버 명단에서 자동 제거 설정
                     database.ref(`rooms/${defaultRoomId}/members/${name}`).onDisconnect().remove();
                 });
 
-                // [수정 2] 유저 접속 기록 생성 및 비정상 종료 시 파이어베이스에서 자동 삭제 연동
                 myUserRef = database.ref('users').push(myInfo);
                 myUserRef.onDisconnect().remove();
             }
@@ -207,7 +204,6 @@
         }
     }
 
-    // [수정 2] 로그아웃 버튼 클릭 시 파이어베이스 데이터를 안전하게 지우고 새로고침
     function handleLogout() {
         if (!myInfo.isTeacher && myInfo.name) {
             const defaultRoomId = `group_${myInfo.grade}_${myInfo.classNum}`;
@@ -312,15 +308,12 @@
             alert("❌ 인원 초과! 개인 채팅방은 방장 포함 최대 5명까지만 들어올 수 있습니다.");
             return;
         }
-
         const friendName = prompt("초대할 학생의 이름을 정확하게 입력하세요:");
         if(!friendName) return;
-
         if(room.members && room.members[friendName]) {
             alert("이미 방에 있는 학생입니다.");
             return;
         }
-
         database.ref('invitations').push({ roomId: roomId, roomTitle: room.title, from: myInfo.name, to: friendName, status: 'pending' });
         alert(`${friendName} 학생에게 초대장을 보냈습니다!`);
     }
@@ -332,13 +325,11 @@
                 let r = localRooms[id];
                 if(!r.isDefault && r.members && r.members[myInfo.name] === true) generalRoomCount++;
             }
-
             if(generalRoomCount >= 1) {
                 alert("❌ 이미 다른 개인 채팅방에 참여 중이라 초대를 받을 수 없습니다!");
                 database.ref(`invitations/${inviteKey}`).remove();
                 return;
             }
-
             const room = localRooms[roomId];
             const currentCount = room.members ? Object.keys(room.members).length : 0;
             if(!room.isDefault && currentCount >= 5) {
@@ -351,9 +342,18 @@
         database.ref(`invitations/${inviteKey}`).remove();
     }
 
+    // 완전히 방을 삭제하는 함수
     function destroyRoom(roomId) {
         if (!confirm("⚠️ 정말 이 방을 완전히 삭제하시겠습니까?\n방과 대화 내용이 모두 사라집니다.")) return;
         database.ref(`rooms/${roomId}`).remove();
+        database.ref('messages').once('value', snapshot => {
+            snapshot.forEach(child => { if(child.val().roomId === roomId) database.ref(`messages/${child.key}`).remove(); });
+        });
+    }
+
+    // 기본 단체방의 메시지만 싹 비워주는 함수
+    function clearRoomMessages(roomId) {
+        if (!confirm("⚠️ 이 단체방의 모든 대화 내용을 지우시겠습니까? (방은 남고 내용만 사라집니다)")) return;
         database.ref('messages').once('value', snapshot => {
             snapshot.forEach(child => { if(child.val().roomId === roomId) database.ref(`messages/${child.key}`).remove(); });
         });
@@ -438,7 +438,6 @@
         input.value = "";
     }
 
-    // [수정 3] 선생님 화면에 방 삭제(폭파) 버튼 배치 반영
     function renderTeacherDashboard() {
         const grid = document.getElementById('teacher-grid');
         grid.innerHTML = "";
@@ -466,14 +465,16 @@
                 header.className = 'chat-card-header';
                 header.style.background = room.isDefault ? '#4CAF50' : '#2196F3';
                 
-                // 선생님 관리자 전용 삭제 버튼 기능 추가 (단체방 제외)
+                // [선생님 권한 업그레이드] 개인방은 방 폭파, 단체방은 대화 내용 초기화
                 let teacherActionBtn = "";
                 if(!room.isDefault) {
                     teacherActionBtn = `<button class="btn-danger" onclick="event.stopPropagation(); destroyRoom('${room.roomId}')">❌ 방 폭파</button>`;
+                } else {
+                    teacherActionBtn = `<button class="btn-warning" onclick="event.stopPropagation(); clearRoomMessages('${room.roomId}')">🧹 대화 초기화</button>`;
                 }
 
                 header.innerHTML = `
-                    <div>🔍 [관찰중] ${room.title} (${currentMemberCount}명)</div>
+                    <div style="pointer-events: none;">🔍 [관찰중] ${room.title} (${currentMemberCount}명)</div>
                     <div class="btn-group">${teacherActionBtn}</div>
                 `;
                 card.appendChild(header);
