@@ -134,9 +134,25 @@
                 <ul class="user-list" id="teacher-user-list-ul"></ul>
             </div>
             <div style="display: flex; flex-direction: column; flex: 1; overflow: hidden; background: #f5f5f5;">
-                <div style="padding: 12px 20px; background: #e3f2fd; font-weight: bold; border-bottom: 1px solid #bbdefb; color: #1565c0; flex-shrink: 0;">
-                    📢 참여할 대화방 선택: <span id="selected-room-title" style="color: #d32f2f; background: white; padding: 2px 8px; border-radius: 4px; border: 1px solid #ccc;">채팅창 하나를 클릭하세요!</span>
+                
+                <div style="padding: 12px 20px; background: #e3f2fd; font-weight: bold; border-bottom: 1px solid #bbdefb; color: #1565c0; flex-shrink: 0; display: flex; justify-content: space-between; align-items: center;">
+                    <div>📢 참여할 대화방 선택: <span id="selected-room-title" style="color: #d32f2f; background: white; padding: 2px 8px; border-radius: 4px; border: 1px solid #ccc;">채팅창 하나를 클릭하세요!</span></div>
+                    
+                    <div id="teacher-game-area" style="display: none; align-items: center; gap: 8px;">
+                        <select id="hancom-game-select" style="margin: 0; padding: 6px; width: 140px; border-radius: 4px; border: 1px solid #1565c0; font-size: 13px;">
+                            <option value="https://www.hancomtaja.com/ko/typing|낱말연습">📖 낱말연습</option>
+                            <option value="https://www.hancomtaja.com/ko/typing|단문연습">📝 단문연습</option>
+                            <option value="https://www.hancomtaja.com/ko/game|판뒤집기">🔄 판뒤집기</option>
+                            <option value="https://www.hancomtaja.com/ko/game|산성비">☔ 산성비</option>
+                            <option value="https://www.hancomtaja.com/ko/game|워드크러시">💥 워드크러시</option>
+                            <option value="https://www.hancomtaja.com/ko/game|타자실험실">🧪 타자실험실</option>
+                            <option value="https://www.hancomtaja.com/ko/topik|맞춤법 퀴즈">✅ 맞춤법 퀴즈</option>
+                            <option value="https://www.hancomtaja.com/ko/topik|초성 퀴즈">💡 초성 퀴즈</option>
+                        </select>
+                        <button onclick="window.sendSelectedGameLink()" style="background-color: #8e44ad; border:none; padding:7px 12px; color:white; border-radius:4px; font-weight: bold; cursor: pointer; font-size: 12px;">게임 전송 🚀</button>
+                    </div>
                 </div>
+
                 <div id="teacher-grid"></div>
                 <div class="input-area" id="teacher-input-area" style="border-top: 3px solid #2196F3; display: none; padding:15px; background:#f0f0f0; display: flex; align-items: center; flex-shrink: 0;">
                     <input type="text" id="teacher-msg-input" placeholder="선택한 방에 공지 메시지 전송..." onkeypress="if(event.keyCode==13) window.sendTeacherMessage()" style="flex: 1; margin: 0; padding: 12px; border-radius: 6px;">
@@ -300,7 +316,6 @@
     // 🔗 URL 주소를 감지하여 새 창 이동용 하이퍼링크로 변경하는 함수
     function linkify(text) {
         if (!text) return "";
-        // 보안을 위한 기초 HTML 태그 이스케이프 처리
         let escaped = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         const urlRegex = /(https?:\/\/[^\s]+)/g;
         return escaped.replace(urlRegex, function(url) {
@@ -418,6 +433,7 @@
             currentTeacherTarget = "";
             document.getElementById('selected-room-title').innerText = "채팅창 하나를 클릭하세요!";
             document.getElementById('teacher-input-area').style.display = 'none';
+            document.getElementById('teacher-game-area').style.display = 'none'; // 선택 취소 시 숨김
         }
     }
 
@@ -459,7 +475,7 @@
             header.innerHTML = `
                 <div>${room.title}</div>
                 <div class="btn-group">
-                    <button class="btn-game" onclick="window.openGame('${room.roomId}', '${room.title}', ${isHost})">🎮 산성비 게임</button>
+                    <button class="btn-game" onclick="window.openGame('${room.roomId}', '${room.title}', ${isHost})">🎮 산성비(내부)</button>
                     ${actionBtn}
                 </div>
             `;
@@ -474,7 +490,6 @@
                     const isMe = m.sender === myInfo.name;
                     const displaySender = isMe ? '나' : getRankString(m.sender) + m.sender;
                     
-                    // 💡 학생 채팅창 텍스트 주소 파싱 적용
                     msgArea.innerHTML += `
                         <div class="msg-line ${isMe ? 'me' : 'other'}">
                             <div class="msg-sender" style="color: ${isMe ? '#4CAF50' : '#d32f2f'}">${displaySender}</div>
@@ -513,10 +528,13 @@
                 card.className = 'chat-card';
                 card.style.border = currentTeacherTarget === room.roomId ? "3px solid #2196F3" : "1px solid #ccc";
                 card.style.cursor = "pointer";
+                
+                // 💡 클릭 시 드롭다운 게임 전송 영역도 함께 나타나도록 수정
                 card.onclick = function() {
                     currentTeacherTarget = room.roomId;
                     document.getElementById('selected-room-title').innerText = room.title;
                     document.getElementById('teacher-input-area').style.display = 'flex';
+                    document.getElementById('teacher-game-area').style.display = 'flex'; 
                     updateViews();
                 };
 
@@ -524,7 +542,6 @@
                 header.className = 'chat-card-header';
                 header.style.background = room.isDefault ? '#4CAF50' : '#2196F3';
                 
-                // 💡 1번 요청: 교사 모드 대화방 상단에 [게임 관리] [초기화] [삭제] 버튼 생성 및 이벤트 전파 방지(stopPropagation)
                 header.innerHTML = `
                     <div style="pointer-events: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 110px;">🔍 ${room.title}</div>
                     <div class="btn-group" style="display:flex; gap:3px; flex-shrink:0;">
@@ -539,7 +556,6 @@
                 msgArea.className = 'chat-card-messages';
                 localMessages.forEach(function(m) {
                     if(m.roomId === room.roomId) {
-                        // 💡 교사 대시보드 텍스트 주소 파싱 적용
                         msgArea.innerHTML += `<div style="margin-bottom:5px;"><strong>${getRankString(m.sender)}${m.sender}:</strong> ${window.linkify(m.text)} <span style="font-size:9px; color:#888;">(${m.time})</span></div>`;
                     }
                 });
@@ -571,7 +587,7 @@
     }
 
     // ==============================================================================
-    // 🎮 산성비 게임 
+    // 🎮 산성비 게임 (내부 구현)
     // ==============================================================================
     let currentGameRoomId = "";
     let isCurrentRoomHost = false; 
@@ -807,6 +823,39 @@
         });
     }
 
+    // 🎯 선생님이 고른 드롭다운 게임 링크 전송 함수
+    function sendSelectedGameLink() {
+        if (!currentTeacherTarget) {
+            alert("❌ 먼저 게임을 전송할 학생들 채팅방을 하나 클릭해서 선택해주세요!");
+            return;
+        }
+        
+        const selectEl = document.getElementById('hancom-game-select');
+        const selectedValue = selectEl.value; // 예: "주소|게임이름"
+        const parts = selectedValue.split('|');
+        const gameUrl = parts[0];
+        const gameName = parts[1];
+        
+        if (confirm(`📢 선택한 방에 [${gameName}] 시작 링크를 전송하시겠습니까?`)) {
+            const now = new Date();
+            const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+            
+            // 학생들에게 보낼 메시지 (자동으로 파란색 링크로 변환됨)
+            const gameMsg = `🚨 [선생님 호출] 지금 바로 🎯${gameName}🎯 연습을 시작하세요!\n아래 주소를 눌러 바로 입장!\n👉 ${gameUrl}`;
+
+            database.ref('messages').push({ 
+                roomId: currentTeacherTarget, 
+                sender: "👨‍🏫 선생님(시스템)", 
+                text: gameMsg, 
+                time: timeStr, 
+                grade: myInfo.grade, 
+                classNum: myInfo.classNum 
+            });
+            
+            alert(`✅ ${gameName} 안내 링크가 성공적으로 전송되었습니다!`);
+        }
+    }
+
     // 전역 스코프 함수 연결
     window.login = login;
     window.handleLogout = handleLogout;
@@ -821,6 +870,7 @@
     window.leaveRoom = leaveRoom;
     window.linkify = linkify;
     window.clearRoomMessages = clearRoomMessages;
+    window.sendSelectedGameLink = sendSelectedGameLink; 
 </script>
 </body>
 </html>
