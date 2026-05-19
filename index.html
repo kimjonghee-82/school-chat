@@ -3,14 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>스쿨 톡 (True Full-Screen 100%)</title>
+    <title>스쿨 톡 (Premium Control Version)</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
     <style>
-        /* 브라우저 기본 여백 완전히 제거 및 스크롤바 방지 */
         html, body { height: 100%; margin: 0; padding: 0; font-family: 'Malgun Gothic', sans-serif; background-color: #f0f2f5; overflow: hidden; }
-        
         .container { width: 100%; height: 100%; display: flex; flex-direction: column; background: white; overflow: hidden; }
         
         /* 로그인 화면 */
@@ -23,7 +21,7 @@
         .btn-teacher:hover { background-color: #0b7dda; }
 
         /* 상단 초대장 알림 바 */
-        #invite-zone { background: #fff3cd; color: #856404; padding: 10px 20px; border-bottom: 2px solid #ffeeba; display: none; flex-direction: column; gap: 5px; }
+        #invite-zone { background: #fff3cd; color: #856404; padding: 10px 20px; border-bottom: 2px solid #ffeeba; display: none; flex-direction: column; gap: 5px; flex-shrink: 0; }
         .invite-card { display: flex; justify-content: space-between; align-items: center; background: white; padding: 8px 15px; border-radius: 5px; border: 1px solid #ffeeba; }
         .invite-btn-zone button { padding: 5px 12px; margin-left: 5px; font-size: 13px; width: auto; display: inline-block; }
 
@@ -31,32 +29,36 @@
         .header { background: #4CAF50; color: white; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; height: 60px; box-sizing: border-box; flex-shrink: 0; }
         .header button { background: #ff5252; width: auto; padding: 5px 15px; font-size: 14px; }
         
-        /* 메인 콘텐츠 영역 (사이드바 + 채팅 그리드) */
         .main-area { display: flex; flex: 1; overflow: hidden; height: calc(100% - 60px); }
         
-        /* 사이드바 고정 */
+        /* 사이드바 */
         .sidebar { width: 250px; background: #f9f9f9; border-right: 1px solid #ddd; padding: 15px; overflow-y: auto; box-sizing: border-box; flex-shrink: 0; }
         .sidebar h3 { margin-top: 0; font-size: 14px; border-bottom: 2px solid #ddd; padding-bottom: 10px; color: #333; }
         .user-list { list-style: none; padding: 0; margin: 0; }
         .user-list li { padding: 12px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 13px; border-radius: 4px; transition: 0.2s; }
         .user-list li:hover { background: #e2f0d9; color: #2e7d32; font-weight: bold; }
         
-        /* 🔥 핵심 변경: 그리드가 아닌 Flex 레이아웃으로 화면 전체 분할 자동 계산 */
-        #student-grid { display: flex; flex-wrap: wrap; gap: 10px; padding: 10px; flex: 1; background: #e9ecef; box-sizing: border-box; overflow-y: auto; content-visibility: auto; }
+        /* 학생 그리드 (Flex 분할) */
+        #student-grid { display: flex; flex-wrap: wrap; gap: 10px; padding: 10px; flex: 1; background: #e9ecef; box-sizing: border-box; overflow-y: auto; }
         
-        /* 🔥 개별 채팅창 카드가 남은 공간을 100% 꽉 채우도록 유연하게 설정 */
+        /* 개별 채팅창 카드 스타일 */
         .chat-card { background: white; border-radius: 8px; border: 1px solid #ccc; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); box-sizing: border-box;
-            /* 기본적으로 2개씩 배치되도록 설정하되 남는 공간은 꽉 채움 */
             flex: 1 1 calc(50% - 10px); min-width: 350px; height: calc(50% - 5px); min-height: 300px; 
         }
         
-        /* 방이 딱 1개일 때는 세로 폭도 100% 채우기 위한 룰 */
         #student-grid:has(.chat-card:nth-child(1):nth-last-child(1)) .chat-card { height: 100%; flex: 1 1 100%; }
 
-        .chat-card-header { background: #4CAF50; color: white; padding: 12px; font-weight: bold; font-size: 14px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
-        .chat-card-header button { background: #fff; color: #333; font-size: 12px; padding: 4px 8px; border-radius: 4px; border: 1px solid #ccc; width: auto; font-weight: normal; }
+        .chat-card-header { background: #4CAF50; color: white; padding: 10px 12px; font-weight: bold; font-size: 14px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+        .chat-card-header .btn-group { display: flex; gap: 5px; }
+        .chat-card-header button { background: #fff; color: #333; font-size: 11px; padding: 3px 6px; border-radius: 4px; border: 1px solid #ccc; width: auto; font-weight: normal; cursor: pointer; }
         .chat-card-header button:hover { background: #eee; }
         
+        /* 폭파/나가기 특수 버튼 색상 */
+        .chat-card-header button.btn-danger { background: #ff5252; color: white; border: none; font-weight: bold; }
+        .chat-card-header button.btn-danger:hover { background: #e04444; }
+        .chat-card-header button.btn-warning { background: #ff9800; color: white; border: none; font-weight: bold; }
+        .chat-card-header button.btn-warning:hover { background: #e68a00; }
+
         .chat-card-messages { flex: 1; padding: 12px; overflow-y: auto; background: #e5ddd5; font-size: 13px; }
         .msg-line { margin-bottom: 10px; display: flex; flex-direction: column; }
         .msg-line.me { align-items: flex-end; }
@@ -70,7 +72,7 @@
         .chat-card-input-area input { margin: 0; padding: 10px 15px; border-radius: 20px; border: 1px solid #ccc; font-size: 13px; flex: 1; }
         .chat-card-input-area button { width: 60px; font-size: 13px; padding: 9px 0; border-radius: 20px; margin-left: 6px; background-color: #4CAF50; font-weight: bold; }
 
-        /* 선생님용 모니터링 화면 전체 채우기 */
+        /* 선생님용 모니터링 */
         #teacher-screen { display: none; height: 100%; flex-direction: column; flex: 1; overflow: hidden; }
         #teacher-grid { display: flex; flex-wrap: wrap; gap: 12px; padding: 12px; flex: 1; overflow-y: auto; background: #f5f5f5; box-sizing: border-box; }
         #teacher-grid .chat-card { flex: 1 1 calc(33.33% - 12px); min-width: 320px; height: calc(50% - 6px); }
@@ -206,6 +208,7 @@
                             grade: grade,
                             classNum: classNum,
                             isDefault: true,
+                            creator: "시스템",
                             members: { [name]: true }
                         });
                     } else {
@@ -233,7 +236,8 @@
                 if(u.grade === myInfo.grade && u.name !== myInfo.name) {
                     let li = document.createElement('li');
                     li.innerText = `👤 [${u.classNum}] ${u.name}`;
-                    li.onclick = () => createOneOnOneRoom(u.name, u.classNum);
+                    // 👉 2. 학생 이름 선택 시 1:1 채팅방 개설 확인 알림창 띄우기 적용됨
+                    li.onclick = () => confirmAndCreateRoom(u.name, u.classNum);
                     ul.appendChild(li);
                 }
             });
@@ -286,13 +290,32 @@
         }
     }
 
-    function createOneOnOneRoom(targetName, targetClass) {
+    function confirmAndCreateRoom(targetName, targetClass) {
+        // 👉 1. 방 제한 4개 검사 로직
+        let myActiveCount = 0;
+        for(let id in localRooms) {
+            let r = localRooms[id];
+            if(r.members && r.members[myInfo.name] === true) {
+                myActiveCount++;
+            }
+        }
+
+        if (myActiveCount >= 4) {
+            alert("❌ 채팅방은 최대 4개까지만 참여 및 개설할 수 있습니다! 불필요한 방을 나가거나 없애주세요.");
+            return;
+        }
+
+        // 👉 2. 알림창 띄우기
+        const choice = confirm(`💬 ${targetName} 학생과 1:1 대화방을 개설하시겠습니까?`);
+        if (!choice) return;
+
         const roomId = `room_${Date.now()}_${Math.floor(Math.random()*1000)}`;
         database.ref(`rooms/${roomId}`).set({
             roomId: roomId,
             title: `${myInfo.name}, ${targetName}의 대화방`,
             grade: myInfo.grade,
             classNum: myInfo.classNum,
+            creator: myInfo.name, // 👉 3. 방을 만든 사람(주인장) 표시용
             members: { [myInfo.name]: true, [targetName]: true }
         });
     }
@@ -323,9 +346,27 @@
 
     function respondInvite(inviteKey, roomId, isAccept) {
         if(isAccept) {
+            // 초대 수락 시에도 4개 제한 확인
+            let myActiveCount = 0;
+            for(let id in localRooms) {
+                let r = localRooms[id];
+                if(r.members && r.members[myInfo.name] === true) myActiveCount++;
+            }
+
+            if(myActiveCount >= 4) {
+                alert("❌ 이미 4개의 방에 참여하고 있어 초대를 수락할 수 없습니다!");
+                database.ref(`invitations/${inviteKey}`).remove();
+                return;
+            }
+
             const room = localRooms[roomId];
-            const currentCount = room && room.members ? Object.keys(room.members).length : 0;
-            
+            if (!room) {
+                alert("존재하지 않거나 이미 사라진 방입니다.");
+                database.ref(`invitations/${inviteKey}`).remove();
+                return;
+            }
+
+            const currentCount = room.members ? Object.keys(room.members).length : 0;
             if(currentCount >= 50) {
                 alert("방의 정원(50명)이 초과되어 들어갈 수 없습니다!");
                 database.ref(`invitations/${inviteKey}`).remove();
@@ -334,6 +375,32 @@
             database.ref(`rooms/${roomId}/members/${myInfo.name}`).set(true);
         }
         database.ref(`invitations/${inviteKey}`).remove();
+    }
+
+    // 👉 3. 주인장의 방 폭파 기능
+    function destroyRoom(roomId) {
+        const choice = confirm("⚠️ 정말로 이 방을 삭제하시겠습니까?\n방 안의 모든 대화 기록과 방 자체가 영구 삭제됩니다.");
+        if (!choice) return;
+
+        database.ref(`rooms/${roomId}`).remove();
+
+        database.ref('messages').once('value', snapshot => {
+            snapshot.forEach(child => {
+                if(child.val().roomId === roomId) {
+                    database.ref(`messages/${child.key}`).remove();
+                }
+            });
+        });
+        alert("💥 방이 공중분해(삭제) 되었습니다.");
+    }
+
+    // 👉 3. 초대받은 사람의 방 나가기 기능
+    function leaveRoom(roomId) {
+        const choice = confirm("🚪 이 채팅방에서 나가시겠습니까?");
+        if (!choice) return;
+
+        database.ref(`rooms/${roomId}/members/${myInfo.name}`).remove();
+        alert("방에서 퇴장하였습니다.");
     }
 
     function renderStudentMultiScreen() {
@@ -348,11 +415,13 @@
             }
         }
 
-        const visibleRooms = myActiveRooms.slice(0, 8);
+        // 👉 1. 학생 화면에 4개까지만 렌더링되도록 방어벽 설정
+        const visibleRooms = myActiveRooms.slice(0, 4);
 
         visibleRooms.forEach(room => {
             const memberCount = Object.keys(room.members || {}).length;
-            
+            const isCreator = room.creator === myInfo.name; 
+
             const card = document.createElement('div');
             card.className = 'chat-card';
 
@@ -361,9 +430,22 @@
             if(room.isDefault) header.style.background = '#4CAF50';
             else header.style.background = '#673AB7';
 
+            // 👉 3. 방장(주인장)일 때와 손님일 때 버튼 다르게 렌더링
+            let actionButtonHtml = "";
+            if (!room.isDefault) { 
+                if (isCreator) {
+                    actionButtonHtml = `<button class="btn-danger" onclick="destroyRoom('${room.roomId}')">❌ 방 폭파</button>`;
+                } else {
+                    actionButtonHtml = `<button class="btn-warning" onclick="leaveRoom('${room.roomId}')">🚪 나가기</button>`;
+                }
+            }
+
             header.innerHTML = `
-                <div>${room.title} (${memberCount}/50명)</div>
-                <button onclick="inviteFriend('${room.roomId}', ${memberCount})">➕ 학생 추가</button>
+                <div>${room.title} (${memberCount}/50)</div>
+                <div class="btn-group">
+                    <button onclick="inviteFriend('${room.roomId}', ${memberCount})">➕ 초대</button>
+                    ${actionButtonHtml}
+                </div>
             `;
             card.appendChild(header);
 
@@ -441,7 +523,7 @@
                 const header = document.createElement('div');
                 header.className = 'chat-card-header';
                 header.style.background = room.isDefault ? '#4CAF50' : '#2196F3';
-                header.innerText = `🔍 [관찰중] ${room.title}`;
+                header.innerText = `🔍 [관찰중] ${room.title} (개설자: ${room.creator || '알수없음'})`;
                 card.appendChild(header);
 
                 const msgArea = document.createElement('div');
