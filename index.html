@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>스쿨 톡 (Lag-Free Ranking Version)</title>
+    <title>스쿨 톡 (Teacher Sidebar & Me Highlight)</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
     <style>
-        /* 기존 스타일 유지 */
+        /* 기본 스타일 */
         html, body { height: 100%; margin: 0; padding: 0; font-family: 'Malgun Gothic', sans-serif; background-color: #f0f2f5; overflow: hidden; }
         .container { width: 100%; height: 100%; display: flex; flex-direction: column; background: white; overflow: hidden; }
         
@@ -27,8 +27,8 @@
         .sidebar { width: 250px; background: #f9f9f9; border-right: 1px solid #ddd; padding: 15px; overflow-y: auto; box-sizing: border-box; flex-shrink: 0; }
         .sidebar h3 { margin-top: 0; font-size: 14px; border-bottom: 2px solid #ddd; padding-bottom: 10px; color: #333; }
         .user-list { list-style: none; padding: 0; margin: 0; }
-        .user-list li { padding: 12px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 13px; border-radius: 4px; transition: 0.2s; }
-        .user-list li:hover { background: #e2f0d9; color: #2e7d32; font-weight: bold; }
+        .user-list li { padding: 12px; border-bottom: 1px solid #eee; font-size: 13px; border-radius: 4px; transition: 0.2s; }
+        .user-list li:hover { background: #e2f0d9; }
         
         #student-grid { display: flex; flex-direction: row; gap: 12px; padding: 12px; flex: 1; background: #e9ecef; box-sizing: border-box; overflow-x: auto; align-items: stretch; }
         .chat-card { background: white; border-radius: 8px; border: 1px solid #ccc; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); box-sizing: border-box; flex: 1; min-width: 340px; height: 100%; }
@@ -53,7 +53,8 @@
         .chat-card-input-area input { margin: 0; padding: 10px 15px; border-radius: 20px; border: 1px solid #ccc; font-size: 13px; flex: 1; }
         .chat-card-input-area button { width: 60px; font-size: 13px; padding: 9px 0; border-radius: 20px; margin-left: 6px; background-color: #4CAF50; font-weight: bold; }
 
-        #teacher-screen { display: none; height: 100%; flex-direction: column; flex: 1; overflow: hidden; }
+        /* 선생님 대시보드 구조 변경 */
+        #teacher-screen { display: none; height: 100%; flex-direction: column; }
         #teacher-grid { display: flex; flex-wrap: wrap; gap: 12px; padding: 12px; flex: 1; overflow-y: auto; background: #f5f5f5; box-sizing: border-box; }
         #teacher-grid .chat-card { flex: 1 1 calc(33.33% - 12px); min-width: 340px; height: calc(50% - 6px); }
 
@@ -112,7 +113,7 @@
         </div>
         <div class="main-area">
             <div class="sidebar">
-                <h3>👥 클릭시 1:1 대화방 개설</h3>
+                <h3>👥 전체 접속자 명단<br><span style="font-size:11px; font-weight:normal; color:#666;">(다른 학생을 클릭해 1:1 대화방 개설)</span></h3>
                 <ul class="user-list" id="user-list-ul"></ul>
             </div>
             <div id="student-grid"></div>
@@ -123,17 +124,25 @@
         <div class="header" style="background: #2196F3;">
             <span id="teacher-welcome-msg">👨‍🏫 선생님 대시보드</span>
             <div style="display:flex; gap:10px;">
-                <button onclick="resetAllUsers()" style="background:#ff9800; font-size:13px; padding:5px 12px;">👻 접속자 초기화</button>
+                <button onclick="resetAllUsers()" style="background:#ff9800; font-size:13px; padding:5px 12px;">👻 전체 접속자 초기화</button>
                 <button onclick="handleLogout()" style="font-size:13px; padding:5px 12px;">로그아웃</button>
             </div>
         </div>
-        <div style="padding: 12px 20px; background: #e3f2fd; font-weight: bold; border-bottom: 1px solid #bbdefb; color: #1565c0; flex-shrink: 0;">
-            📢 참여할 대화방 선택: <span id="selected-room-title" style="color: #d32f2f; background: white; padding: 2px 8px; border-radius: 4px; border: 1px solid #ccc;">채팅창 하나를 클릭하세요!</span>
-        </div>
-        <div id="teacher-grid"></div>
-        <div class="input-area" id="teacher-input-area" style="border-top: 3px solid #2196F3; display: none; padding:15px; background:#f0f0f0; display: flex; align-items: center; flex-shrink: 0;">
-            <input type="text" id="teacher-msg-input" placeholder="선택한 방에 메시지 전송..." onkeypress="if(event.keyCode==13) sendTeacherMessage()" style="flex: 1; margin: 0; padding: 12px; border-radius: 6px;">
-            <button onclick="sendTeacherMessage()" style="background-color: #2196F3; border:none; padding:12px; color:white; border-radius:6px; margin-left:10px; width:90px; font-weight: bold; cursor: pointer;">전송</button>
+        <div class="main-area">
+            <div class="sidebar">
+                <h3>👥 현재 접속자 명단</h3>
+                <ul class="user-list" id="teacher-user-list-ul"></ul>
+            </div>
+            <div style="display: flex; flex-direction: column; flex: 1; overflow: hidden; background: #f5f5f5;">
+                <div style="padding: 12px 20px; background: #e3f2fd; font-weight: bold; border-bottom: 1px solid #bbdefb; color: #1565c0; flex-shrink: 0;">
+                    📢 참여할 대화방 선택: <span id="selected-room-title" style="color: #d32f2f; background: white; padding: 2px 8px; border-radius: 4px; border: 1px solid #ccc;">채팅창 하나를 클릭하세요!</span>
+                </div>
+                <div id="teacher-grid"></div>
+                <div class="input-area" id="teacher-input-area" style="border-top: 3px solid #2196F3; display: none; padding:15px; background:#f0f0f0; display: flex; align-items: center; flex-shrink: 0;">
+                    <input type="text" id="teacher-msg-input" placeholder="선택한 방에 공지 메시지 전송..." onkeypress="if(event.keyCode==13) sendTeacherMessage()" style="flex: 1; margin: 0; padding: 12px; border-radius: 6px;">
+                    <button onclick="sendTeacherMessage()" style="background-color: #2196F3; border:none; padding:12px; color:white; border-radius:6px; margin-left:10px; width:90px; font-weight: bold; cursor: pointer;">전송</button>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -165,6 +174,7 @@
 <script>
     let database;
     try {
+        // 🔥 선생님의 Firebase 설정값(databaseURL)이 맞는지 다시 한번 확인해주세요!
         const firebaseConfig = { databaseURL: "https://school-chat-7051e-default-rtdb.firebaseio.com/" };
         firebase.initializeApp(firebaseConfig);
         database = firebase.database();
@@ -228,12 +238,15 @@
                     }
                     database.ref(`rooms/${defaultRoomId}/members/${name}`).onDisconnect().remove();
                 });
-
-                const userKey = `user_${grade}_${classNum}_${name}`; 
-                myUserRef = database.ref(`users/${userKey}`);
-                myUserRef.set(myInfo);
-                myUserRef.onDisconnect().remove();
             }
+
+            // 본인 접속 정보 등록 (학생, 선생님 모두 등록)
+            const userType = isTeacher ? "teacher" : "student";
+            const userKey = `user_${grade}_${classNum}_${name}_${userType}`; 
+            myUserRef = database.ref(`users/${userKey}`);
+            myUserRef.set(myInfo);
+            myUserRef.onDisconnect().remove();
+
             startRealtimeListening();
         } catch (error) {
             alert("로그인 중 에러: " + error.message);
@@ -300,21 +313,61 @@
     }
 
     function updateViews() {
-        if(myInfo.isTeacher) renderTeacherDashboard();
-        else { renderUserList(); renderStudentMultiScreen(); }
+        // ✅ 학생, 선생님 화면 모두 접속자 명단을 업데이트합니다.
+        renderUserList(); 
+        
+        if(myInfo.isTeacher) {
+            renderTeacherDashboard();
+        } else {
+            renderStudentMultiScreen();
+        }
     }
 
     function renderUserList() {
-        const ul = document.getElementById('user-list-ul');
-        ul.innerHTML = "";
+        const studentUl = document.getElementById('user-list-ul');
+        const teacherUl = document.getElementById('teacher-user-list-ul');
+        
+        if (studentUl) studentUl.innerHTML = "";
+        if (teacherUl) teacherUl.innerHTML = "";
+
         for (let key in localUsers) {
             let u = localUsers[key];
-            if(u.grade === myInfo.grade && u.name !== myInfo.name) {
+            
+            // 현재 학년과 같은 사용자만 표시
+            if(u.grade === myInfo.grade) {
                 let li = document.createElement('li');
                 let rankStr = getRankString(u.name); 
-                li.innerText = `${rankStr} 👤 [${u.classNum}] ${u.name}`;
-                li.onclick = () => confirmAndCreateRoom(u.name);
-                ul.appendChild(li);
+                let isMe = (u.name === myInfo.name && u.isTeacher === myInfo.isTeacher);
+                
+                let displayName = `${rankStr} 👤 [${u.classNum}] ${u.name}`;
+                if (u.isTeacher) displayName += " 👨‍🏫";
+                
+                // ✅ 본인 표시 및 강조 로직
+                if (isMe) {
+                    displayName = `⭐ ${displayName} (나)`;
+                    li.style.background = '#e3f2fd'; // 옅은 파란색 배경
+                    li.style.fontWeight = 'bold';
+                    li.style.color = '#1565c0';
+                    li.style.cursor = 'default';
+                } else {
+                    li.style.cursor = 'pointer';
+                    // 학생일 때만 다른 학생을 클릭해 방을 만들 수 있음
+                    if (!myInfo.isTeacher && !u.isTeacher) {
+                        li.onclick = () => confirmAndCreateRoom(u.name);
+                    } else if (!myInfo.isTeacher && u.isTeacher) {
+                        // 학생이 선생님 클릭했을 때는 방 생성 방지 (원하면 해제 가능)
+                        li.onclick = () => alert("선생님과는 1:1 대화방을 만들 수 없습니다.");
+                    }
+                }
+
+                li.innerText = displayName;
+
+                // 상황에 맞는 UI에 명단 추가
+                if (myInfo.isTeacher && teacherUl) {
+                    teacherUl.appendChild(li);
+                } else if (!myInfo.isTeacher && studentUl) {
+                    studentUl.appendChild(li);
+                }
             }
         }
     }
@@ -477,4 +530,257 @@
         if(text === "") return;
         const now = new Date();
         const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-        database.ref('messages').push({ roomId: roomId, sender: myInfo.name, text: text, time: timeStr, grade: myInfo.grade, class
+        database.ref('messages').push({ roomId: roomId, sender: myInfo.name, text: text, time: timeStr, grade: myInfo.grade, classNum: myInfo.classNum });
+        input.value = "";
+    }
+    
+    function sendTeacherMessage() {
+        const input = document.getElementById('teacher-msg-input');
+        const text = input.value.trim();
+        if (text === "" || !currentTeacherTarget) return;
+        const now = new Date();
+        const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        database.ref('messages').push({ roomId: currentTeacherTarget, sender: `${myInfo.name}(선생님)`, text: text, time: timeStr, grade: myInfo.grade, classNum: myInfo.classNum });
+        input.value = "";
+    }
+
+    // ==============================================================================
+    // 🎮 산성비 게임 
+    // ==============================================================================
+    
+    let currentGameRoomId = "";
+    let isCurrentRoomHost = false; 
+    let gameLoop;
+    let wordSpawnTimer;
+    let scoreSyncTimer;        
+    let lastSyncedScore = 0;   
+
+    let gameWords = []; 
+    let gameScore = 0;
+    let gameLives = 5;
+    let isGameRunning = false;
+    
+    const DICTIONARY = ["초등학교", "선생님", "쉬는시간", "점심시간", "국어", "수학", "사회", "과학", "영어", "체육", "미술", "음악", "실과", "도덕", "숙제", "시험", "여름방학", "겨울방학", "파이어베이스", "자바스크립트", "코딩", "스마트폰", "컴퓨터", "키보드", "우정", "친구", "행복", "사랑", "열정", "노력"];
+
+    function openGame(roomId, roomTitle, isHost) {
+        currentGameRoomId = roomId;
+        isCurrentRoomHost = isHost;
+        document.getElementById('game-room-name').innerText = `🎮 ${roomTitle} 게임장`;
+        document.getElementById('game-modal').style.display = 'flex';
+        
+        showGameOverlay(); 
+        gameScore = 0;
+        gameLives = 5;
+        updateGameUI();
+        clearSky();
+        updateLeaderboard();
+    }
+
+    function closeGame() {
+        stopGame();
+        document.getElementById('game-modal').style.display = 'none';
+        currentGameRoomId = "";
+    }
+
+    function emitStartGameSignal() {
+        if (!isCurrentRoomHost) return;
+        database.ref(`gameState/${currentGameRoomId}`).set({ trigger: Date.now() });
+    }
+
+    function showGameOverlay(isGameOver = false) {
+        const overlay = document.getElementById('game-start-overlay');
+        overlay.style.display = 'flex';
+
+        if (isCurrentRoomHost) {
+            const btnText = isGameOver ? `🔄 다 같이 다시 하기 (내 점수: ${gameScore})` : `▶ 방장 권한으로 다 함께 시작!`;
+            overlay.innerHTML = `<button onclick="emitStartGameSignal()">${btnText}</button>`;
+        } else {
+            const statusText = isGameOver ? "게임이 종료되었습니다.<br>방장의 다음 게임 시작을 기다리는 중입니다..." : "방장(또는 선생님)이 게임을 시작할 때까지 기다려주세요!";
+            overlay.innerHTML = `
+                <div class="waiting-text">
+                    ⏳ 대기 중...<br>
+                    <span style="font-size:16px; font-weight:normal;">${statusText}</span>
+                </div>
+            `;
+        }
+    }
+
+    function startGameLocally() {
+        if(isGameRunning) return;
+        document.getElementById('game-start-overlay').style.display = 'none';
+        document.getElementById('game-input').disabled = false;
+        document.getElementById('game-input').focus();
+        
+        gameScore = 0;
+        gameLives = 5;
+        gameWords = [];
+        lastSyncedScore = 0; 
+        clearSky();
+        updateGameUI();
+        isGameRunning = true;
+
+        updateRealTimeScore(gameScore);
+
+        gameLoop = setInterval(moveWords, 33);
+        wordSpawnTimer = setInterval(spawnWord, 1500);
+
+        scoreSyncTimer = setInterval(() => {
+            if (gameScore !== lastSyncedScore) {
+                updateRealTimeScore(gameScore);
+                lastSyncedScore = gameScore;
+            }
+        }, 1500);
+    }
+
+    function stopGame() {
+        isGameRunning = false;
+        clearInterval(gameLoop);
+        clearInterval(wordSpawnTimer);
+        clearInterval(scoreSyncTimer); 
+        document.getElementById('game-input').disabled = true;
+        document.getElementById('game-input').value = "";
+    }
+
+    function gameOver() {
+        stopGame();
+        alert(`😭 게임 오버!\n최종 점수: ${gameScore}점`);
+        
+        updateRealTimeScore(gameScore); 
+        showGameOverlay(true); 
+    }
+
+    function spawnWord() {
+        const sky = document.getElementById('game-sky');
+        const wordText = DICTIONARY[Math.floor(Math.random() * DICTIONARY.length)];
+        const span = document.createElement('span');
+        span.className = 'falling-word';
+        span.innerText = wordText;
+        
+        span.style.left = `${Math.floor(Math.random() * 75) + 5}%`;
+        span.style.top = '0px';
+        
+        sky.appendChild(span);
+        gameWords.push({ element: span, text: wordText, top: 0 });
+    }
+
+    function moveWords() {
+        const skyHeight = document.getElementById('game-sky').clientHeight;
+        for (let i = gameWords.length - 1; i >= 0; i--) {
+            let w = gameWords[i];
+            w.top += 2; 
+            w.element.style.top = w.top + 'px';
+
+            if (w.top > skyHeight - 30) {
+                w.element.remove();
+                gameWords.splice(i, 1);
+                
+                gameLives--;
+                updateGameUI();
+                
+                const sky = document.getElementById('game-sky');
+                sky.style.background = "#ff5252";
+                setTimeout(() => { if(isGameRunning) sky.style.background = "linear-gradient(to bottom, #0f2027, #203a43, #2c5364)"; }, 100);
+
+                if (gameLives <= 0) {
+                    gameOver();
+                    break;
+                }
+            }
+        }
+    }
+
+    function checkGameWord() {
+        const inputEl = document.getElementById('game-input');
+        const typedWord = inputEl.value.trim();
+        if (typedWord === "") return;
+
+        let matched = false;
+        for (let i = 0; i < gameWords.length; i++) {
+            if (gameWords[i].text === typedWord) {
+                gameWords[i].element.remove();
+                gameWords.splice(i, 1);
+                matched = true;
+                break;
+            }
+        }
+
+        if (matched) {
+            gameScore += 10;
+            updateGameUI();
+        }
+        inputEl.value = ""; 
+    }
+
+    function updateGameUI() {
+        document.getElementById('game-score').innerText = gameScore;
+        let hearts = "";
+        for(let i=0; i<gameLives; i++) hearts += "❤️";
+        document.getElementById('game-lives').innerText = hearts || "💀";
+    }
+
+    function clearSky() {
+        document.getElementById('game-sky').querySelectorAll('.falling-word').forEach(el => el.remove());
+        gameWords = [];
+        document.getElementById('game-sky').style.background = "linear-gradient(to bottom, #0f2027, #203a43, #2c5364)";
+    }
+
+    function updateRealTimeScore(score) {
+        if (!currentGameRoomId) return;
+        const myNameTag = myInfo.isTeacher ? `${myInfo.name}(선생님)` : myInfo.name;
+        
+        database.ref(`gameScores/${currentGameRoomId}/${myNameTag}`).set({
+            score: score,
+            timestamp: Date.now()
+        });
+
+        const currentGlobalBest = (localClassScores[myNameTag] && localClassScores[myNameTag].score) || 0;
+        if (score > currentGlobalBest) {
+            database.ref(`classScores/${myInfo.grade}_${myInfo.classNum}/${myNameTag}`).set({
+                score: score,
+                timestamp: Date.now()
+            });
+        }
+    }
+
+    function updateLeaderboard() {
+        if (!currentGameRoomId) return;
+        
+        const listEl = document.getElementById('leaderboard-list');
+        listEl.innerHTML = "";
+        
+        const roomScores = localGameScores[currentGameRoomId] || {};
+        const scoreArray = [];
+        
+        for (let userName in roomScores) {
+            scoreArray.push({ name: userName, score: roomScores[userName].score });
+        }
+        scoreArray.sort((a, b) => b.score - a.score);
+
+        if (scoreArray.length === 0) {
+            listEl.innerHTML = `<li style="text-align:center; color:#888;">아직 점수가 없습니다.<br>게임을 시작해보세요!</li>`;
+            return;
+        }
+
+        const myNameTag = myInfo.isTeacher ? `${myInfo.name}(선생님)` : myInfo.name;
+
+        scoreArray.forEach((data, index) => {
+            let medal = "";
+            if (index === 0) medal = "🥇 1위";
+            else if (index === 1) medal = "🥈 2위";
+            else if (index === 2) medal = "🥉 3위";
+            else medal = `${index + 1}위`;
+
+            const isMe = data.name === myNameTag;
+            
+            listEl.innerHTML += `
+                <li class="${isMe ? 'me' : ''}">
+                    <span class="rank-badge">${medal}</span>
+                    <span style="flex:1; margin-left:10px;">${data.name}</span>
+                    <span style="font-weight:bold; color:#d32f2f;">${data.score}점</span>
+                </li>
+            `;
+        });
+    }
+</script>
+</body>
+</html>
