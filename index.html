@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>스쿨 톡 (One Room Limit Version)</title>
+    <title>스쿨 톡 (Ghost ID Fixed Version)</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
@@ -195,8 +195,11 @@
                     database.ref(`rooms/${defaultRoomId}/members/${name}`).onDisconnect().remove();
                 });
 
-                myUserRef = database.ref('users').push(myInfo);
-                myUserRef.onDisconnect().remove();
+                // [수정된 부분] 무작위 ID(push) 대신 학년_반_이름으로 고정된 키 사용
+                const userKey = `user_${grade}_${classNum}_${name}`; 
+                myUserRef = database.ref(`users/${userKey}`);
+                myUserRef.set(myInfo);
+                myUserRef.onDisconnect().remove(); // 창을 닫아도 삭제됨
             }
             startRealtimeListening();
         } catch (error) {
@@ -205,10 +208,24 @@
     }
 
     function handleLogout() {
+        // [수정된 부분] 로컬스토리지 완벽 초기화 (다음 번엔 무조건 백지상태부터)
+        localStorage.removeItem('school_chat_grade');
+        localStorage.removeItem('school_chat_classNum');
+        localStorage.removeItem('school_chat_name');
+
         if (!myInfo.isTeacher && myInfo.name) {
+            // 단체방에서 나감
             const defaultRoomId = `group_${myInfo.grade}_${myInfo.classNum}`;
             database.ref(`rooms/${defaultRoomId}/members/${myInfo.name}`).remove();
+            
+            // 본인이 속해있던 모든 개인방에서도 자동 강제 퇴장 처리
+            for(let id in localRooms) {
+                if(!localRooms[id].isDefault && localRooms[id].members && localRooms[id].members[myInfo.name]) {
+                    database.ref(`rooms/${id}/members/${myInfo.name}`).remove();
+                }
+            }
         }
+        
         if (myUserRef) {
             myUserRef.remove().then(() => { location.reload(); }).catch(() => { location.reload(); });
         } else {
@@ -280,7 +297,6 @@
         let myGeneralRoomCount = 0;
         let targetGeneralRoomCount = 0;
 
-        // 방 전체를 돌면서 나와 상대방이 이미 다른 방에 있는지 체크
         for(let id in localRooms) {
             let r = localRooms[id];
             if(!r.isDefault && r.members) {
@@ -328,7 +344,6 @@
             return;
         }
 
-        // 초대하려는 친구가 이미 다른 개인방에 있는지 체크
         let targetGeneralRoomCount = 0;
         for(let id in localRooms) {
             let r = localRooms[id];
