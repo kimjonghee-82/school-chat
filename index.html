@@ -3,52 +3,77 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>스쿨 톡 (Web Version)</title>
+    <title>스쿨 톡 (True Full-Screen 100%)</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
     <style>
-        body { font-family: 'Malgun Gothic', sans-serif; background-color: #f0f2f5; margin: 0; padding: 0; }
-        .container { max-width: 900px; margin: 20px auto; background: white; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); overflow: hidden; }
+        /* 브라우저 기본 여백 완전히 제거 및 스크롤바 방지 */
+        html, body { height: 100%; margin: 0; padding: 0; font-family: 'Malgun Gothic', sans-serif; background-color: #f0f2f5; overflow: hidden; }
         
-        /* 로그인 화면 스타일 */
-        #login-screen { text-align: center; padding: 50px; }
-        .login-box { display: inline-block; text-align: left; background: #f9f9f9; padding: 30px; border-radius: 10px; }
-        select, input { padding: 10px; margin: 5px 0 15px 0; width: 100%; box-sizing: border-box; border: 1px solid #ccc; border-radius: 5px; }
-        button { background-color: #4CAF50; color: white; border: none; padding: 10px 20px; font-size: 16px; border-radius: 5px; cursor: pointer; width: 100%; }
+        .container { width: 100%; height: 100%; display: flex; flex-direction: column; background: white; overflow: hidden; }
+        
+        /* 로그인 화면 */
+        #login-screen { text-align: center; padding-top: 15vh; height: 100%; box-sizing: border-box; background: #f0f2f5; }
+        .login-box { display: inline-block; text-align: left; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 350px; }
+        select, input { padding: 12px; margin: 8px 0 20px 0; width: 100%; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
+        button { background-color: #4CAF50; color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; }
         button:hover { background-color: #45a049; }
+        .btn-teacher { background-color: #2196F3; margin-top: 10px; }
+        .btn-teacher:hover { background-color: #0b7dda; }
 
-        /* 채팅 화면 스타일 */
-        #chat-screen { display: none; height: 80vh; display: flex; flex-direction: column; }
-        .header { background: #4CAF50; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
-        .header button { background: #ff5252; width: auto; padding: 5px 15px; }
-        
-        .main-area { display: flex; flex: 1; overflow: hidden; }
-        
-        /* 사이드바 */
-        .sidebar { width: 250px; background: #f9f9f9; border-right: 1px solid #ddd; padding: 15px; overflow-y: auto; }
-        .sidebar h3 { margin-top: 0; font-size: 16px; border-bottom: 2px solid #ddd; padding-bottom: 10px; }
-        .user-list { list-style: none; padding: 0; }
-        .user-list li { padding: 8px; border-bottom: 1px solid #eee; cursor: pointer; }
-        .user-list li:hover { background-color: #eee; }
-        
-        /* 채팅창 */
-        .chat-area { flex: 1; display: flex; flex-direction: column; }
-        .chat-target-header { padding: 10px; background: #e9ecef; border-bottom: 1px solid #ddd; font-weight: bold; }
-        .chat-target-select { width: auto; display: inline-block; margin: 0 0 0 10px; padding: 5px; }
-        
-        .messages { flex: 1; padding: 20px; overflow-y: auto; background: #e5ddd5; }
-        .message-box { margin-bottom: 15px; display: flex; flex-direction: column; }
-        .message-box.me { align-items: flex-end; }
-        .message-box.other { align-items: flex-start; }
-        .name { font-size: 12px; margin-bottom: 3px; color: #555; }
-        .text { background: white; padding: 10px 15px; border-radius: 15px; max-width: 70%; display: inline-block; word-wrap: break-word; }
-        .message-box.me .text { background: #dcf8c6; }
-        .time { font-size: 10px; color: #999; margin-top: 3px; }
+        /* 상단 초대장 알림 바 */
+        #invite-zone { background: #fff3cd; color: #856404; padding: 10px 20px; border-bottom: 2px solid #ffeeba; display: none; flex-direction: column; gap: 5px; }
+        .invite-card { display: flex; justify-content: space-between; align-items: center; background: white; padding: 8px 15px; border-radius: 5px; border: 1px solid #ffeeba; }
+        .invite-btn-zone button { padding: 5px 12px; margin-left: 5px; font-size: 13px; width: auto; display: inline-block; }
 
-        .input-area { padding: 15px; background: #f0f0f0; display: flex; }
-        .input-area input { margin: 0; border-radius: 20px; padding: 10px 20px; flex: 1; border: 1px solid #ccc; }
-        .input-area button { width: 80px; margin-left: 10px; border-radius: 20px; }
+        /* 공통 헤더 */
+        .header { background: #4CAF50; color: white; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; height: 60px; box-sizing: border-box; flex-shrink: 0; }
+        .header button { background: #ff5252; width: auto; padding: 5px 15px; font-size: 14px; }
+        
+        /* 메인 콘텐츠 영역 (사이드바 + 채팅 그리드) */
+        .main-area { display: flex; flex: 1; overflow: hidden; height: calc(100% - 60px); }
+        
+        /* 사이드바 고정 */
+        .sidebar { width: 250px; background: #f9f9f9; border-right: 1px solid #ddd; padding: 15px; overflow-y: auto; box-sizing: border-box; flex-shrink: 0; }
+        .sidebar h3 { margin-top: 0; font-size: 14px; border-bottom: 2px solid #ddd; padding-bottom: 10px; color: #333; }
+        .user-list { list-style: none; padding: 0; margin: 0; }
+        .user-list li { padding: 12px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 13px; border-radius: 4px; transition: 0.2s; }
+        .user-list li:hover { background: #e2f0d9; color: #2e7d32; font-weight: bold; }
+        
+        /* 🔥 핵심 변경: 그리드가 아닌 Flex 레이아웃으로 화면 전체 분할 자동 계산 */
+        #student-grid { display: flex; flex-wrap: wrap; gap: 10px; padding: 10px; flex: 1; background: #e9ecef; box-sizing: border-box; overflow-y: auto; content-visibility: auto; }
+        
+        /* 🔥 개별 채팅창 카드가 남은 공간을 100% 꽉 채우도록 유연하게 설정 */
+        .chat-card { background: white; border-radius: 8px; border: 1px solid #ccc; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); box-sizing: border-box;
+            /* 기본적으로 2개씩 배치되도록 설정하되 남는 공간은 꽉 채움 */
+            flex: 1 1 calc(50% - 10px); min-width: 350px; height: calc(50% - 5px); min-height: 300px; 
+        }
+        
+        /* 방이 딱 1개일 때는 세로 폭도 100% 채우기 위한 룰 */
+        #student-grid:has(.chat-card:nth-child(1):nth-last-child(1)) .chat-card { height: 100%; flex: 1 1 100%; }
+
+        .chat-card-header { background: #4CAF50; color: white; padding: 12px; font-weight: bold; font-size: 14px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+        .chat-card-header button { background: #fff; color: #333; font-size: 12px; padding: 4px 8px; border-radius: 4px; border: 1px solid #ccc; width: auto; font-weight: normal; }
+        .chat-card-header button:hover { background: #eee; }
+        
+        .chat-card-messages { flex: 1; padding: 12px; overflow-y: auto; background: #e5ddd5; font-size: 13px; }
+        .msg-line { margin-bottom: 10px; display: flex; flex-direction: column; }
+        .msg-line.me { align-items: flex-end; }
+        .msg-line.other { align-items: flex-start; }
+        .msg-sender { font-size: 11px; color: #666; margin-bottom: 2px; }
+        .msg-text { background: white; padding: 8px 14px; border-radius: 12px; max-width: 80%; word-break: break-all; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        .msg-line.me .msg-text { background: #dcf8c6; }
+        .msg-time { font-size: 10px; color: #999; margin-top: 2px; }
+
+        .chat-card-input-area { padding: 10px; background: #f0f0f0; display: flex; border-top: 1px solid #ddd; align-items: center; flex-shrink: 0; }
+        .chat-card-input-area input { margin: 0; padding: 10px 15px; border-radius: 20px; border: 1px solid #ccc; font-size: 13px; flex: 1; }
+        .chat-card-input-area button { width: 60px; font-size: 13px; padding: 9px 0; border-radius: 20px; margin-left: 6px; background-color: #4CAF50; font-weight: bold; }
+
+        /* 선생님용 모니터링 화면 전체 채우기 */
+        #teacher-screen { display: none; height: 100%; flex-direction: column; flex: 1; overflow: hidden; }
+        #teacher-grid { display: flex; flex-wrap: wrap; gap: 12px; padding: 12px; flex: 1; overflow-y: auto; background: #f5f5f5; box-sizing: border-box; }
+        #teacher-grid .chat-card { flex: 1 1 calc(33.33% - 12px); min-width: 320px; height: calc(50% - 6px); }
     </style>
 </head>
 <body>
@@ -62,127 +87,402 @@
                 <option value="1학년">1학년</option>
                 <option value="2학년">2학년</option>
                 <option value="3학년">3학년</option>
+                <option value="4학년">4학년</option>
+                <option value="5학년">5학년</option>
+                <option value="6학년">6학년</option>
             </select>
             
             <label>반</label>
             <select id="classNum">
-                <script>
-                    for(let i=1; i<=10; i++) document.write(`<option value="${i}반">${i}반</option>`);
-                </script>
+                <option value="1반">1반</option>
+                <option value="2반">2반</option>
+                <option value="3반">3반</option>
+                <option value="4반">4반</option>
+                <option value="5반">5반</option>
+                <option value="6반">6반</option>
+                <option value="7반">7반</option>
+                <option value="8반">8반</option>
+                <option value="9반">9반</option>
+                <option value="10반">10반</option>
             </select>
             
             <label>본인 이름 (실명)</label>
             <input type="text" id="username" placeholder="이름을 입력하세요">
             
-            <button onclick="login()">입장하기</button>
+            <button onclick="login(false)">학생으로 입장하기</button>
+            <button onclick="login(true)" class="btn-teacher">👨‍🏫 선생님으로 입장하기</button>
         </div>
     </div>
 
-    <div id="chat-screen" style="display: none;">
+    <div id="invite-zone"></div>
+
+    <div id="chat-screen" style="display:none; flex-direction:column; height:100%;">
         <div class="header">
             <span id="welcome-msg">환영합니다!</span>
             <button onclick="location.reload()">로그아웃</button>
         </div>
-        
         <div class="main-area">
             <div class="sidebar">
-                <h3>👥 우리 학년 접속자</h3>
-                <ul class="user-list" id="user-list-ul">
-                    </ul>
+                <h3>👥 클릭시 1:1 대화방 개설</h3>
+                <ul class="user-list" id="user-list-ul"></ul>
             </div>
-            
-            <div class="chat-area">
-                <div class="chat-target-header">
-                    대화 상대: 
-                    <select id="target-select" class="chat-target-select" onchange="changeTarget()">
-                        </select>
-                </div>
-                
-                <div class="messages" id="messages-container">
-                    </div>
-                
-                <div class="input-area">
-                    <input type="text" id="msg-input" placeholder="메시지를 입력하세요..." onkeypress="if(event.keyCode==13) sendMessage()">
-                    <button onclick="sendMessage()">전송</button>
-                </div>
-            </div>
+            <div id="student-grid"></div>
+        </div>
+    </div>
+
+    <div id="teacher-screen">
+        <div class="header" style="background: #2196F3;">
+            <span id="teacher-welcome-msg">👨‍🏫 선생님 대시보드</span>
+            <button onclick="location.reload()">로그아웃</button>
+        </div>
+        <div style="padding: 12px 20px; background: #e3f2fd; font-weight: bold; border-bottom: 1px solid #bbdefb; color: #1565c0; flex-shrink: 0;">
+            📢 참여할 대화방 선택: <span id="selected-room-title" style="color: #d32f2f; background: white; padding: 2px 8px; border-radius: 4px; border: 1px solid #ccc;">채팅창 하나를 클릭하세요!</span>
+        </div>
+        <div id="teacher-grid"></div>
+        <div class="input-area" id="teacher-input-area" style="border-top: 3px solid #2196F3; display: none; padding:15px; background:#f0f0f0; display: flex; align-items: center; flex-shrink: 0;">
+            <input type="text" id="teacher-msg-input" placeholder="선택한 방에 메시지 전송..." onkeypress="if(event.keyCode==13) sendTeacherMessage()" style="flex: 1; margin: 0; padding: 12px; border-radius: 6px;">
+            <button onclick="sendTeacherMessage()" style="background-color: #2196F3; border:none; padding:12px; color:white; border-radius:6px; margin-left:10px; width:90px; font-weight: bold; cursor: pointer;">전송</button>
         </div>
     </div>
 </div>
 
 <script>
-    // --- 파이어베이스 설정 ---
-    const firebaseConfig = {
-        databaseURL: "https://school-chat-7051e-default-rtdb.firebaseio.com/"
-    };
-    // 파이어베이스 초기화
-    firebase.initializeApp(firebaseConfig);
-    const database = firebase.database();
+    let database;
+    try {
+        const firebaseConfig = { databaseURL: "https://school-chat-7051e-default-rtdb.firebaseio.com/" };
+        firebase.initializeApp(firebaseConfig);
+        database = firebase.database();
+    } catch (e) {
+        alert("파이어베이스 연결 에러: " + e.message);
+    }
 
-    // 전역 변수
     let myInfo = {};
-    let currentTarget = "";
-    let allMessages = [];
+    let currentTeacherTarget = "";
+    let localRooms = {};
+    let localMessages = [];
 
-    // 1. 로그인 기능
-    function login() {
-        const grade = document.getElementById('grade').value;
-        const classNum = document.getElementById('classNum').value;
-        const name = document.getElementById('username').value.trim();
+    window.onload = function() {
+        if(localStorage.getItem('school_chat_grade')) document.getElementById('grade').value = localStorage.getItem('school_chat_grade');
+        if(localStorage.getItem('school_chat_classNum')) document.getElementById('classNum').value = localStorage.getItem('school_chat_classNum');
+        if(localStorage.getItem('school_chat_name')) document.getElementById('username').value = localStorage.getItem('school_chat_name');
+    };
 
-        if (name === "") {
-            alert("이름을 입력해주세요!");
+    function login(isTeacher = false) {
+        try {
+            const grade = document.getElementById('grade').value;
+            const classNum = document.getElementById('classNum').value;
+            const name = document.getElementById('username').value.trim();
+
+            if (name === "") { alert("이름을 입력해주세요!"); return; }
+
+            if (isTeacher) {
+                const masterPassword = prompt("👨‍🏫 선생님 전용 암호를 입력하세요:");
+                if (masterPassword !== "school1234") {
+                    alert("❌ 암호가 일치하지 않습니다. 선생님만 입장할 수 있습니다.");
+                    return;
+                }
+            }
+
+            localStorage.setItem('school_chat_grade', grade);
+            localStorage.setItem('school_chat_classNum', classNum);
+            localStorage.setItem('school_chat_name', name);
+
+            myInfo = { grade, classNum, name, isTeacher };
+            document.getElementById('login-screen').style.display = 'none';
+
+            if (isTeacher) {
+                document.getElementById('teacher-screen').style.display = 'flex';
+                document.getElementById('teacher-welcome-msg').innerText = `👨‍🏫 ${grade} ${classNum} ${name} 선생님 (관찰 모드)`;
+            } else {
+                document.getElementById('chat-screen').style.display = 'flex';
+                document.getElementById('welcome-msg').innerText = `🏫 ${grade} ${classNum} 【${name}】 학생`;
+
+                const defaultRoomId = `group_${grade}_${classNum}`;
+                database.ref(`rooms/${defaultRoomId}`).once('value', snap => {
+                    if(!snap.exists()) {
+                        database.ref(`rooms/${defaultRoomId}`).set({
+                            roomId: defaultRoomId,
+                            title: `${grade} ${classNum} 단체방`,
+                            grade: grade,
+                            classNum: classNum,
+                            isDefault: true,
+                            members: { [name]: true }
+                        });
+                    } else {
+                        database.ref(`rooms/${defaultRoomId}/members/${name}`).set(true);
+                    }
+                });
+
+                database.ref('users').push(myInfo);
+            }
+
+            startRealtimeListening();
+            
+        } catch (error) {
+            alert("로그인 처리 중 오류 발생: " + error.message);
+        }
+    }
+
+    function startRealtimeListening() {
+        database.ref('users').on('value', snapshot => {
+            if (myInfo.isTeacher) return;
+            const ul = document.getElementById('user-list-ul');
+            ul.innerHTML = "";
+            snapshot.forEach(child => {
+                let u = child.val();
+                if(u.grade === myInfo.grade && u.name !== myInfo.name) {
+                    let li = document.createElement('li');
+                    li.innerText = `👤 [${u.classNum}] ${u.name}`;
+                    li.onclick = () => createOneOnOneRoom(u.name, u.classNum);
+                    ul.appendChild(li);
+                }
+            });
+        });
+
+        database.ref('rooms').on('value', snapshot => {
+            localRooms = {};
+            snapshot.forEach(child => { localRooms[child.key] = child.val(); });
+            updateViews();
+        });
+
+        database.ref('messages').on('value', snapshot => {
+            localMessages = [];
+            snapshot.forEach(child => { localMessages.push(child.val()); });
+            updateViews();
+        });
+
+        if (!myInfo.isTeacher) {
+            database.ref('invitations').on('value', snapshot => {
+                const zone = document.getElementById('invite-zone');
+                zone.innerHTML = "";
+                let hasInvite = false;
+
+                snapshot.forEach(child => {
+                    let inv = child.val();
+                    if(inv.to === myInfo.name && inv.status === 'pending') {
+                        hasInvite = true;
+                        let div = document.createElement('div');
+                        div.className = 'invite-card';
+                        div.innerHTML = `
+                            <div>🔔 <b>${inv.from}</b>님이 [<b>${inv.roomTitle}</b>] 방으로 초대했습니다!</div>
+                            <div class="invite-btn-zone">
+                                <button style="background:#4CAF50; border:none; color:white; padding:6px 12px; border-radius:4px; cursor:pointer;" onclick="respondInvite('${child.key}', '${inv.roomId}', true)">수락</button>
+                                <button style="background:#ff5252; border:none; color:white; padding:6px 12px; border-radius:4px; cursor:pointer;" onclick="respondInvite('${child.key}', '${inv.roomId}', false)">거절</button>
+                            </div>
+                        `;
+                        zone.appendChild(div);
+                    }
+                });
+                zone.style.display = hasInvite ? 'flex' : 'none';
+            });
+        }
+    }
+
+    function updateViews() {
+        if(myInfo.isTeacher) {
+            renderTeacherDashboard();
+        } else {
+            renderStudentMultiScreen();
+        }
+    }
+
+    function createOneOnOneRoom(targetName, targetClass) {
+        const roomId = `room_${Date.now()}_${Math.floor(Math.random()*1000)}`;
+        database.ref(`rooms/${roomId}`).set({
+            roomId: roomId,
+            title: `${myInfo.name}, ${targetName}의 대화방`,
+            grade: myInfo.grade,
+            classNum: myInfo.classNum,
+            members: { [myInfo.name]: true, [targetName]: true }
+        });
+    }
+
+    function inviteFriend(roomId, currentMemberCount) {
+        if(currentMemberCount >= 50) {
+            alert("이 방은 정원이 꽉 찼습니다! (최대 50명 한정)");
+            return;
+        }
+        const friendName = prompt("이 방에 추가할 학생의 이름을 정확하게 입력하세요:");
+        if(!friendName) return;
+
+        const room = localRooms[roomId];
+        if(room.members && room.members[friendName]) {
+            alert("이미 이 방에 참여하고 있는 학생입니다.");
             return;
         }
 
-        myInfo = { grade, classNum, name };
-        currentTarget = `${grade} ${classNum} 단체방`;
-
-        // DB에 유저 정보 저장 (이미 있는지 확인)
-        const usersRef = database.ref('users');
-        usersRef.orderByChild('name').equalTo(name).once('value', snapshot => {
-            let isExist = false;
-            snapshot.forEach(child => {
-                let val = child.val();
-                if(val.grade === grade && val.classNum === classNum) isExist = true;
-            });
-            if(!isExist) usersRef.push(myInfo);
+        database.ref('invitations').push({
+            roomId: roomId,
+            roomTitle: room.title,
+            from: myInfo.name,
+            to: friendName,
+            status: 'pending'
         });
-
-        // 화면 전환
-        document.getElementById('login-screen').style.display = 'none';
-        document.getElementById('chat-screen').style.display = 'flex';
-        document.getElementById('welcome-msg').innerText = `🏫 ${grade} ${classNum} ${name}님`;
-
-        startRealtimeUpdates();
+        alert(`${friendName} 학생에게 방 참여 요청 알림을 발송했습니다!`);
     }
 
-    // 2. 실시간 데이터 업데이트 (유저 목록 & 메시지)
-    function startRealtimeUpdates() {
-        // --- 접속자 목록 업데이트 ---
-        database.ref('users').on('value', snapshot => {
-            const userListUl = document.getElementById('user-list-ul');
-            const targetSelect = document.getElementById('target-select');
+    function respondInvite(inviteKey, roomId, isAccept) {
+        if(isAccept) {
+            const room = localRooms[roomId];
+            const currentCount = room && room.members ? Object.keys(room.members).length : 0;
             
-            userListUl.innerHTML = "";
-            targetSelect.innerHTML = `<option value="${myInfo.grade} ${myInfo.classNum} 단체방">${myInfo.grade} ${myInfo.classNum} 단체방</option>`;
+            if(currentCount >= 50) {
+                alert("방의 정원(50명)이 초과되어 들어갈 수 없습니다!");
+                database.ref(`invitations/${inviteKey}`).remove();
+                return;
+            }
+            database.ref(`rooms/${roomId}/members/${myInfo.name}`).set(true);
+        }
+        database.ref(`invitations/${inviteKey}`).remove();
+    }
 
-            let users = [];
-            snapshot.forEach(child => users.push(child.val()));
+    function renderStudentMultiScreen() {
+        const grid = document.getElementById('student-grid');
+        grid.innerHTML = "";
 
-            // 같은 학년 유저들만 필터링 후 반별로 정렬
-            users.filter(u => u.grade === myInfo.grade)
-                 .sort((a, b) => a.classNum.localeCompare(b.classNum))
-                 .forEach(u => {
-                     // 사이드바 추가
-                     let li = document.createElement('li');
-                     li.innerText = `${u.classNum} - ${u.name}` + (u.name === myInfo.name ? " (나)" : "");
-                     userListUl.appendChild(li);
+        let myActiveRooms = [];
+        for(let id in localRooms) {
+            let r = localRooms[id];
+            if(r.members && r.members[myInfo.name] === true) {
+                myActiveRooms.push(r);
+            }
+        }
 
-                     // 대화 상대 선택창에 추가 (나 자신 제외)
-                     if(u.name !== myInfo.name) {
-                         let option = document.createElement('option');
-                         option.value = u.name;
-                         option.innerText = `👤 ${u.classNum} ${u.name} (1:1)`;
-                         targetSelect.appendChild(option);
-                     }
+        const visibleRooms = myActiveRooms.slice(0, 8);
+
+        visibleRooms.forEach(room => {
+            const memberCount = Object.keys(room.members || {}).length;
+            
+            const card = document.createElement('div');
+            card.className = 'chat-card';
+
+            const header = document.createElement('div');
+            header.className = 'chat-card-header';
+            if(room.isDefault) header.style.background = '#4CAF50';
+            else header.style.background = '#673AB7';
+
+            header.innerHTML = `
+                <div>${room.title} (${memberCount}/50명)</div>
+                <button onclick="inviteFriend('${room.roomId}', ${memberCount})">➕ 학생 추가</button>
+            `;
+            card.appendChild(header);
+
+            const msgArea = document.createElement('div');
+            msgArea.className = 'chat-card-messages';
+            
+            localMessages.forEach(m => {
+                if(m.roomId === room.roomId) {
+                    const isMe = m.sender === myInfo.name;
+                    const msgLine = document.createElement('div');
+                    msgLine.className = `msg-line ${isMe ? 'me' : 'other'}`;
+                    msgLine.innerHTML = `
+                        <div class="msg-sender">${isMe ? '나' : m.sender}</div>
+                        <div class="msg-text">${m.text}</div>
+                        <div class="msg-time">${m.time}</div>
+                    `;
+                    msgArea.appendChild(msgLine);
+                }
+            });
+            card.appendChild(msgArea);
+
+            const inputArea = document.createElement('div');
+            inputArea.className = 'chat-card-input-area';
+            inputArea.innerHTML = `
+                <input type="text" id="input-${room.roomId}" placeholder="글을 바로 작성하세요..." onkeypress="if(event.keyCode==13) sendMultiMessage('${room.roomId}')">
+                <button onclick="sendMultiMessage('${room.roomId}')" style="border:none; color:white; cursor:pointer;">전송</button>
+            `;
+            card.appendChild(inputArea);
+
+            grid.appendChild(card);
+            msgArea.scrollTop = msgArea.scrollHeight;
+        });
+    }
+
+    function sendMultiMessage(roomId) {
+        const input = document.getElementById(`input-${roomId}`);
+        const text = input.value.trim();
+        if(text === "") return;
+
+        const now = new Date();
+        const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+        database.ref('messages').push({
+            roomId: roomId,
+            sender: myInfo.name,
+            text: text,
+            time: timeStr,
+            grade: myInfo.grade,
+            classNum: myInfo.classNum
+        });
+
+        input.value = "";
+        input.focus();
+    }
+
+    function renderTeacherDashboard() {
+        const grid = document.getElementById('teacher-grid');
+        grid.innerHTML = "";
+
+        for (let id in localRooms) {
+            const room = localRooms[id];
+            if (room.grade === myInfo.grade && room.classNum === myInfo.classNum) {
+                
+                const card = document.createElement('div');
+                card.className = 'chat-card';
+                card.style.border = currentTeacherTarget === room.roomId ? "3px solid #2196F3" : "1px solid #ccc";
+                card.style.cursor = "pointer";
+                card.onclick = () => {
+                    currentTeacherTarget = room.roomId;
+                    document.getElementById('selected-room-title').innerText = room.title;
+                    document.getElementById('teacher-input-area').style.display = 'flex';
+                    updateViews();
+                };
+
+                const header = document.createElement('div');
+                header.className = 'chat-card-header';
+                header.style.background = room.isDefault ? '#4CAF50' : '#2196F3';
+                header.innerText = `🔍 [관찰중] ${room.title}`;
+                card.appendChild(header);
+
+                const msgArea = document.createElement('div');
+                msgArea.className = 'chat-card-messages';
+
+                localMessages.forEach(m => {
+                    if(m.roomId === room.roomId) {
+                        const div = document.createElement('div');
+                        div.style.marginBottom = "5px";
+                        div.innerHTML = `<strong>${m.sender}:</strong> ${m.text} <span style="font-size:9px; color:#888;">(${m.time})</span>`;
+                        msgArea.appendChild(div);
+                    }
+                });
+
+                card.appendChild(msgArea);
+                grid.appendChild(card);
+                msgArea.scrollTop = msgArea.scrollHeight;
+            }
+        }
+    }
+
+    function sendTeacherMessage() {
+        const input = document.getElementById('teacher-msg-input');
+        const text = input.value.trim();
+        if (text === "" || !currentTeacherTarget) return;
+
+        const now = new Date();
+        const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+        database.ref('messages').push({
+            roomId: currentTeacherTarget,
+            sender: `${myInfo.name}(선생님)`,
+            text: text,
+            time: timeStr,
+            grade: myInfo.grade,
+            classNum: myInfo.classNum
+        });
+
+        input.value = "";
+    }
+</script>
+
+</body>
+</html>
