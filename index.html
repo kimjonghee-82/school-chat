@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>스쿨 톡 (Teacher Sidebar & Me Highlight)</title>
+    <title>스쿨 톡</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
@@ -101,15 +101,15 @@
             </select>
             <label>본인 이름 (실명)</label>
             <input type="text" id="username" placeholder="이름을 입력하세요">
-            <button onclick="login(false)">학생으로 입장하기</button>
-            <button onclick="login(true)" class="btn-teacher">👨‍🏫 선생님으로 입장하기</button>
+            <button onclick="window.login(false)">학생으로 입장하기</button>
+            <button onclick="window.login(true)" class="btn-teacher">👨‍🏫 선생님으로 입장하기</button>
         </div>
     </div>
 
     <div id="chat-screen" style="display:none; flex-direction:column; height:100%;">
         <div class="header">
             <span id="welcome-msg">환영합니다!</span>
-            <button onclick="handleLogout()">로그아웃</button>
+            <button onclick="window.handleLogout()">로그아웃</button>
         </div>
         <div class="main-area">
             <div class="sidebar">
@@ -124,8 +124,8 @@
         <div class="header" style="background: #2196F3;">
             <span id="teacher-welcome-msg">👨‍🏫 선생님 대시보드</span>
             <div style="display:flex; gap:10px;">
-                <button onclick="resetAllUsers()" style="background:#ff9800; font-size:13px; padding:5px 12px;">👻 전체 접속자 초기화</button>
-                <button onclick="handleLogout()" style="font-size:13px; padding:5px 12px;">로그아웃</button>
+                <button onclick="window.resetAllUsers()" style="background:#ff9800; font-size:13px; padding:5px 12px;">👻 전체 접속자 초기화</button>
+                <button onclick="window.handleLogout()" style="font-size:13px; padding:5px 12px;">로그아웃</button>
             </div>
         </div>
         <div class="main-area">
@@ -139,8 +139,8 @@
                 </div>
                 <div id="teacher-grid"></div>
                 <div class="input-area" id="teacher-input-area" style="border-top: 3px solid #2196F3; display: none; padding:15px; background:#f0f0f0; display: flex; align-items: center; flex-shrink: 0;">
-                    <input type="text" id="teacher-msg-input" placeholder="선택한 방에 공지 메시지 전송..." onkeypress="if(event.keyCode==13) sendTeacherMessage()" style="flex: 1; margin: 0; padding: 12px; border-radius: 6px;">
-                    <button onclick="sendTeacherMessage()" style="background-color: #2196F3; border:none; padding:12px; color:white; border-radius:6px; margin-left:10px; width:90px; font-weight: bold; cursor: pointer;">전송</button>
+                    <input type="text" id="teacher-msg-input" placeholder="선택한 방에 공지 메시지 전송..." onkeypress="if(event.keyCode==13) window.sendTeacherMessage()" style="flex: 1; margin: 0; padding: 12px; border-radius: 6px;">
+                    <button onclick="window.sendTeacherMessage()" style="background-color: #2196F3; border:none; padding:12px; color:white; border-radius:6px; margin-left:10px; width:90px; font-weight: bold; cursor: pointer;">전송</button>
                 </div>
             </div>
         </div>
@@ -158,7 +158,7 @@
                 <div id="game-start-overlay"></div>
             </div>
             <div class="game-input-area">
-                <input type="text" id="game-input" placeholder="여기에 단어를 입력하고 엔터를 누르세요!" onkeypress="if(event.keyCode==13) checkGameWord()" disabled autocomplete="off">
+                <input type="text" id="game-input" placeholder="여기에 단어를 입력하고 엔터를 누르세요!" onkeypress="if(event.keyCode==13) window.checkGameWord()" disabled autocomplete="off">
             </div>
         </div>
         <div class="game-leaderboard">
@@ -166,27 +166,28 @@
             <ul class="leaderboard-list" id="leaderboard-list">
                 <li style="text-align:center; color:#888;">데이터를 불러오는 중...</li>
             </ul>
-            <div class="close-game-btn" onclick="closeGame()">나가기</div>
+            <div class="close-game-btn" onclick="window.closeGame()">나가기</div>
         </div>
     </div>
 </div>
 
 <script>
+    // 💡 에러 방지를 위해 변수 및 함수 선언부를 확실하게 정돈했습니다.
     let database;
     try {
-        // 🔥 선생님의 Firebase 설정값(databaseURL)이 맞는지 다시 한번 확인해주세요!
         const firebaseConfig = { databaseURL: "https://school-chat-7051e-default-rtdb.firebaseio.com/" };
-        firebase.initializeApp(firebaseConfig);
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
         database = firebase.database();
     } catch (e) {
-        alert("파이어베이스 설정 에러!");
+        console.error("Firebase 초기화 에러:", e);
     }
 
     let myInfo = {};
     let myUserRef = null;
     let currentTeacherTarget = "";
     
-    // 데이터 저장용 변수들
     let localUsers = {};
     let localRooms = {};
     let localMessages = [];
@@ -200,7 +201,7 @@
         if(localStorage.getItem('school_chat_name')) document.getElementById('username').value = localStorage.getItem('school_chat_name');
     };
 
-    function login(isTeacher = false) {
+    function login(isTeacher) {
         if(!database) { alert("파이어베이스가 연결되지 않았습니다."); return; }
         try {
             const grade = document.getElementById('grade').value;
@@ -217,7 +218,7 @@
             localStorage.setItem('school_chat_classNum', classNum);
             localStorage.setItem('school_chat_name', name);
 
-            myInfo = { grade, classNum, name, isTeacher };
+            myInfo = { grade: grade, classNum: classNum, name: name, isTeacher: isTeacher };
             document.getElementById('login-screen').style.display = 'none';
 
             if (isTeacher) {
@@ -228,7 +229,7 @@
                 document.getElementById('welcome-msg').innerText = `🏫 ${grade} ${classNum} 【${name}】 학생`;
 
                 const defaultRoomId = `group_${grade}_${classNum}`;
-                database.ref(`rooms/${defaultRoomId}`).once('value', snap => {
+                database.ref(`rooms/${defaultRoomId}`).once('value', function(snap) {
                     if(!snap.exists()) {
                         database.ref(`rooms/${defaultRoomId}`).set({
                             roomId: defaultRoomId, title: `${grade} ${classNum} 단체방`, grade: grade, classNum: classNum, isDefault: true, creator: "시스템", members: { [name]: true }
@@ -240,7 +241,6 @@
                 });
             }
 
-            // 본인 접속 정보 등록 (학생, 선생님 모두 등록)
             const userType = isTeacher ? "teacher" : "student";
             const userKey = `user_${grade}_${classNum}_${name}_${userType}`; 
             myUserRef = database.ref(`users/${userKey}`);
@@ -264,14 +264,17 @@
                 }
             }
         }
-        if (myUserRef) myUserRef.remove().then(() => location.reload()).catch(() => location.reload());
-        else location.reload();
+        if (myUserRef) {
+            myUserRef.remove().then(function() { location.reload(); }).catch(function() { location.reload(); });
+        } else {
+            location.reload();
+        }
     }
 
     function resetAllUsers() {
         if(!myInfo.isTeacher) return;
         if (confirm("⚠️ 데이터베이스에 쌓인 모든 접속자를 초기화하시겠습니까?")) {
-            database.ref('users').remove().then(() => alert("✨ 유령 아이디가 싹 청소되었습니다!"));
+            database.ref('users').remove().then(function() { alert("✨ 유령 아이디가 싹 청소되었습니다!"); });
         }
     }
 
@@ -281,7 +284,7 @@
         for (let name in localClassScores) {
             scoreArray.push({ name: name, score: localClassScores[name].score });
         }
-        scoreArray.sort((a, b) => b.score - a.score);
+        scoreArray.sort(function(a, b) { return b.score - a.score; });
         let rank = -1;
         for (let i = 0; i < scoreArray.length; i++) {
             if (scoreArray[i].name === userName) {
@@ -296,12 +299,12 @@
     }
 
     function startRealtimeListening() {
-        database.ref('users').on('value', snapshot => { localUsers = snapshot.val() || {}; updateViews(); });
-        database.ref('rooms').on('value', snapshot => { localRooms = {}; snapshot.forEach(child => { localRooms[child.key] = child.val(); }); updateViews(); });
-        database.ref('messages').on('value', snapshot => { localMessages = []; snapshot.forEach(child => { localMessages.push(child.val()); }); updateViews(); });
-        database.ref('gameScores').on('value', snapshot => { localGameScores = {}; snapshot.forEach(roomSnap => { localGameScores[roomSnap.key] = roomSnap.val(); }); updateLeaderboard(); });
-        database.ref(`classScores/${myInfo.grade}_${myInfo.classNum}`).on('value', snapshot => { localClassScores = snapshot.val() || {}; updateViews(); });
-        database.ref('gameState').on('value', snapshot => {
+        database.ref('users').on('value', function(snapshot) { localUsers = snapshot.val() || {}; updateViews(); });
+        database.ref('rooms').on('value', function(snapshot) { localRooms = {}; snapshot.forEach(function(child) { localRooms[child.key] = child.val(); }); updateViews(); });
+        database.ref('messages').on('value', function(snapshot) { localMessages = []; snapshot.forEach(function(child) { localMessages.push(child.val()); }); updateViews(); });
+        database.ref('gameScores').on('value', function(snapshot) { localGameScores = {}; snapshot.forEach(function(roomSnap) { localGameScores[roomSnap.key] = roomSnap.val(); }); updateLeaderboard(); });
+        database.ref(`classScores/${myInfo.grade}_${myInfo.classNum}`).on('value', function(snapshot) { localClassScores = snapshot.val() || {}; updateViews(); });
+        database.ref('gameState').on('value', function(snapshot) {
             const states = snapshot.val() || {};
             for (let rid in states) {
                 if (states[rid].trigger !== lastGameTrigger[rid]) {
@@ -313,14 +316,9 @@
     }
 
     function updateViews() {
-        // ✅ 학생, 선생님 화면 모두 접속자 명단을 업데이트합니다.
         renderUserList(); 
-        
-        if(myInfo.isTeacher) {
-            renderTeacherDashboard();
-        } else {
-            renderStudentMultiScreen();
-        }
+        if(myInfo.isTeacher) renderTeacherDashboard();
+        else renderStudentMultiScreen();
     }
 
     function renderUserList() {
@@ -333,7 +331,6 @@
         for (let key in localUsers) {
             let u = localUsers[key];
             
-            // 현재 학년과 같은 사용자만 표시
             if(u.grade === myInfo.grade) {
                 let li = document.createElement('li');
                 let rankStr = getRankString(u.name); 
@@ -342,27 +339,23 @@
                 let displayName = `${rankStr} 👤 [${u.classNum}] ${u.name}`;
                 if (u.isTeacher) displayName += " 👨‍🏫";
                 
-                // ✅ 본인 표시 및 강조 로직
                 if (isMe) {
                     displayName = `⭐ ${displayName} (나)`;
-                    li.style.background = '#e3f2fd'; // 옅은 파란색 배경
+                    li.style.background = '#e3f2fd'; 
                     li.style.fontWeight = 'bold';
                     li.style.color = '#1565c0';
                     li.style.cursor = 'default';
                 } else {
                     li.style.cursor = 'pointer';
-                    // 학생일 때만 다른 학생을 클릭해 방을 만들 수 있음
                     if (!myInfo.isTeacher && !u.isTeacher) {
-                        li.onclick = () => confirmAndCreateRoom(u.name);
+                        li.onclick = function() { confirmAndCreateRoom(u.name); };
                     } else if (!myInfo.isTeacher && u.isTeacher) {
-                        // 학생이 선생님 클릭했을 때는 방 생성 방지 (원하면 해제 가능)
-                        li.onclick = () => alert("선생님과는 1:1 대화방을 만들 수 없습니다.");
+                        li.onclick = function() { alert("선생님과는 1:1 대화방을 만들 수 없습니다."); };
                     }
                 }
 
                 li.innerText = displayName;
 
-                // 상황에 맞는 UI에 명단 추가
                 if (myInfo.isTeacher && teacherUl) {
                     teacherUl.appendChild(li);
                 } else if (!myInfo.isTeacher && studentUl) {
@@ -394,8 +387,8 @@
     function destroyRoom(roomId) {
         if (!confirm("⚠️ 정말 이 방을 완전히 삭제하시겠습니까?")) return;
         database.ref(`rooms/${roomId}`).remove();
-        database.ref('messages').once('value', snapshot => {
-            snapshot.forEach(child => { if(child.val().roomId === roomId) database.ref(`messages/${child.key}`).remove(); });
+        database.ref('messages').once('value', function(snapshot) {
+            snapshot.forEach(function(child) { if(child.val().roomId === roomId) database.ref(`messages/${child.key}`).remove(); });
         });
         database.ref(`gameScores/${roomId}`).remove(); 
     }
@@ -408,7 +401,7 @@
     function renderStudentMultiScreen() {
         const grid = document.getElementById('student-grid');
         let savedScrolls = {};
-        document.querySelectorAll('.chat-card-messages').forEach(el => {
+        document.querySelectorAll('.chat-card-messages').forEach(function(el) {
             savedScrolls[el.dataset.roomid] = el.scrollTop;
         });
 
@@ -418,7 +411,7 @@
             if(localRooms[id].members && localRooms[id].members[myInfo.name] === true) myActiveRooms.push(localRooms[id]);
         }
 
-        myActiveRooms.forEach(room => {
+        myActiveRooms.forEach(function(room) {
             const isCreator = room.creator === myInfo.name;
             const isHost = room.isDefault ? false : isCreator; 
 
@@ -431,14 +424,14 @@
 
             let actionBtn = "";
             if (!room.isDefault) {
-                if (isCreator) actionBtn = `<button class="btn-danger" onclick="destroyRoom('${room.roomId}')">❌ 폭파</button>`;
-                else actionBtn = `<button class="btn-warning" onclick="leaveRoom('${room.roomId}')">🚪 나가기</button>`;
+                if (isCreator) actionBtn = `<button class="btn-danger" onclick="window.destroyRoom('${room.roomId}')">❌ 폭파</button>`;
+                else actionBtn = `<button class="btn-warning" onclick="window.leaveRoom('${room.roomId}')">🚪 나가기</button>`;
             }
 
             header.innerHTML = `
                 <div>${room.title}</div>
                 <div class="btn-group">
-                    <button class="btn-game" onclick="openGame('${room.roomId}', '${room.title}', ${isHost})">🎮 산성비 게임</button>
+                    <button class="btn-game" onclick="window.openGame('${room.roomId}', '${room.title}', ${isHost})">🎮 산성비 게임</button>
                     ${actionBtn}
                 </div>
             `;
@@ -448,7 +441,7 @@
             msgArea.className = 'chat-card-messages';
             msgArea.dataset.roomid = room.roomId;
 
-            localMessages.forEach(m => {
+            localMessages.forEach(function(m) {
                 if(m.roomId === room.roomId) {
                     const isMe = m.sender === myInfo.name;
                     const displaySender = isMe ? '나' : getRankString(m.sender) + m.sender;
@@ -466,8 +459,8 @@
             const inputArea = document.createElement('div');
             inputArea.className = 'chat-card-input-area';
             inputArea.innerHTML = `
-                <input type="text" id="input-${room.roomId}" placeholder="대화 입력..." onkeypress="if(event.keyCode==13) sendMultiMessage('${room.roomId}')">
-                <button onclick="sendMultiMessage('${room.roomId}')">전송</button>
+                <input type="text" id="input-${room.roomId}" placeholder="대화 입력..." onkeypress="if(event.keyCode==13) window.sendMultiMessage('${room.roomId}')">
+                <button onclick="window.sendMultiMessage('${room.roomId}')">전송</button>
             `;
             card.appendChild(inputArea);
             grid.appendChild(card);
@@ -491,7 +484,7 @@
                 card.className = 'chat-card';
                 card.style.border = currentTeacherTarget === room.roomId ? "3px solid #2196F3" : "1px solid #ccc";
                 card.style.cursor = "pointer";
-                card.onclick = () => {
+                card.onclick = function() {
                     currentTeacherTarget = room.roomId;
                     document.getElementById('selected-room-title').innerText = room.title;
                     document.getElementById('teacher-input-area').style.display = 'flex';
@@ -505,14 +498,14 @@
                 header.innerHTML = `
                     <div style="pointer-events: none;">🔍 ${room.title}</div>
                     <div class="btn-group">
-                        <button class="btn-game" onclick="event.stopPropagation(); openGame('${room.roomId}', '${room.title}', true)">🎮 랭킹/게임 관리</button>
+                        <button class="btn-game" onclick="event.stopPropagation(); window.openGame('${room.roomId}', '${room.title}', true)">🎮 랭킹/게임 관리</button>
                     </div>
                 `;
                 card.appendChild(header);
 
                 const msgArea = document.createElement('div');
                 msgArea.className = 'chat-card-messages';
-                localMessages.forEach(m => {
+                localMessages.forEach(function(m) {
                     if(m.roomId === room.roomId) {
                         msgArea.innerHTML += `<div style="margin-bottom:5px;"><strong>${getRankString(m.sender)}${m.sender}:</strong> ${m.text} <span style="font-size:9px; color:#888;">(${m.time})</span></div>`;
                     }
@@ -587,13 +580,13 @@
         database.ref(`gameState/${currentGameRoomId}`).set({ trigger: Date.now() });
     }
 
-    function showGameOverlay(isGameOver = false) {
+    function showGameOverlay(isGameOver) {
         const overlay = document.getElementById('game-start-overlay');
         overlay.style.display = 'flex';
 
         if (isCurrentRoomHost) {
             const btnText = isGameOver ? `🔄 다 같이 다시 하기 (내 점수: ${gameScore})` : `▶ 방장 권한으로 다 함께 시작!`;
-            overlay.innerHTML = `<button onclick="emitStartGameSignal()">${btnText}</button>`;
+            overlay.innerHTML = `<button onclick="window.emitStartGameSignal()">${btnText}</button>`;
         } else {
             const statusText = isGameOver ? "게임이 종료되었습니다.<br>방장의 다음 게임 시작을 기다리는 중입니다..." : "방장(또는 선생님)이 게임을 시작할 때까지 기다려주세요!";
             overlay.innerHTML = `
@@ -624,7 +617,7 @@
         gameLoop = setInterval(moveWords, 33);
         wordSpawnTimer = setInterval(spawnWord, 1500);
 
-        scoreSyncTimer = setInterval(() => {
+        scoreSyncTimer = setInterval(function() {
             if (gameScore !== lastSyncedScore) {
                 updateRealTimeScore(gameScore);
                 lastSyncedScore = gameScore;
@@ -679,7 +672,7 @@
                 
                 const sky = document.getElementById('game-sky');
                 sky.style.background = "#ff5252";
-                setTimeout(() => { if(isGameRunning) sky.style.background = "linear-gradient(to bottom, #0f2027, #203a43, #2c5364)"; }, 100);
+                setTimeout(function() { if(isGameRunning) sky.style.background = "linear-gradient(to bottom, #0f2027, #203a43, #2c5364)"; }, 100);
 
                 if (gameLives <= 0) {
                     gameOver();
@@ -719,7 +712,8 @@
     }
 
     function clearSky() {
-        document.getElementById('game-sky').querySelectorAll('.falling-word').forEach(el => el.remove());
+        const falling = document.getElementById('game-sky').querySelectorAll('.falling-word');
+        for (let i = 0; i < falling.length; i++) falling[i].remove();
         gameWords = [];
         document.getElementById('game-sky').style.background = "linear-gradient(to bottom, #0f2027, #203a43, #2c5364)";
     }
@@ -754,7 +748,7 @@
         for (let userName in roomScores) {
             scoreArray.push({ name: userName, score: roomScores[userName].score });
         }
-        scoreArray.sort((a, b) => b.score - a.score);
+        scoreArray.sort(function(a, b) { return b.score - a.score; });
 
         if (scoreArray.length === 0) {
             listEl.innerHTML = `<li style="text-align:center; color:#888;">아직 점수가 없습니다.<br>게임을 시작해보세요!</li>`;
@@ -763,7 +757,7 @@
 
         const myNameTag = myInfo.isTeacher ? `${myInfo.name}(선생님)` : myInfo.name;
 
-        scoreArray.forEach((data, index) => {
+        scoreArray.forEach(function(data, index) {
             let medal = "";
             if (index === 0) medal = "🥇 1위";
             else if (index === 1) medal = "🥈 2위";
@@ -781,6 +775,19 @@
             `;
         });
     }
+
+    // 전역 스코프에 함수 연결 (에디터 오류 원천 차단)
+    window.login = login;
+    window.handleLogout = handleLogout;
+    window.resetAllUsers = resetAllUsers;
+    window.openGame = openGame;
+    window.closeGame = closeGame;
+    window.emitStartGameSignal = emitStartGameSignal;
+    window.checkGameWord = checkGameWord;
+    window.sendMultiMessage = sendMultiMessage;
+    window.sendTeacherMessage = sendTeacherMessage;
+    window.destroyRoom = destroyRoom;
+    window.leaveRoom = leaveRoom;
 </script>
 </body>
 </html>
