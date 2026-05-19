@@ -453,4 +453,114 @@
             localMessages.forEach(m => {
                 if(m.roomId === room.roomId) {
                     const isMe = m.sender === myInfo.name;
-                    const msgLine = document.
+                    const msgLine = document.createElement('div');
+                    msgLine.className = `msg-line ${isMe ? 'me' : 'other'}`;
+                    msgLine.innerHTML = `
+                        <div class="msg-sender">${isMe ? '나' : m.sender}</div>
+                        <div class="msg-text">${m.text}</div>
+                        <div class="msg-time">${m.time}</div>
+                    `;
+                    msgArea.appendChild(msgLine);
+                }
+            });
+            card.appendChild(msgArea);
+
+            const inputArea = document.createElement('div');
+            inputArea.className = 'chat-card-input-area';
+            inputArea.innerHTML = `
+                <input type="text" id="input-${room.roomId}" placeholder="글을 바로 작성하세요..." onkeypress="if(event.keyCode==13) sendMultiMessage('${room.roomId}')">
+                <button onclick="sendMultiMessage('${room.roomId}')" style="border:none; color:white; cursor:pointer;">전송</button>
+            `;
+            card.appendChild(inputArea);
+
+            grid.appendChild(card);
+            msgArea.scrollTop = msgArea.scrollHeight;
+        });
+    }
+
+    // 3. 선생님 대시보드: 멤버수가 1명 이상 살아있는 '현재 활성화된 방'만 렌더링
+    function renderTeacherDashboard() {
+        const grid = document.getElementById('teacher-grid');
+        grid.innerHTML = "";
+
+        let activeRoomCount = 0;
+
+        for (let id in localRooms) {
+            const room = localRooms[id];
+            if (room.grade === myInfo.grade && room.classNum === myInfo.classNum) {
+                
+                // 멤버 리스트 추출 및 실시간 인원 카운트
+                const membersObj = room.members || {};
+                const currentMemberCount = Object.keys(membersObj).length;
+
+                // 💡 핵심 룰: 인원이 0명이거나 멤버 데이터가 아예 제거된 유령방은 선생님 화면에서 즉시 제외
+                if (currentMemberCount <= 0) {
+                    continue; 
+                }
+
+                activeRoomCount++;
+                
+                const card = document.createElement('div');
+                card.className = 'chat-card';
+                card.style.border = currentTeacherTarget === room.roomId ? "3px solid #2196F3" : "1px solid #ccc";
+                card.style.cursor = "pointer";
+                card.onclick = () => {
+                    currentTeacherTarget = room.roomId;
+                    document.getElementById('selected-room-title').innerText = room.title;
+                    document.getElementById('teacher-input-area').style.display = 'flex';
+                    updateViews();
+                };
+
+                const header = document.createElement('div');
+                header.className = 'chat-card-header';
+                header.style.background = room.isDefault ? '#4CAF50' : '#2196F3';
+                header.innerText = `🔍 [관찰중] ${room.title} (${currentMemberCount}명 활성)`;
+                card.appendChild(header);
+
+                const msgArea = document.createElement('div');
+                msgArea.className = 'chat-card-messages';
+
+                localMessages.forEach(m => {
+                    if(m.roomId === room.roomId) {
+                        const div = document.createElement('div');
+                        div.style.marginBottom = "5px";
+                        div.innerHTML = `<strong>${m.sender}:</strong> ${m.text} <span style="font-size:9px; color:#888;">(${m.time})</span>`;
+                        msgArea.appendChild(div);
+                    }
+                });
+
+                card.appendChild(msgArea);
+                grid.appendChild(card);
+                msgArea.scrollTop = msgArea.scrollHeight;
+            }
+        }
+
+        // 활성화된 방이 단 하나도 없을 때 안내 메시지
+        if(activeRoomCount === 0) {
+            grid.innerHTML = `<div style="padding:40px; color:#666; font-size:16px; width:100%; text-align:center;">현재 개설되어 활성화된 반 채팅방이 없습니다.</div>`;
+        }
+    }
+
+    function sendTeacherMessage() {
+        const input = document.getElementById('teacher-msg-input');
+        const text = input.value.trim();
+        if (text === "" || !currentTeacherTarget) return;
+
+        const now = new Date();
+        const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+        database.ref('messages').push({
+            roomId: currentTeacherTarget,
+            sender: `${myInfo.name}(선생님)`,
+            text: text,
+            time: timeStr,
+            grade: myInfo.grade,
+            classNum: myInfo.classNum
+        });
+
+        input.value = "";
+    }
+</script>
+
+</body>
+</html>
