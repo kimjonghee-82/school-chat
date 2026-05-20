@@ -228,8 +228,8 @@
 
 <div id="global-notice-modal" class="modal-overlay">
     <div style="background: white; padding: 30px; border-radius: 12px; width: 450px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
-        <h2 style="margin-top: 0; color: #e91e63;">📢 전체 학생 공지 전송</h2>
-        <p style="font-size: 13px; color: #666; margin-bottom: 15px;">모든 채팅방의 학생들 화면에 알림창을 띄웁니다.</p>
+        <h2 style="margin-top: 0; color: #e91e63;">📢 우리 반 공지 전송</h2>
+        <p style="font-size: 13px; color: #666; margin-bottom: 15px;">우리 반 모든 채팅방의 학생들 화면에 알림창을 띄웁니다.</p>
         <textarea id="global-notice-text" rows="6" placeholder="여기에 전달할 공지 내용을 입력하세요..." style="width: 100%; padding: 12px; box-sizing: border-box; border-radius: 6px; border: 1px solid #ccc; font-size: 15px; font-family: inherit; resize: none;"></textarea>
         <div style="margin-top: 15px; display: flex; gap: 10px; justify-content: center;">
             <button onclick="sendGlobalNotice()" style="background-color: #e91e63;">🚀 전체 전송</button>
@@ -422,7 +422,30 @@
 
     function resetAllUsers() {
         if(!myInfo.isTeacher) return;
-        if (confirm("⚠️ 데이터베이스에 쌓인 모든 접속자를 초기화하시겠습니까?")) database.ref('users').remove().then(() => alert("✨ 초기화되었습니다!"));
+        
+        if (confirm(`⚠️ 정말 [${myInfo.grade} ${myInfo.classNum}]의 모든 학생 접속 기록을 초기화하시겠습니까?\n(다른 반 학생들은 유지됩니다.)`)) {
+            database.ref('users').once('value', snapshot => {
+                if (!snapshot.exists()) return;
+                
+                let updates = {};
+                snapshot.forEach(child => {
+                    let user = child.val();
+                    // 선생님과 같은 학년, 같은 반인 학생만 찾아내서 삭제 예약
+                    if (user.grade === myInfo.grade && user.classNum === myInfo.classNum && !user.isTeacher) {
+                        updates[child.key] = null; 
+                    }
+                });
+                
+                // 찾아낸 우리 반 학생들만 한 번에 삭제 처리
+                if (Object.keys(updates).length > 0) {
+                    database.ref('users').update(updates).then(() => {
+                        alert(`✨ ${myInfo.grade} ${myInfo.classNum} 학생들의 접속 기록이 초기화되었습니다!`);
+                    });
+                } else {
+                    alert("초기화할 우리 반 학생이 없습니다.");
+                }
+            });
+        }
     }
 
     function getRankString(userName) {
@@ -515,7 +538,7 @@
 
         for (let key in localUsers) {
             let u = localUsers[key];
-            if(u.grade === myInfo.grade) {
+            if(u.grade === myInfo.grade && u.classNum === myInfo.classNum) {
                 let li = document.createElement('li');
                 let rankStr = getRankString(u.name); 
                 let isMe = (u.name === myInfo.name && u.isTeacher === myInfo.isTeacher);
@@ -926,7 +949,7 @@
     function sendGlobalNotice() {
         const text = document.getElementById('global-notice-text').value.trim();
         if(!text) return alert("내용을 입력해주세요.");
-        if(confirm("이 공지를 모든 학생의 화면에 띄우시겠습니까?")) {
+        if(confirm("이 공지를 우리 반 학생의 화면에 띄우시겠습니까?")) {
             const timestamp = Date.now();
             for(let roomId in localRooms) {
                 if (localRooms[roomId].grade === myInfo.grade && localRooms[roomId].classNum === myInfo.classNum) {
@@ -938,7 +961,7 @@
                     });
                 }
             }
-            alert("✅ 전체 공지 전송 완료!");
+            alert("✅ 우리 반 공지 전송 완료!");
             document.getElementById('global-notice-modal').style.display='none';
         }
     }
