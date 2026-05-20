@@ -31,7 +31,7 @@
         .user-list li:hover { background: #e2f0d9; }
         
         #student-grid { display: flex; flex-direction: row; gap: 12px; padding: 12px; flex: 1; background: #e9ecef; box-sizing: border-box; overflow-x: auto; align-items: stretch; }
-        .chat-card { background: white; border-radius: 8px; border: 1px solid #ccc; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); box-sizing: border-box; flex: 1; min-width: 340px; height: 100%; }
+        .chat-card { background: white; border-radius: 8px; border: 1px solid #ccc; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); box-sizing: border-box; flex: 1; min-width: 340px; height: 100%; transition: border 0.2s; }
 
         .chat-card-header { background: #4CAF50; color: white; padding: 10px 12px; font-weight: bold; font-size: 14px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; gap: 5px; }
         .chat-card-header .btn-group { display: flex; gap: 4px; }
@@ -55,8 +55,11 @@
 
         /* 선생님 대시보드 구조 */
         #teacher-screen { display: none; height: 100%; flex-direction: column; }
-        #teacher-grid { display: flex; flex-wrap: wrap; gap: 12px; padding: 12px; flex: 1; overflow-y: auto; background: #f5f5f5; box-sizing: border-box; }
-        #teacher-grid .chat-card { flex: 1 1 calc(33.33% - 12px); min-width: 340px; height: calc(50% - 6px); }
+        #teacher-grid { display: flex; flex-wrap: wrap; gap: 12px; padding: 12px; flex: 1; overflow-y: auto; background: #f5f5f5; box-sizing: border-box; align-content: flex-start; }
+        #teacher-grid .chat-card { flex: 1 1 calc(33.33% - 12px); min-width: 340px; height: calc(50% - 6px); min-height: 300px; }
+        
+        .draggable-student { cursor: grab; }
+        .draggable-student:active { cursor: grabbing; }
 
         /* 🎮 산성비 게임 전용 스타일 (내부) */
         #game-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; justify-content: center; align-items: center; }
@@ -136,7 +139,7 @@
         </div>
         <div class="main-area">
             <div class="sidebar">
-                <h3>👥 현재 접속자 명단</h3>
+                <h3>👥 접속자 명단<br><span style="font-size:11px; font-weight:normal; color:#666;">(학생을 우측 화면으로 드래그 하세요!)</span></h3>
                 <ul class="user-list" id="teacher-user-list-ul"></ul>
             </div>
             <div style="display: flex; flex-direction: column; flex: 1; overflow: hidden; background: #f5f5f5;">
@@ -244,7 +247,6 @@
     let localClassScores = {};    
     let lastGameTrigger = {};
 
-    // 🚨 전체화면 알림용 제어 변수들
     let sessionStartTime = Date.now();
     let lastAlertTimestamps = {};
     let alertTargetGameUrl = "";
@@ -274,8 +276,6 @@
 
             myInfo = { grade: grade, classNum: classNum, name: name, isTeacher: isTeacher };
             document.getElementById('login-screen').style.display = 'none';
-
-            // 로그인 순간의 시간을 기록하여 로그인 전 과거의 팝업 알림이 뜨는 현상 방지
             sessionStartTime = Date.now();
 
             if (isTeacher) {
@@ -392,15 +392,11 @@
             }
         });
 
-        // 🚨 [새로 추가] 선생님 전체화면 강제 팝업 신호 감지 리스너
         database.ref('gameAlerts').on('value', function(snapshot) {
-            if (!myInfo || myInfo.isTeacher) return; // 교사는 팝업 알림 무시
-            
+            if (!myInfo || myInfo.isTeacher) return; 
             snapshot.forEach(function(child) {
                 const roomId = child.key;
                 const alertData = child.val();
-                
-                // 학생이 속한 방에 알림이 왔고, 방금 발생한 신상 알림인 경우에만 오픈
                 if (localRooms[roomId] && localRooms[roomId].members && localRooms[roomId].members[myInfo.name]) {
                     const thresholdTime = lastAlertTimestamps[roomId] || sessionStartTime;
                     if (alertData.timestamp > thresholdTime) {
@@ -412,10 +408,8 @@
         });
     }
 
-    // 🚨 학생 화면에 전체화면 알림 띄우기 (타입에 따라 문구 변경)
     function showFullscreenAlert(gameName, gameUrl, type) {
         alertTargetGameUrl = gameUrl;
-        
         const descText = document.getElementById('alert-desc-text');
         const actionBtn = document.getElementById('alert-action-btn');
 
@@ -430,15 +424,11 @@
             actionBtn.style.background = "#8e44ad"; 
             actionBtn.style.boxShadow = "0 4px 10px rgba(142,68,173,0.4)";
         }
-        
         document.getElementById('fullscreen-alert-modal').style.display = 'flex';
     }
 
-    // 🚨 전체화면 알림에서 버튼 클릭 시 이동
     function openGameFromAlert() {
-        if (alertTargetGameUrl) {
-            window.open(alertTargetGameUrl, '_blank');
-        }
+        if (alertTargetGameUrl) window.open(alertTargetGameUrl, '_blank');
         closeFullscreenAlert();
     }
 
@@ -484,10 +474,18 @@
                         li.onclick = function() { alert("선생님과는 1:1 대화방을 만들 수 없습니다."); };
                     }
                 }
-
                 li.innerText = displayName;
 
+                // 💡 선생님 화면의 명단일 경우, 드래그 앤 드롭 기능 추가
                 if (myInfo.isTeacher && teacherUl) {
+                    if (!u.isTeacher) { // 학생만 드래그 가능
+                        li.draggable = true;
+                        li.className = 'draggable-student';
+                        li.title = "드래그하여 우측 화면에 놓아보세요!";
+                        li.ondragstart = function(event) {
+                            event.dataTransfer.setData("studentName", u.name);
+                        };
+                    }
                     teacherUl.appendChild(li);
                 } else if (!myInfo.isTeacher && studentUl) {
                     studentUl.appendChild(li);
@@ -533,6 +531,48 @@
     function leaveRoom(roomId) {
         if (!confirm("🚪 이 방에서 나가시겠습니까?")) return;
         database.ref(`rooms/${roomId}/members/${myInfo.name}`).remove();
+    }
+
+    // 💡 드래그 앤 드롭: 새 채팅방 만들기 처리
+    function handleGridDrop(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        const studentName = event.dataTransfer.getData("studentName");
+        if (!studentName) return;
+        
+        if (confirm(`💬 ${studentName} 학생을 포함한 새로운 대화방을 만드시겠습니까?`)) {
+            const roomId = `room_${Date.now()}_${Math.floor(Math.random()*1000)}`;
+            database.ref(`rooms/${roomId}`).set({
+                roomId: roomId, 
+                title: `👨‍🏫 선생님과 ${studentName}의 방`, 
+                grade: myInfo.grade, 
+                classNum: myInfo.classNum, 
+                creator: myInfo.name, 
+                members: { [myInfo.name]: true, [studentName]: true }
+            });
+        }
+        document.getElementById('new-room-dropzone').style.background = "#e3f2fd";
+    }
+
+    // 💡 드래그 앤 드롭: 기존 방에 학생 강제 추가 처리
+    function handleCardDrop(event, roomId, roomTitle) {
+        event.preventDefault();
+        event.stopPropagation(); 
+        
+        const cardElement = event.currentTarget;
+        cardElement.style.border = currentTeacherTarget === roomId ? "3px solid #2196F3" : "1px solid #ccc";
+
+        const studentName = event.dataTransfer.getData("studentName");
+        if (!studentName) return;
+
+        if (localRooms[roomId] && localRooms[roomId].members && localRooms[roomId].members[studentName]) {
+            alert(`ℹ️ ${studentName} 학생은 이미 [${roomTitle}] 방에 참여 중입니다.`);
+            return;
+        }
+
+        if (confirm(`➕ ${studentName} 학생을 [${roomTitle}] 방에 강제로 추가하시겠습니까?`)) {
+            database.ref(`rooms/${roomId}/members/${studentName}`).set(true);
+        }
     }
 
     function renderStudentMultiScreen() {
@@ -611,6 +651,32 @@
         const grid = document.getElementById('teacher-grid');
         grid.innerHTML = "";
         
+        // 💡 1. '새 채팅방 만들기' 고정 드롭존 영역 추가
+        const dropZone = document.createElement('div');
+        dropZone.id = 'new-room-dropzone';
+        dropZone.className = 'chat-card';
+        dropZone.style.border = "3px dashed #2196F3";
+        dropZone.style.background = "#e3f2fd";
+        dropZone.style.display = "flex";
+        dropZone.style.alignItems = "center";
+        dropZone.style.justifyContent = "center";
+        dropZone.style.color = "#1565c0";
+        dropZone.style.fontWeight = "bold";
+        dropZone.style.fontSize = "16px";
+        dropZone.style.textAlign = "center";
+        dropZone.innerHTML = "<div style='pointer-events: none;'><span style='font-size:30px;'>➕</span><br><br>학생 이름을 여기로 드래그하여<br>새 채팅방 만들기</div>";
+        
+        dropZone.ondrop = function(event) { window.handleGridDrop(event); };
+        dropZone.ondragover = function(event) {
+            event.preventDefault();
+            dropZone.style.background = "#bbdefb";
+        };
+        dropZone.ondragleave = function(event) {
+            dropZone.style.background = "#e3f2fd";
+        };
+        grid.appendChild(dropZone);
+        
+        // 💡 2. 기존 방 목록 카드 렌더링
         for (let id in localRooms) {
             const room = localRooms[id];
             if (room.grade === myInfo.grade && room.classNum === myInfo.classNum) {
@@ -622,12 +688,23 @@
                 card.style.border = currentTeacherTarget === room.roomId ? "3px solid #2196F3" : "1px solid #ccc";
                 card.style.cursor = "pointer";
                 
+                // 카드 클릭 시 타겟 설정
                 card.onclick = function() {
                     currentTeacherTarget = room.roomId;
                     document.getElementById('selected-room-title').innerText = room.title;
                     document.getElementById('teacher-input-area').style.display = 'flex';
                     document.getElementById('teacher-game-area').style.display = 'flex'; 
                     updateViews();
+                };
+
+                // 드래그 앤 드롭: 기존 카드 위로 드래그 시 반응
+                card.ondrop = function(event) { window.handleCardDrop(event, room.roomId, room.title); };
+                card.ondragover = function(event) {
+                    event.preventDefault();
+                    card.style.border = "3px dashed #ff9800";
+                };
+                card.ondragleave = function(event) {
+                    card.style.border = currentTeacherTarget === room.roomId ? "3px solid #2196F3" : "1px solid #ccc";
                 };
 
                 const header = document.createElement('div');
@@ -646,11 +723,14 @@
 
                 const msgArea = document.createElement('div');
                 msgArea.className = 'chat-card-messages';
+                msgArea.style.pointerEvents = "none"; // 드래그 앤 드롭 방해 방지
+                
                 localMessages.forEach(function(m) {
                     if(m.roomId === room.roomId) {
                         msgArea.innerHTML += `<div style="margin-bottom:5px;"><strong>${getRankString(m.sender)}${m.sender}:</strong> ${window.linkify(m.text)} <span style="font-size:9px; color:#888;">(${m.time})</span></div>`;
                     }
                 });
+                
                 card.appendChild(msgArea);
                 grid.appendChild(card);
                 msgArea.scrollTop = msgArea.scrollHeight;
@@ -915,7 +995,6 @@
         });
     }
 
-    // 🎯 한컴 타자 게임 전송
     function sendSelectedGameLink() {
         if (!currentTeacherTarget) {
             alert("❌ 먼저 게임을 전송할 학생들 채팅방을 하나 클릭해서 선택해주세요!");
@@ -953,13 +1032,11 @@
         }
     }
 
-    // 🔗 커스텀 미션 입력창 토글 함수
     function toggleMissionInput() {
         const area = document.getElementById('custom-mission-area');
         area.style.display = area.style.display === 'none' ? 'flex' : 'none';
     }
 
-    // 🔗 커스텀 URL 미션 전송
     function sendCustomMission() {
         if (!currentTeacherTarget) {
             alert("❌ 먼저 미션을 전송할 학생들 채팅방을 하나 클릭해서 선택해주세요!");
@@ -972,7 +1049,6 @@
             return;
         }
 
-        // 간단한 주소 형식 보정
         let finalUrl = urlInput;
         if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
             finalUrl = 'https://' + finalUrl;
@@ -1000,12 +1076,11 @@
             });
             
             alert(`✅ 미션 알림이 전송되었습니다!`);
-            document.getElementById('custom-mission-url').value = ""; // 전송 후 입력창 초기화
-            toggleMissionInput(); // 창 닫기
+            document.getElementById('custom-mission-url').value = ""; 
+            toggleMissionInput(); 
         }
     }
 
-    // 전역 스코프 함수 연결
     window.login = login;
     window.handleLogout = handleLogout;
     window.resetAllUsers = resetAllUsers;
@@ -1020,12 +1095,14 @@
     window.linkify = linkify;
     window.clearRoomMessages = clearRoomMessages;
     
-    // 알림 및 전송 도구 함수 추가 등록
+    // 알림 및 전송, 드래그 함수 등록
     window.sendSelectedGameLink = sendSelectedGameLink; 
     window.toggleMissionInput = toggleMissionInput;
     window.sendCustomMission = sendCustomMission;
     window.openGameFromAlert = openGameFromAlert;
     window.closeFullscreenAlert = closeFullscreenAlert;
+    window.handleGridDrop = handleGridDrop;
+    window.handleCardDrop = handleCardDrop;
 </script>
 </body>
 </html>
