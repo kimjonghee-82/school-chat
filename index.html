@@ -743,4 +743,57 @@
         }
     }
 
-    function toggleMission
+    function toggleMissionInput() {
+        const area = document.getElementById('custom-mission-area');
+        area.style.display = area.style.display === 'none' ? 'flex' : 'none';
+    }
+
+    function sendCustomMission() {
+        if (!currentTeacherTarget) return alert("❌ 먼저 미션을 전송할 채팅방을 클릭해주세요!");
+        const urlInput = document.getElementById('custom-mission-url').value.trim();
+        if (!urlInput) return alert("❌ 전달할 URL 주소를 입력해주세요!");
+        let finalUrl = urlInput.startsWith('http') ? urlInput : 'https://' + urlInput;
+
+        if (confirm(`📢 선택한 방에 [${finalUrl}] 미션 화면 알림을 전송하시겠습니까?`)) {
+            database.ref(`gameAlerts/${currentTeacherTarget}`).set({ gameName: "🔗 특별 미션", gameUrl: finalUrl, timestamp: Date.now(), type: 'custom' });
+            alert(`✅ 미션 알림이 전송되었습니다!`);
+            document.getElementById('custom-mission-url').value = ""; 
+            toggleMissionInput(); 
+        }
+    }
+
+    function openGame(roomId, roomTitle, isHost) { document.getElementById('game-modal').style.display = 'flex'; }
+    function closeGame() { document.getElementById('game-modal').style.display = 'none'; }
+    function checkGameWord() { }
+
+    window.login = login;
+    window.confirmTeacherLogin = confirmTeacherLogin;
+    window.executeLogin = executeLogin;
+    window.handleLogout = handleLogout;
+    window.resetAllUsers = resetAllUsers;
+    window.sendMultiMessage = sendMultiMessage;
+    window.sendTeacherMessage = sendTeacherMessage;
+    window.destroyRoom = destroyRoom;
+    window.leaveRoom = leaveRoom;
+    window.linkify = linkify;
+    window.clearRoomMessages = clearRoomMessages;
+    
+    window.handleGridDrop = handleGridDrop;
+    window.handleCardDrop = handleCardDrop;
+    window.handleRemoveDragOver = handleRemoveDragOver;
+    window.handleRemoveDragLeave = handleRemoveDragLeave;
+    window.handleRemoveDrop = handleRemoveDrop;
+    window.handleOutDropStart = handleOutDropStart;
+    window.handleOutDropEnd = handleOutDropEnd;
+    
+    window.sendSelectedGameLink = sendSelectedGameLink;
+    window.toggleMissionInput = toggleMissionInput;
+    window.sendCustomMission = sendCustomMission;
+    window.openGameFromAlert = openGameFromAlert;
+    window.closeFullscreenAlert = closeFullscreenAlert;
+    window.openGame = openGame;
+    window.closeGame = closeGame;
+    window.checkGameWord = checkGameWord;
+</script>
+</body>
+</html>
