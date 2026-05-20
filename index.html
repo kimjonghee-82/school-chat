@@ -24,6 +24,27 @@
         .btn-teacher { background-color: #2196F3; margin-top: 10px; }
         .btn-teacher:hover { background-color: #0b7dda; }
 
+        /* 🚀 바탕화면 바로 가기 버튼 스타일 */
+        .btn-shortcut { 
+            background: linear-gradient(135deg, #6e8efb, #a777e3); 
+            color: white; 
+            border: none; 
+            padding: 12px 25px; 
+            font-size: 15px;
+            border-radius: 30px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            margin-top: 25px; 
+            box-shadow: 0 4px 15px rgba(167, 119, 227, 0.4); 
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: auto;
+            display: inline-block;
+        }
+        .btn-shortcut:hover { 
+            transform: translateY(-3px); 
+            box-shadow: 0 6px 20px rgba(167, 119, 227, 0.6); 
+        }
+
         .header { background: #4CAF50; color: white; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; height: 60px; box-sizing: border-box; flex-shrink: 0; }
         .header button { background: #ff5252; width: auto; padding: 5px 15px; font-size: 14px; }
         
@@ -119,6 +140,8 @@
             <button onclick="login(false)">학생으로 입장하기</button>
             <button onclick="login(true)" class="btn-teacher">👨‍🏫 선생님으로 입장하기</button>
         </div>
+        <br>
+        <button onclick="downloadShortcut()" class="btn-shortcut">🚀 바탕화면에 바로 가기 만들기</button>
     </div>
 
     <div id="teacher-auth-modal" class="modal-overlay">
@@ -405,7 +428,7 @@
         return escaped.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" style="color: #2196F3; text-decoration: underline; font-weight: bold;">$1</a>');
     }
 
-    // ⚡ 고속 대화 초기화 함수 (특정 방 대화만 조회 후 일괄 제거)
+    // ⚡ 고속 대화 초기화 함수
     function clearRoomMessages(roomId) {
         if (!confirm("🧹 이 방의 대화 내용을 초기화하시겠습니까?")) return;
         
@@ -417,7 +440,7 @@
                 
                 let updates = {};
                 snapshot.forEach(child => {
-                    updates[child.key] = null; // null 세팅 시 삭제 처리됨
+                    updates[child.key] = null;
                 });
                 
                 database.ref('messages').update(updates);
@@ -516,14 +539,12 @@
         });
     }
 
-    // ⚡ 고속 방 폭파 함수 (타겟 메시지만 골라 단 1회 요청으로 일괄 폭파)
+    // ⚡ 고속 방 폭파 함수
     function destroyRoom(roomId) {
         if (!confirm("⚠️ 정말 삭제하시겠습니까?")) return;
         
-        // 1. 방 기본데이터는 즉시 삭제
         database.ref(`rooms/${roomId}`).remove();
         
-        // 2. 해당 방 ID를 가진 메시지 그룹만 색인하여 초고속 동시 삭제
         database.ref('messages')
             .orderByChild('roomId')
             .equalTo(roomId)
@@ -804,6 +825,23 @@
     function openGame(roomId, roomTitle, isHost) { document.getElementById('game-modal').style.display = 'flex'; }
     function closeGame() { document.getElementById('game-modal').style.display = 'none'; }
     function checkGameWord() { }
+
+    // 🚀 바탕화면 바로 가기 파일 다운로드 함수
+    function downloadShortcut() {
+        const currentUrl = window.location.href;
+        const title = "스쿨 톡";
+        const shortcutContent = `[InternetShortcut]\nURL=${currentUrl}\nIconIndex=0\nIconFile=https://www.google.com/s2/favicons?domain=${currentUrl}\n`;
+        const blob = new Blob([shortcutContent], { type: "text/plain" });
+        const blobUrl = URL.createObjectURL(blob);
+        const downloadLink = document.createElement("a");
+        downloadLink.href = blobUrl;
+        downloadLink.download = `${title}.url`;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        URL.revokeObjectURL(blobUrl);
+        alert("📥 바로 가기 파일이 다운로드되었습니다!\n다운로드 폴더에서 바탕화면으로 파일을 옮겨주세요.");
+    }
 </script>
 </body>
 </html>
