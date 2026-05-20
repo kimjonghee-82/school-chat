@@ -14,7 +14,7 @@
         
         #login-screen { text-align: center; padding-top: 15vh; height: 100%; box-sizing: border-box; background: #f0f2f5; }
         .login-box { display: inline-block; text-align: left; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 350px; }
-        select, input[type="text"] { padding: 12px; margin: 8px 0 20px 0; width: 100%; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
+        select, input[type="text"], input[type="password"] { padding: 12px; margin: 8px 0 20px 0; width: 100%; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
         
         .checkbox-container { display: flex; align-items: center; margin-bottom: 20px; font-size: 14px; color: #333; }
         .checkbox-container input[type="checkbox"] { width: auto; margin: 0 8px 0 0; transform: scale(1.2); }
@@ -45,7 +45,7 @@
         .btn-game:hover { background: #fdd835 !important; }
 
         .chat-card-body { display: flex; flex: 1; overflow: hidden; }
-        .chat-card-messages { flex: 1; padding: 12px; overflow-y: auto; background: #e5ddd5; font-size: 13px; }
+        .chat-card-messages { flex: 1; padding: 12px; overflow-y: auto; background: #e5ddd5; font-size: 13px; pointer-events: auto; /* 스크롤 활성화 */ } 
         
         .chat-card-participants { width: 85px; background: #f4f4f4; border-left: 1px solid #ddd; overflow-y: auto; padding: 8px 5px; display: flex; flex-direction: column; gap: 5px; flex-shrink: 0; }
         .participant-item { background: white; border: 1px solid #ccc; padding: 6px 4px; text-align: center; font-size: 11px; border-radius: 4px; font-weight: bold; cursor: grab; word-break: break-all; }
@@ -73,13 +73,14 @@
         #remove-dropzone-hint { display: none; background: #ffcdd2; color: #c62828; padding: 15px; text-align: center; border-radius: 6px; margin-bottom: 15px; font-weight: bold; border: 2px dashed #ef5350; font-size: 14px; animation: pulse 1s infinite alternate; }
         @keyframes pulse { from { opacity: 0.7; transform: scale(0.98); } to { opacity: 1; transform: scale(1.02); } }
 
+        /* 모달 공통 스타일 */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 10000; justify-content: center; align-items: center; }
+        
         /* 게임 영역 */
-        #game-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; justify-content: center; align-items: center; }
         .game-wrapper { display: flex; width: 850px; height: 550px; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         .game-play-area { flex: 1; display: flex; flex-direction: column; background: #1e1e1e; position: relative; }
         .game-header { height: 50px; background: #333; color: white; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; font-weight: bold; flex-shrink: 0; }
         .game-sky { flex: 1; position: relative; background: linear-gradient(to bottom, #0f2027, #203a43, #2c5364); overflow: hidden; }
-        .falling-word { position: absolute; color: white; font-weight: bold; font-size: 18px; text-shadow: 1px 1px 2px black; padding: 4px 10px; background: rgba(0,0,0,0.4); border-radius: 8px; transition: top 0.1s linear; }
         .game-input-area { height: 60px; background: #222; display: flex; align-items: center; padding: 0 15px; flex-shrink: 0; }
         .game-input-area input { flex: 1; padding: 12px; font-size: 16px; font-weight: bold; text-align: center; border-radius: 30px; border: none; outline: none; }
         
@@ -87,14 +88,7 @@
         .leaderboard-title { background: #ff9800; color: white; padding: 15px; font-weight: bold; text-align: center; margin: 0; }
         .leaderboard-list { flex: 1; overflow-y: auto; padding: 10px; list-style: none; margin: 0; }
         .leaderboard-list li { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #ccc; font-size: 14px; }
-        .leaderboard-list li.me { font-weight: bold; color: #d32f2f; background: #ffebee; border-radius: 4px; }
         .close-game-btn { background: #ff5252; padding: 10px; text-align: center; color: white; cursor: pointer; font-weight: bold; }
-        .close-game-btn:hover { background: #d32f2f; }
-        
-        #game-start-overlay { position: absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:flex; justify-content:center; align-items:center; z-index: 10; flex-direction: column; gap: 15px; }
-        #game-start-overlay button { width: auto; font-size: 24px; padding: 15px 40px; border-radius: 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); background-color: #ff9800; }
-        #game-start-overlay button:hover { background-color: #e68a00; }
-        .waiting-text { color: white; font-size: 22px; font-weight: bold; text-align: center; line-height: 1.5; }
     </style>
 </head>
 <body>
@@ -107,7 +101,7 @@
             <select id="grade">
                 <option value="1학년">1학년</option><option value="2학년">2학년</option><option value="3학년">3학년</option>
                 <option value="4학년">4학년</option><option value="5학년">5학년</option><option value="6학년">6학년</option>
-            </select>
+                <option value="동아리">동아리</option> </select>
             <label>반</label>
             <select id="classNum">
                 <option value="1반">1반</option><option value="2반">2반</option><option value="3반">3반</option>
@@ -117,12 +111,25 @@
             <input type="text" id="username" placeholder="이름을 입력하세요">
             
             <div class="checkbox-container">
-                <input type="checkbox" id="saveTeacherPwd">
-                <label for="saveTeacherPwd">👨‍🏫 선생님 암호 자동 저장</label>
+                <input type="checkbox" id="saveAccountInfo">
+                <label for="saveAccountInfo">💾 계정 정보 저장</label>
             </div>
 
             <button onclick="window.login(false)">학생으로 입장하기</button>
             <button onclick="window.login(true)" class="btn-teacher">👨‍🏫 선생님으로 입장하기</button>
+        </div>
+    </div>
+
+    <div id="teacher-auth-modal" class="modal-overlay">
+        <div style="background: white; padding: 30px; border-radius: 12px; width: 320px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+            <h3 style="margin-top: 0; color: #2196F3;">👨‍🏫 선생님 인증</h3>
+            <input type="password" id="teacher-pwd" placeholder="선생님 암호 입력 (school1234)">
+            <div class="checkbox-container" style="justify-content: center;">
+                <input type="checkbox" id="saveTeacherPwd">
+                <label for="saveTeacherPwd">선생님 암호 자동 저장</label>
+            </div>
+            <button onclick="window.confirmTeacherLogin()" style="background-color: #2196F3; margin-bottom: 10px;">확인</button>
+            <button onclick="document.getElementById('teacher-auth-modal').style.display='none'" style="background-color: #9e9e9e;">취소</button>
         </div>
     </div>
 
@@ -189,7 +196,7 @@
     </div>
 </div>
 
-<div id="game-modal">
+<div id="game-modal" class="modal-overlay">
     <div class="game-wrapper">
         <div class="game-play-area">
             <div class="game-header">
@@ -197,7 +204,7 @@
                 <span>점수: <span id="game-score" style="color:#ffeb3b; font-size:20px;">0</span> | 생명: <span id="game-lives" style="color:#ff5252; font-size:20px;">❤️❤️❤️❤️❤️</span></span>
             </div>
             <div class="game-sky" id="game-sky">
-                <div id="game-start-overlay"></div>
+                <div id="game-start-overlay" style="position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:flex; flex-direction:column; justify-content:center; align-items:center; z-index:10; gap:15px;"></div>
             </div>
             <div class="game-input-area">
                 <input type="text" id="game-input" placeholder="여기에 단어를 입력하고 엔터를 누르세요!" onkeypress="if(event.keyCode==13) window.checkGameWord()" disabled autocomplete="off">
@@ -213,7 +220,7 @@
     </div>
 </div>
 
-<div id="fullscreen-alert-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 10000; justify-content: center; align-items: center; flex-direction: column;">
+<div id="fullscreen-alert-modal" class="modal-overlay" style="flex-direction: column;">
     <div style="background: white; color: #333; padding: 40px; border-radius: 16px; width: 85%; max-width: 480px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
         <h1 style="margin: 0 0 10px 0; color: #8e44ad; font-size: 30px;">👨‍🏫 선생님의 특급 호출!</h1>
         <p id="alert-desc-text" style="font-size: 18px; margin: 15px 0; line-height: 1.6; color: #444;"></p>
@@ -245,40 +252,76 @@
     let alertTargetGameUrl = "";
 
     window.onload = function() {
-        if(localStorage.getItem('school_chat_grade')) document.getElementById('grade').value = localStorage.getItem('school_chat_grade');
-        if(localStorage.getItem('school_chat_classNum')) document.getElementById('classNum').value = localStorage.getItem('school_chat_classNum');
-        if(localStorage.getItem('school_chat_name')) document.getElementById('username').value = localStorage.getItem('school_chat_name');
-        if(localStorage.getItem('school_chat_save_pwd') === 'true') document.getElementById('saveTeacherPwd').checked = true;
+        if(localStorage.getItem('school_chat_save_account') === 'true') {
+            document.getElementById('saveAccountInfo').checked = true;
+            if(localStorage.getItem('school_chat_grade')) document.getElementById('grade').value = localStorage.getItem('school_chat_grade');
+            if(localStorage.getItem('school_chat_classNum')) document.getElementById('classNum').value = localStorage.getItem('school_chat_classNum');
+            if(localStorage.getItem('school_chat_name')) document.getElementById('username').value = localStorage.getItem('school_chat_name');
+        }
+        
+        if(localStorage.getItem('school_chat_save_pwd') === 'true') {
+            document.getElementById('saveTeacherPwd').checked = true;
+            if(localStorage.getItem('school_chat_teacher_pwd_val')) {
+                document.getElementById('teacher-pwd').value = localStorage.getItem('school_chat_teacher_pwd_val');
+            }
+        }
     };
 
     function login(isTeacher) {
         if(!database) { alert("파이어베이스가 연결되지 않았습니다."); return; }
+        
+        const name = document.getElementById('username').value.trim();
+        if (name === "") { alert("이름을 입력해주세요!"); return; }
+
+        const saveAccountChecked = document.getElementById('saveAccountInfo').checked;
+        const grade = document.getElementById('grade').value;
+        const classNum = document.getElementById('classNum').value;
+
+        if (saveAccountChecked) {
+            localStorage.setItem('school_chat_save_account', 'true');
+            localStorage.setItem('school_chat_grade', grade);
+            localStorage.setItem('school_chat_classNum', classNum);
+            localStorage.setItem('school_chat_name', name);
+        } else {
+            localStorage.removeItem('school_chat_save_account');
+            localStorage.removeItem('school_chat_grade');
+            localStorage.removeItem('school_chat_classNum');
+            localStorage.removeItem('school_chat_name');
+        }
+
+        if (isTeacher) {
+            document.getElementById('teacher-auth-modal').style.display = 'flex';
+        } else {
+            executeLogin(false);
+        }
+    }
+
+    function confirmTeacherLogin() {
+        const masterPassword = document.getElementById('teacher-pwd').value;
+        const savePwdChecked = document.getElementById('saveTeacherPwd').checked;
+
+        if (masterPassword !== "school1234") { 
+            alert("❌ 암호가 일치하지 않습니다."); 
+            return; 
+        }
+
+        if (savePwdChecked) {
+            localStorage.setItem('school_chat_save_pwd', 'true');
+            localStorage.setItem('school_chat_teacher_pwd_val', masterPassword);
+        } else {
+            localStorage.removeItem('school_chat_save_pwd');
+            localStorage.removeItem('school_chat_teacher_pwd_val');
+        }
+
+        document.getElementById('teacher-auth-modal').style.display = 'none';
+        executeLogin(true);
+    }
+
+    function executeLogin(isTeacher) {
         try {
             const grade = document.getElementById('grade').value;
             const classNum = document.getElementById('classNum').value;
             const name = document.getElementById('username').value.trim();
-            const savePwdChecked = document.getElementById('saveTeacherPwd').checked;
-
-            if (name === "") { alert("이름을 입력해주세요!"); return; }
-            
-            if (isTeacher) {
-                let masterPassword = "";
-                if (savePwdChecked && localStorage.getItem('school_chat_teacher_pwd_val')) {
-                    masterPassword = localStorage.getItem('school_chat_teacher_pwd_val');
-                } else {
-                    masterPassword = prompt("👨‍🏫 선생님 전용 암호를 입력하세요:");
-                }
-
-                if (masterPassword !== "school1234") { alert("❌ 암호가 일치하지 않습니다."); return; }
-                
-                localStorage.setItem('school_chat_save_pwd', savePwdChecked);
-                if(savePwdChecked) localStorage.setItem('school_chat_teacher_pwd_val', masterPassword);
-                else localStorage.removeItem('school_chat_teacher_pwd_val');
-            }
-
-            localStorage.setItem('school_chat_grade', grade);
-            localStorage.setItem('school_chat_classNum', classNum);
-            localStorage.setItem('school_chat_name', name);
 
             myInfo = { grade: grade, classNum: classNum, name: name, isTeacher: isTeacher };
             document.getElementById('login-screen').style.display = 'none';
@@ -639,7 +682,6 @@
                 
                 const msgArea = document.createElement('div');
                 msgArea.className = 'chat-card-messages';
-                msgArea.style.pointerEvents = "none";
                 
                 localMessages.forEach(m => {
                     if(m.roomId === room.roomId) msgArea.innerHTML += `<div style="margin-bottom:5px;"><strong>${getRankString(m.sender)}${m.sender}:</strong> ${window.linkify(m.text)} <span style="font-size:9px; color:#888;">(${m.time})</span></div>`;
@@ -718,8 +760,9 @@
     function closeGame() { document.getElementById('game-modal').style.display = 'none'; }
     function checkGameWord() { }
 
-    // 🔥 브라우저(window)와 함수들을 완벽하게 연결해주는 필수 코드 
     window.login = login;
+    window.confirmTeacherLogin = confirmTeacherLogin;
+    window.executeLogin = executeLogin;
     window.handleLogout = handleLogout;
     window.resetAllUsers = resetAllUsers;
     window.sendMultiMessage = sendMultiMessage;
@@ -729,7 +772,6 @@
     window.linkify = linkify;
     window.clearRoomMessages = clearRoomMessages;
     
-    // 🔥 드래그 앤 드롭 및 게임/미션 관련 함수 연결 추가 
     window.handleGridDrop = handleGridDrop;
     window.handleCardDrop = handleCardDrop;
     window.handleRemoveDragOver = handleRemoveDragOver;
