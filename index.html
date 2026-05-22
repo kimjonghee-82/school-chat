@@ -133,3 +133,281 @@
             <button onclick="confirmTeacherLogin()" style="background-color: #2196F3; margin-bottom: 10px;">확인</button>
             <button onclick="document.getElementById('teacher-auth-modal').style.display='none'" style="background-color: #9e9e9e;">취소</button>
         </div>
+    </div>
+
+    <div id="chat-screen" style="display:none; flex-direction:column; height:100%;">
+        <div class="header">
+            <span id="welcome-msg">환영합니다!</span>
+            <button onclick="handleLogout()">로그아웃</button>
+        </div>
+        <div class="main-area">
+            <div class="sidebar">
+                <h3>👥 전체 접속자 명단<br><span style="font-size:11px; font-weight:normal; color:#666;">(다른 학생을 클릭해 1:1 대화방 개설)</span></h3>
+                <ul class="user-list" id="user-list-ul"></ul>
+            </div>
+            <div id="student-grid"></div>
+        </div>
+    </div>
+
+    <div id="teacher-screen">
+        <div class="header" style="background: #2196F3;">
+            <span id="teacher-welcome-msg">👨‍🏫 선생님 대시보드</span>
+            <div style="display:flex; gap:10px;">
+                <button onclick="resetAllUsers()" style="background:#ff9800; font-size:13px; padding:5px 12px;">👻 전체 접속자 초기화</button>
+                <button onclick="handleLogout()" style="font-size:13px; padding:5px 12px;">로그아웃</button>
+            </div>
+        </div>
+        <div class="main-area">
+            <div class="sidebar">
+                <h3>👥 접속자 명단</h3>
+                <ul class="user-list" id="teacher-user-list-ul"></ul>
+            </div>
+            <div style="display: flex; flex-direction: column; flex: 1; overflow: hidden; background: #f5f5f5;">
+                <div id="teacher-grid"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let database;
+    try {
+        const firebaseConfig = { databaseURL: "https://school-chat-7051e-default-rtdb.firebaseio.com/" };
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        database = firebase.database();
+    } catch (e) { console.error("Firebase 초기화 에러:", e); }
+
+    let myInfo = {};
+    let myUserRef = null;
+    let localUsers = {};
+    let localRooms = {};
+    let localMessages = [];
+    
+    // 💡 핵심: 각 방의 메시지 갯수를 추적하여 스크롤 내림 여부를 결정하는 객체
+    let roomMessageCounts = {};
+
+    function login(isTeacher) {
+        if(!database) { alert("파이어베이스 연결을 확인해주세요."); return; }
+        const name = document.getElementById('username').value.trim();
+        if (name === "") { alert("이름을 입력해주세요!"); return; }
+
+        if (isTeacher) document.getElementById('teacher-auth-modal').style.display = 'flex';
+        else executeLogin(false);
+    }
+
+    function confirmTeacherLogin() {
+        const masterPassword = document.getElementById('teacher-pwd').value;
+        if (masterPassword !== "school1234") { alert("❌ 암호가 일치하지 않습니다."); return; }
+        document.getElementById('teacher-auth-modal').style.display = 'none';
+        executeLogin(true);
+    }
+
+    function executeLogin(isTeacher) {
+        const grade = document.getElementById('grade').value;
+        const classNum = document.getElementById('classNum').value;
+        const name = document.getElementById('username').value.trim();
+
+        myInfo = { grade: grade, classNum: classNum, name: name, isTeacher: isTeacher };
+        document.getElementById('login-screen').style.display = 'none';
+
+        if (isTeacher) {
+            document.getElementById('teacher-screen').style.display = 'flex';
+            document.getElementById('teacher-welcome-msg').innerText = `👨‍🏫 ${grade} ${classNum} ${name} 선생님`;
+        } else {
+            document.getElementById('chat-screen').style.display = 'flex';
+            document.getElementById('welcome-msg').innerText = `🏫 ${grade} ${classNum} 【${name}】 학생`;
+
+            const defaultRoomId = `group_${grade}_${classNum}`;
+            database.ref(`rooms/${defaultRoomId}`).once('value', function(snap) {
+                if(!snap.exists()) {
+                    database.ref(`rooms/${defaultRoomId}`).set({
+                        roomId: defaultRoomId, title: `${grade} ${classNum} 단체방`, isDefault: true, members: { [name]: true }
+                    });
+                } else {
+                    database.ref(`rooms/${defaultRoomId}/members/${name}`).set(true);
+                }
+                database.ref(`rooms/${defaultRoomId}/members/${name}`).onDisconnect().remove();
+            });
+        }
+
+        const userKey = `user_${grade}_${classNum}_${name}_${isTeacher ? 'teacher' : 'student'}`; 
+        myUserRef = database.ref(`users/${userKey}`);
+        myUserRef.set(myInfo);
+        myUserRef.onDisconnect().remove();
+
+        startRealtimeListening();
+    }
+
+    function handleLogout() {
+        if (!myInfo.isTeacher && myInfo.name) {
+            const defaultRoomId = `group_${myInfo.grade}_${myInfo.classNum}`;
+            database.ref(`rooms/${defaultRoomId}/members/${myInfo.name}`).remove();
+        }
+        if (myUserRef) myUserRef.remove().then(() => location.reload()).catch(() => location.reload());
+        else location.reload();
+    }
+
+    function resetAllUsers() {
+        if(!myInfo.isTeacher) return;
+        if (confirm(`⚠️ 모든 학생 접속 기록을 초기화하시겠습니까?`)) {
+            database.ref('users').once('value', snapshot => {
+                if (!snapshot.exists()) return;
+                let updates = {};
+                snapshot.forEach(child => {
+                    let user = child.val();
+                    if (user.grade === myInfo.grade && user.classNum === myInfo.classNum && !user.isTeacher) updates[child.key] = null; 
+                });
+                if (Object.keys(updates).length > 0) database.ref('users').update(updates);
+            });
+        }
+    }
+
+    // 💡 리스너 수정: 무식하게 스크롤을 전부 내리던 코드를 제거하고, 단순히 화면만 갱신(updateViews)하도록 분리합니다.
+    function startRealtimeListening() {
+        database.ref('users').on('value', snapshot => { localUsers = snapshot.val() || {}; updateViews(); });
+        database.ref('rooms').on('value', snapshot => { 
+            localRooms = {}; 
+            snapshot.forEach(child => { localRooms[child.key] = child.val(); }); 
+            updateViews(); 
+        });
+        database.ref('messages').on('value', snapshot => { 
+            localMessages = []; 
+            snapshot.forEach(child => { localMessages.push(child.val()); }); 
+            updateViews(); 
+        });
+    }
+
+    // 💡 화면 렌더링 방식 수정: 전체 창을 다시 그리지 않고, '메시지 리스트 영역'만 업데이트합니다.
+    function updateViews() {
+        renderUserList();
+
+        const gridId = myInfo.isTeacher ? 'teacher-grid' : 'student-grid';
+        const grid = document.getElementById(gridId);
+        
+        // 내가 속한 방 필터링 (선생님은 모든 방, 학생은 본인이 속한 방)
+        const myRooms = myInfo.isTeacher 
+            ? Object.values(localRooms).filter(r => r.roomId.includes(`_${myInfo.grade}_${myInfo.classNum}`))
+            : Object.values(localRooms).filter(r => r.members && r.members[myInfo.name]);
+
+        // 없어진 방 삭제
+        Array.from(grid.children).forEach(child => {
+            const roomId = child.id.replace('chat-card-', '');
+            if (!myRooms.find(r => r.roomId === roomId)) { grid.removeChild(child); }
+        });
+
+        // 각 방의 HTML을 업데이트하거나 새로 생성
+        myRooms.forEach(room => {
+            let card = document.getElementById(`chat-card-${room.roomId}`);
+            
+            // 💡 창이 처음 생길 때만 인풋(Input) 껍데기를 만들어 간섭을 방지합니다.
+            if (!card) {
+                card = document.createElement('div');
+                card.className = 'chat-card';
+                card.id = `chat-card-${room.roomId}`;
+                card.innerHTML = `
+                    <div class="chat-card-header">
+                        <span>${room.title}</span>
+                    </div>
+                    <div class="chat-card-body">
+                        <div class="chat-card-messages" id="messages-${room.roomId}"></div>
+                        <div class="chat-card-participants" id="participants-${room.roomId}"></div>
+                    </div>
+                    <div class="chat-card-input-area">
+                        <input type="text" id="input-${room.roomId}" placeholder="메시지 입력..." 
+                               onkeypress="if(event.key === 'Enter') sendMessage('${room.roomId}')">
+                        <button onclick="sendMessage('${room.roomId}')">전송</button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            }
+
+            // 메시지 및 참가자 영역만 갱신 (인풋창은 건드리지 않음)
+            updateRoomContent(room.roomId);
+        });
+    }
+
+    // 💡 메시지 그리기 & 똑똑한 개별 스크롤 적용
+    function updateRoomContent(roomId) {
+        const msgContainer = document.getElementById(`messages-${roomId}`);
+        const partContainer = document.getElementById(`participants-${roomId}`);
+        if (!msgContainer || !partContainer) return;
+
+        // --- 참가자 목록 갱신 ---
+        const room = localRooms[roomId];
+        if(room && room.members) {
+            partContainer.innerHTML = Object.keys(room.members).map(m => `<div class="participant-item">${m}</div>`).join('');
+        }
+
+        // --- 메시지 목록 갱신 ---
+        const roomMsgs = localMessages.filter(m => m.roomId === roomId);
+        let html = '';
+        roomMsgs.forEach(msg => {
+            const isMe = msg.sender === myInfo.name;
+            const timeStr = new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            html += `
+                <div class="msg-line ${isMe ? 'me' : 'other'}">
+                    ${!isMe ? `<div class="msg-sender">${msg.sender}</div>` : ''}
+                    <div class="msg-text">${msg.text}</div>
+                    <div class="msg-time">${timeStr}</div>
+                </div>
+            `;
+        });
+        
+        msgContainer.innerHTML = html;
+
+        // 💡 새 메시지가 도착했을 때만 "해당 방"의 스크롤을 내립니다.
+        const prevCount = roomMessageCounts[roomId] || 0;
+        if (roomMsgs.length > prevCount) {
+            // 약간의 딜레이를 주어 화면에 그려진 후 스크롤되도록 처리
+            setTimeout(() => { msgContainer.scrollTop = msgContainer.scrollHeight; }, 10);
+        }
+        roomMessageCounts[roomId] = roomMsgs.length; // 현재 메시지 갯수 기억
+    }
+
+    // 💡 전송 함수: 넘어온 roomId에 해당하는 인풋창 값만 비웁니다.
+    function sendMessage(roomId) {
+        const input = document.getElementById(`input-${roomId}`);
+        if (!input || input.value.trim() === '') return;
+        
+        const text = input.value.trim();
+        input.value = ''; // 내가 방금 엔터를 친 그 방의 텍스트만 싹 비우기
+
+        database.ref('messages').push({
+            roomId: roomId,
+            sender: myInfo.name,
+            text: text,
+            timestamp: Date.now()
+        });
+    }
+
+    function renderUserList() {
+        const ul = document.getElementById(myInfo.isTeacher ? 'teacher-user-list-ul' : 'user-list-ul');
+        if(!ul) return;
+        ul.innerHTML = '';
+        const sameClassUsers = Object.values(localUsers).filter(u => u.grade === myInfo.grade && u.classNum === myInfo.classNum && !u.isTeacher);
+        
+        sameClassUsers.forEach(u => {
+            const li = document.createElement('li');
+            li.innerText = `🟢 ${u.name}`;
+            if(!myInfo.isTeacher && u.name !== myInfo.name) {
+                li.onclick = () => createPrivateRoom(u.name);
+            }
+            ul.appendChild(li);
+        });
+    }
+
+    function createPrivateRoom(targetName) {
+        const roomId = `private_${[myInfo.name, targetName].sort().join('_')}`;
+        database.ref(`rooms/${roomId}`).once('value', snap => {
+            if(!snap.exists()) {
+                database.ref(`rooms/${roomId}`).set({
+                    roomId: roomId, title: `1:1 대화 (${myInfo.name}, ${targetName})`, isDefault: false, members: { [myInfo.name]: true, [targetName]: true }
+                });
+            } else {
+                database.ref(`rooms/${roomId}/members/${myInfo.name}`).set(true);
+            }
+        });
+    }
+</script>
+</body>
+</html>
