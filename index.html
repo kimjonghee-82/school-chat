@@ -15,13 +15,15 @@
         /* 💡 수정됨: 기기 화면 크기에 맞게 로그인 화면 반응형 및 스크롤 적용 */
        /* 💡 수정됨: 스크롤이 확실하게 나오도록 Flex 대신 Block 구조 적용 */
        /* 💡 수정됨: auto 대신 scroll을 사용하여 기기 상관없이 무조건 스크롤바 생성 */
+      /* 💡 수정됨: 부모 컨테이너 밖으로 삐져나가지 않게 크기를 가두고 스크롤 생성 */
         #login-screen { 
+            flex: 1; /* 핵심: 부모 화면(container) 크기에 딱 맞게 제한 */
+            width: 100%;
             display: block; 
-            height: 100%; 
             padding: 50px 20px; 
             box-sizing: border-box; 
             background: #f0f2f5; 
-            overflow-y: scroll !important; /* 핵심: 무조건 스크롤바 노출 */
+            overflow-y: scroll; /* 무조건 스크롤바 노출 */
             text-align: center;
         }
         
@@ -34,7 +36,7 @@
             max-width: 350px; 
             box-sizing: border-box; 
             text-align: left;
-            margin: 0 auto; /* 가운데 정렬을 위한 마진 추가 */
+            margin: 0 auto; 
         }
         select, input[type="text"], input[type="password"] { padding: 12px; margin: 8px 0 20px 0; width: 100%; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
         
