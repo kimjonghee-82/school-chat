@@ -7,6 +7,7 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
+
     <style>
         /* 기본 스타일 */
         html, body { height: 100%; margin: 0; padding: 0; font-family: 'Malgun Gothic', sans-serif; background-color: #f0f2f5; overflow: hidden; }
@@ -1081,6 +1082,21 @@
         URL.revokeObjectURL(blobUrl);
         alert("📥 바로 가기가 다운로드되었습니다!\n바탕화면으로 드래그해 사용하세요.");
     }
+    // 💡 [추가] 스크롤 문제를 뿌리 뽑는 자동 감지 센서 (MutationObserver)
+    const scrollObserver = new MutationObserver(() => {
+        // 화면에 변화가 생기면 0.15초(화면이 다 그려질 여유 시간) 뒤에 스크롤을 내림
+        setTimeout(() => {
+            const messageAreas = document.querySelectorAll('.chat-card-messages');
+            messageAreas.forEach(area => {
+                area.scrollTop = area.scrollHeight;
+            });
+        }, 150); 
+    });
+
+    // 화면이 켜지면 전체 화면을 감시하기 시작!
+    window.addEventListener('DOMContentLoaded', () => {
+        scrollObserver.observe(document.body, { childList: true, subtree: true });
+    });
 </script>
 </body>
 </html>
