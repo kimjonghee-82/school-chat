@@ -16,14 +16,15 @@
        /* 💡 수정됨: 스크롤이 확실하게 나오도록 Flex 대신 Block 구조 적용 */
        /* 💡 수정됨: auto 대신 scroll을 사용하여 기기 상관없이 무조건 스크롤바 생성 */
       /* 💡 수정됨: 부모 컨테이너 밖으로 삐져나가지 않게 크기를 가두고 스크롤 생성 */
+       /* 💡 수정됨: Flex 억제 및 높이 강제 고정으로 완벽한 스크롤 생성 */
         #login-screen { 
-            flex: 1; /* 핵심: 부모 화면(container) 크기에 딱 맞게 제한 */
+            height: 100%; /* 핵심: 부모(container) 높이에 100% 고정시켜 늘어나지 않게 막음 */
             width: 100%;
             display: block; 
             padding: 50px 20px; 
             box-sizing: border-box; 
             background: #f0f2f5; 
-            overflow-y: scroll; /* 무조건 스크롤바 노출 */
+            overflow-y: auto; /* 고정된 높이 안에서 내용이 넘치면 자연스럽게 스크롤 생성 */
             text-align: center;
         }
         
