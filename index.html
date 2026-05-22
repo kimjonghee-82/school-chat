@@ -13,18 +13,17 @@
         .container { width: 100%; height: 100%; display: flex; flex-direction: column; background: white; overflow: hidden; }
         
         /* 💡 수정됨: 기기 화면 크기에 맞게 로그인 화면 반응형 및 스크롤 적용 */
+       /* 💡 수정됨: 스크롤이 확실하게 나오도록 Flex 대신 Block 구조 적용 */
         #login-screen { 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: center; 
+            display: block; /* flex 대신 block으로 변경 */
             height: 100%; 
-            padding: 20px; 
+            padding: 50px 20px; /* 위아래 여백을 넉넉하게 추가 */
             box-sizing: border-box; 
             background: #f0f2f5; 
-            overflow-y: auto; 
+            overflow-y: auto; /* 스크롤 활성화 */
             text-align: center;
         }
+        
         .login-box { 
             background: white; 
             padding: 40px; 
@@ -34,6 +33,7 @@
             max-width: 350px; 
             box-sizing: border-box; 
             text-align: left;
+            margin: 0 auto; /* 가운데 정렬을 위한 마진 추가 */
         }
         select, input[type="text"], input[type="password"] { padding: 12px; margin: 8px 0 20px 0; width: 100%; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
         
