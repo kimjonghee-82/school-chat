@@ -396,18 +396,26 @@
         });
     }
 
-    function createPrivateRoom(targetName) {
-        const roomId = `private_${[myInfo.name, targetName].sort().join('_')}`;
-        database.ref(`rooms/${roomId}`).once('value', snap => {
-            if(!snap.exists()) {
-                database.ref(`rooms/${roomId}`).set({
-                    roomId: roomId, title: `1:1 대화 (${myInfo.name}, ${targetName})`, isDefault: false, members: { [myInfo.name]: true, [targetName]: true }
-                });
-            } else {
-                database.ref(`rooms/${roomId}/members/${myInfo.name}`).set(true);
-            }
-        });
-    }
+    // 💡 수정됨: 개인방을 만들 때 학년과 반 정보를 방 ID와 데이터에 포함시킵니다.
+function createPrivateRoom(targetName) {
+    // 방 ID에 학년과 반 정보를 추가 (예: private_1학년_1반_김철수_홍길동)
+    const roomId = `private_${myInfo.grade}_${myInfo.classNum}_${[myInfo.name, targetName].sort().join('_')}`;
+    
+    database.ref(`rooms/${roomId}`).once('value', snap => {
+        if(!snap.exists()) {
+            database.ref(`rooms/${roomId}`).set({
+                roomId: roomId, 
+                title: `1:1 대화 (${myInfo.name}, ${targetName})`, 
+                grade: myInfo.grade,       // 학년 정보 추가
+                classNum: myInfo.classNum, // 반 정보 추가
+                isDefault: false, 
+                members: { [myInfo.name]: true, [targetName]: true }
+            });
+        } else {
+            database.ref(`rooms/${roomId}/members/${myInfo.name}`).set(true);
+        }
+    });
+}
 </script>
 </body>
 </html>
