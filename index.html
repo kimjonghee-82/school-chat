@@ -368,49 +368,55 @@
         executeLogin(true);
     }
 
-    function executeLogin(isTeacher) {
-        try {
-            const grade = document.getElementById('grade').value;
-            const classNum = document.getElementById('classNum').value;
-            const name = document.getElementById('username').value.trim();
+  function executeLogin(isTeacher) {
+    try {
+        const grade = document.getElementById('grade').value;
+        const classNum = document.getElementById('classNum').value;
+        const name = document.getElementById('username').value.trim();
 
-            myInfo = { grade: grade, classNum: classNum, name: name, isTeacher: isTeacher };
-            document.getElementById('login-screen').style.display = 'none';
-            sessionStartTime = Date.now();
+        myInfo = { grade: grade, classNum: classNum, name: name, isTeacher: isTeacher };
+        document.getElementById('login-screen').style.display = 'none';
+        sessionStartTime = Date.now();
 
-            if (isTeacher) {
-                document.getElementById('teacher-screen').style.display = 'flex';
-                document.getElementById('teacher-welcome-msg').innerText = `👨‍🏫 ${grade} ${classNum} ${name} 선생님`;
-            } else {
-                document.getElementById('chat-screen').style.display = 'flex';
-                document.getElementById('welcome-msg').innerText = `🏫 ${grade} ${classNum} 【${name}】 학생`;
-
-                const defaultRoomId = `group_${grade}_${classNum}`;
-                database.ref(`rooms/${defaultRoomId}`).once('value', function(snap) {
-                    if(!snap.exists()) {
-                        database.ref(`rooms/${defaultRoomId}`).set({
-                            roomId: defaultRoomId, title: `${grade} ${classNum} 단체방`, grade: grade, classNum: classNum, isDefault: true, creator: "시스템", members: { [name]: true }
-                        });
-                    } else {
-                        database.ref(`rooms/${defaultRoomId}/members/${name}`).set(true);
-                    }
-                    database.ref(`rooms/${defaultRoomId}/members/${name}`).onDisconnect().remove();
-                });
+        // 💡 추가된 부분: 학생 로그인 시 브라우저 알림 권한 요청
+        if (!isTeacher) {
+            if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") {
+                Notification.requestPermission();
             }
+        }
 
-            const userType = isTeacher ? "teacher" : "student";
-            const userKey = `user_${grade}_${classNum}_${name}_${userType}`; 
-            myUserRef = database.ref(`users/${userKey}`);
-            
-            myUserRef.set(myInfo).catch(err => {
-                alert("❗ 네트워크가 불안정하거나 접속 권한이 없습니다. (" + err.message + ")");
+        if (isTeacher) {
+            document.getElementById('teacher-screen').style.display = 'flex';
+            document.getElementById('teacher-welcome-msg').innerText = `👨‍🏫 ${grade} ${classNum} ${name} 선생님`;
+        } else {
+            document.getElementById('chat-screen').style.display = 'flex';
+            document.getElementById('welcome-msg').innerText = `🏫 ${grade} ${classNum} 【${name}】 학생`;
+
+            const defaultRoomId = `group_${grade}_${classNum}`;
+            database.ref(`rooms/${defaultRoomId}`).once('value', function(snap) {
+                if(!snap.exists()) {
+                    database.ref(`rooms/${defaultRoomId}`).set({
+                        roomId: defaultRoomId, title: `${grade} ${classNum} 단체방`, grade: grade, classNum: classNum, isDefault: true, creator: "시스템", members: { [name]: true }
+                    });
+                } else {
+                    database.ref(`rooms/${defaultRoomId}/members/${name}`).set(true);
+                }
+                database.ref(`rooms/${defaultRoomId}/members/${name}`).onDisconnect().remove();
             });
-            myUserRef.onDisconnect().remove();
+        }
 
-            startRealtimeListening();
-        } catch (error) { alert("로그인 중 에러 발생: " + error.message); }
-    }
+        const userType = isTeacher ? "teacher" : "student";
+        const userKey = `user_${grade}_${classNum}_${name}_${userType}`; 
+        myUserRef = database.ref(`users/${userKey}`);
+        
+        myUserRef.set(myInfo).catch(err => {
+            alert("❗ 네트워크가 불안정하거나 접속 권한이 없습니다. (" + err.message + ")");
+        });
+        myUserRef.onDisconnect().remove();
 
+        startRealtimeListening();
+    } catch (error) { alert("로그인 중 에러 발생: " + error.message); }
+}
     function handleLogout() {
         if (!myInfo.isTeacher && myInfo.name) {
             const defaultRoomId = `group_${myInfo.grade}_${myInfo.classNum}`;
@@ -498,26 +504,40 @@
         });
     }
 
-    function showFullscreenAlert(gameName, gameUrl, type) {
-        alertTargetGameUrl = gameUrl;
-        const descText = document.getElementById('alert-desc-text');
-        const actionBtn = document.getElementById('alert-action-btn');
-        actionBtn.style.display = 'block';
+   function showFullscreenAlert(gameName, gameUrl, type) {
+    alertTargetGameUrl = gameUrl;
+    const descText = document.getElementById('alert-desc-text');
+    const actionBtn = document.getElementById('alert-action-btn');
+    actionBtn.style.display = 'block';
 
-        if (type === 'notice') {
-            descText.innerHTML = `<span style="font-size:24px; font-weight:bold; color: #e91e63;">${gameName}</span><br><br><div style="text-align:left; background:#f5f5f5; padding:20px; border-radius:8px; border:1px solid #ccc; font-size:16px; white-space:pre-wrap; color: #333;">${gameUrl}</div>`;
-            actionBtn.style.display = 'none'; 
-        } else if (type === 'custom') {
-            descText.innerHTML = `새로운 미션!<br><span style="color: #d32f2f; font-weight:bold;">${gameName}</span> 으로 이동하세요!`;
-            actionBtn.innerHTML = `🔗 미션 링크로 이동하기`;
-            actionBtn.style.background = "#ff5722"; 
-        } else {
-            descText.innerHTML = `선생님이 호출하셨습니다!<br><span style="color: #d32f2f; font-weight:bold;">🎯 ${gameName}</span> 에 입장하세요!`;
-            actionBtn.innerHTML = `🎯 게임 시작하기`;
-            actionBtn.style.background = "#8e44ad"; 
-        }
-        document.getElementById('fullscreen-alert-modal').style.display = 'flex';
+    if (type === 'notice') {
+        descText.innerHTML = `<span style="font-size:24px; font-weight:bold; color: #e91e63;">${gameName}</span><br><br><div style="text-align:left; background:#f5f5f5; padding:20px; border-radius:8px; border:1px solid #ccc; font-size:16px; white-space:pre-wrap; color: #333;">${gameUrl}</div>`;
+        actionBtn.style.display = 'none'; 
+    } else if (type === 'custom') {
+        descText.innerHTML = `새로운 미션!<br><span style="color: #d32f2f; font-weight:bold;">${gameName}</span> 으로 이동하세요!`;
+        actionBtn.innerHTML = `🔗 미션 링크로 이동하기`;
+        actionBtn.style.background = "#ff5722"; 
+    } else {
+        descText.innerHTML = `선생님이 호출하셨습니다!<br><span style="color: #d32f2f; font-weight:bold;">🎯 ${gameName}</span> 에 입장하세요!`;
+        actionBtn.innerHTML = `🎯 게임 시작하기`;
+        actionBtn.style.background = "#8e44ad"; 
     }
+    
+    document.getElementById('fullscreen-alert-modal').style.display = 'flex';
+
+    // 💡 추가된 부분: 다른 창을 보고 있을 때 윈도우 시스템 알림 + 소리 재생
+    if ("Notification" in window && Notification.permission === "granted") {
+        let n = new Notification("👨‍🏫 선생님 호출!", { 
+            body: `[${gameName}] 메시지가 도착했습니다! 클릭하여 확인하세요.`, 
+            requireInteraction: true 
+        });
+        n.onclick = function() { window.focus(); this.close(); };
+    }
+    try {
+        let audio = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
+        audio.play();
+    } catch(e) { console.log("알림음 재생 제한됨"); }
+}
 
     function openGameFromAlert() { if (alertTargetGameUrl) window.open(alertTargetGameUrl, '_blank'); closeFullscreenAlert(); }
     function closeFullscreenAlert() { 
@@ -944,18 +964,32 @@
     }
 
     // 선택된 여러 방에 게임 알림 전송
-    function sendSelectedGameLink() {
-        if (currentTeacherTargets.size === 0) return alert("❌ 먼저 학생들 채팅방을 클릭해서 선택해주세요!");
-        const selectEl = document.getElementById('hancom-game-select');
-        const [gameUrl, gameName] = selectEl.value.split('|');
-        if (confirm(`📢 선택한 ${currentTeacherTargets.size}개 방에 [${gameName}] 강제 화면 알림을 전송하시겠습니까?`)) {
-            const timestamp = Date.now();
-            currentTeacherTargets.forEach(roomId => {
-                database.ref(`gameAlerts/${roomId}`).set({ gameName: gameName, gameUrl: gameUrl, timestamp: timestamp, type: 'hancom' });
+  function sendSelectedGameLink() {
+    if (currentTeacherTargets.size === 0) return alert("❌ 먼저 학생들 채팅방을 클릭해서 선택해주세요!");
+    const selectEl = document.getElementById('hancom-game-select');
+    const [gameUrl, gameName] = selectEl.value.split('|');
+    
+    if (confirm(`📢 선택한 ${currentTeacherTargets.size}개 방에 [${gameName}] 강제 화면 알림을 전송하시겠습니까?`)) {
+        const timestamp = Date.now();
+        const now = new Date(); 
+        const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        
+        currentTeacherTargets.forEach(roomId => {
+            database.ref(`gameAlerts/${roomId}`).set({ gameName: gameName, gameUrl: gameUrl, timestamp: timestamp, type: 'hancom' });
+            
+            // 💡 추가된 부분: 해당 방 채팅창에 메시지로도 남김
+            database.ref('messages').push({ 
+                roomId: roomId, 
+                sender: `${myInfo.name}(선생님)`, 
+                text: `📢 [${gameName}] 호출이 도착했습니다!\n바로 가기 링크: ${gameUrl}`, 
+                time: timeStr, 
+                grade: myInfo.grade, 
+                classNum: myInfo.classNum 
             });
-            alert(`✅ ${gameName} 호출 전송 완료!`);
-        }
+        });
+        alert(`✅ ${gameName} 호출 전송 완료!`);
     }
+}
 
     function toggleMissionInput() {
         const area = document.getElementById('custom-mission-area');
@@ -963,22 +997,35 @@
     }
 
     // 선택된 여러 방에 미션 전송
-    function sendCustomMission() {
-        if (currentTeacherTargets.size === 0) return alert("❌ 먼저 미션을 전송할 채팅방을 클릭해주세요!");
-        const urlInput = document.getElementById('custom-mission-url').value.trim();
-        if (!urlInput) return alert("❌ 전달할 URL 주소를 입력해주세요!");
-        let finalUrl = urlInput.startsWith('http') ? urlInput : 'https://' + urlInput;
+   function sendCustomMission() {
+    if (currentTeacherTargets.size === 0) return alert("❌ 먼저 미션을 전송할 채팅방을 클릭해주세요!");
+    const urlInput = document.getElementById('custom-mission-url').value.trim();
+    if (!urlInput) return alert("❌ 전달할 URL 주소를 입력해주세요!");
+    let finalUrl = urlInput.startsWith('http') ? urlInput : 'https://' + urlInput;
 
-        if (confirm(`📢 선택한 ${currentTeacherTargets.size}개 방에 [${finalUrl}] 미션 화면 알림을 전송하시겠습니까?`)) {
-            const timestamp = Date.now();
-            currentTeacherTargets.forEach(roomId => {
-                database.ref(`gameAlerts/${roomId}`).set({ gameName: "🔗 특별 미션", gameUrl: finalUrl, timestamp: timestamp, type: 'custom' });
+    if (confirm(`📢 선택한 ${currentTeacherTargets.size}개 방에 [${finalUrl}] 미션 화면 알림을 전송하시겠습니까?`)) {
+        const timestamp = Date.now();
+        const now = new Date(); 
+        const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+        currentTeacherTargets.forEach(roomId => {
+            database.ref(`gameAlerts/${roomId}`).set({ gameName: "🔗 특별 미션", gameUrl: finalUrl, timestamp: timestamp, type: 'custom' });
+            
+            // 💡 추가된 부분: 해당 방 채팅창에 메시지로도 남김
+            database.ref('messages').push({ 
+                roomId: roomId, 
+                sender: `${myInfo.name}(선생님)`, 
+                text: `🔗 [특별 미션] 링크가 도착했습니다!\n바로 가기 링크: ${finalUrl}`, 
+                time: timeStr, 
+                grade: myInfo.grade, 
+                classNum: myInfo.classNum 
             });
-            alert(`✅ 미션 알림이 전송되었습니다!`);
-            document.getElementById('custom-mission-url').value = ""; 
-            toggleMissionInput(); 
-        }
+        });
+        alert(`✅ 미션 알림이 전송되었습니다!`);
+        document.getElementById('custom-mission-url').value = ""; 
+        toggleMissionInput(); 
     }
+}
 
     // 📢 전체 공지 모달 열기
     function openGlobalNoticeModal() {
