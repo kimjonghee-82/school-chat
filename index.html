@@ -12,17 +12,19 @@
         html, body { height: 100%; margin: 0; padding: 0; font-family: 'Malgun Gothic', sans-serif; background-color: #f0f2f5; overflow: hidden; }
         .container { width: 100%; height: 100%; display: flex; flex-direction: column; background: white; overflow: hidden; }
         
+        /* 💡 수정됨: 기기 화면 크기에 맞게 로그인 화면 반응형 및 스크롤 적용 */
         #login-screen { 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
             height: 100%; 
-            width: 100%;
-            display: block; 
-            padding: 50px 20px; 
+            padding: 20px; 
             box-sizing: border-box; 
             background: #f0f2f5; 
-            overflow-y: scroll; 
+            overflow-y: auto; 
             text-align: center;
         }
-        
         .login-box { 
             background: white; 
             padding: 40px; 
@@ -32,7 +34,6 @@
             max-width: 350px; 
             box-sizing: border-box; 
             text-align: left;
-            margin: 0 auto; 
         }
         select, input[type="text"], input[type="password"] { padding: 12px; margin: 8px 0 20px 0; width: 100%; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
         
@@ -44,6 +45,7 @@
         .btn-teacher { background-color: #2196F3; margin-top: 10px; }
         .btn-teacher:hover { background-color: #0b7dda; }
 
+        /* 바탕화면 바로 가기 버튼 스타일 */
         .btn-shortcut { 
             background: linear-gradient(135deg, #6e8efb, #a777e3); 
             color: white; 
@@ -59,7 +61,10 @@
             width: auto;
             display: inline-block;
         }
-        .btn-shortcut:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(167, 119, 227, 0.6); }
+        .btn-shortcut:hover { 
+            transform: translateY(-3px); 
+            box-shadow: 0 6px 20px rgba(167, 119, 227, 0.6); 
+        }
 
         .header { background: #4CAF50; color: white; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; height: 60px; box-sizing: border-box; flex-shrink: 0; }
         .header button { background: #ff5252; width: auto; padding: 5px 15px; font-size: 14px; }
@@ -68,20 +73,25 @@
         .sidebar { width: 250px; background: #f9f9f9; border-right: 1px solid #ddd; padding: 15px; overflow-y: auto; box-sizing: border-box; flex-shrink: 0; transition: background 0.2s; }
         .sidebar h3 { margin-top: 0; font-size: 14px; border-bottom: 2px solid #ddd; padding-bottom: 10px; color: #333; }
         .user-list { list-style: none; padding: 0; margin: 0; }
-        .user-list li { padding: 12px; border-bottom: 1px solid #eee; font-size: 13px; border-radius: 4px; transition: 0.2s; box-sizing: border-box; cursor: pointer; }
+        .user-list li { padding: 12px; border-bottom: 1px solid #eee; font-size: 13px; border-radius: 4px; transition: 0.2s; box-sizing: border-box; }
         .user-list li:hover { background: #e2f0d9; }
         
         #student-grid { display: flex; flex-direction: row; gap: 12px; padding: 12px; flex: 1; background: #e9ecef; box-sizing: border-box; overflow-x: auto; align-items: stretch; }
         .chat-card { background: white; border-radius: 8px; border: 1px solid #ccc; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); box-sizing: border-box; flex: 1; min-width: 350px; height: 100%; transition: border 0.2s; }
 
         .chat-card-header { background: #4CAF50; color: white; padding: 10px 12px; font-weight: bold; font-size: 14px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; gap: 5px; }
+        .chat-card-header .btn-group { display: flex; gap: 4px; }
         .chat-card-header button { background: #fff; color: #333; font-size: 11px; padding: 4px 8px; border-radius: 4px; border: 1px solid #ccc; width: auto; font-weight: normal; cursor: pointer; }
-        
+        .chat-card-header button:hover { background: #eee; }
+        .btn-game { background: #ffeb3b !important; color: #000 !important; font-weight: bold !important; border: 1px solid #fbc02d !important; }
+        .btn-game:hover { background: #fdd835 !important; }
+
         .chat-card-body { display: flex; flex: 1; overflow: hidden; }
         .chat-card-messages { flex: 1; padding: 12px; overflow-y: auto; background: #e5ddd5; font-size: 13px; pointer-events: auto; } 
         
         .chat-card-participants { width: 85px; background: #f4f4f4; border-left: 1px solid #ddd; overflow-y: auto; padding: 8px 5px; display: flex; flex-direction: column; gap: 5px; flex-shrink: 0; }
-        .participant-item { background: white; border: 1px solid #ccc; padding: 6px 4px; text-align: center; font-size: 11px; border-radius: 4px; font-weight: bold; word-break: break-all; }
+        .participant-item { background: white; border: 1px solid #ccc; padding: 6px 4px; text-align: center; font-size: 11px; border-radius: 4px; font-weight: bold; cursor: grab; word-break: break-all; }
+        .participant-item:active { cursor: grabbing; }
 
         .msg-line { margin-bottom: 10px; display: flex; flex-direction: column; }
         .msg-line.me { align-items: flex-end; }
@@ -98,8 +108,29 @@
         #teacher-screen { display: none; height: 100%; flex-direction: column; }
         #teacher-grid { display: flex; flex-wrap: wrap; gap: 12px; padding: 12px; flex: 1; overflow-y: auto; background: #f5f5f5; box-sizing: border-box; align-content: flex-start; }
         #teacher-grid .chat-card { flex: 1 1 calc(33.33% - 12px); min-width: 350px; height: calc(50% - 6px); min-height: 300px; }
+        
+        .draggable-student { cursor: grab; }
+        .draggable-student:active { cursor: grabbing; }
 
+        #remove-dropzone-hint { display: none; background: #ffcdd2; color: #c62828; padding: 15px; text-align: center; border-radius: 6px; margin-bottom: 15px; font-weight: bold; border: 2px dashed #ef5350; font-size: 14px; animation: pulse 1s infinite alternate; }
+        @keyframes pulse { from { opacity: 0.7; transform: scale(0.98); } to { opacity: 1; transform: scale(1.02); } }
+
+        /* 모달 공통 스타일 */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 10000; justify-content: center; align-items: center; }
+        
+        /* 게임 영역 */
+        .game-wrapper { display: flex; width: 850px; height: 550px; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .game-play-area { flex: 1; display: flex; flex-direction: column; background: #1e1e1e; position: relative; }
+        .game-header { height: 50px; background: #333; color: white; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; font-weight: bold; flex-shrink: 0; }
+        .game-sky { flex: 1; position: relative; background: linear-gradient(to bottom, #0f2027, #203a43, #2c5364); overflow: hidden; }
+        .game-input-area { height: 60px; background: #222; display: flex; align-items: center; padding: 0 15px; flex-shrink: 0; }
+        .game-input-area input { flex: 1; padding: 12px; font-size: 16px; font-weight: bold; text-align: center; border-radius: 30px; border: none; outline: none; }
+        
+        .game-leaderboard { width: 250px; background: #f4f4f4; border-left: 2px solid #ddd; display: flex; flex-direction: column; }
+        .leaderboard-title { background: #ff9800; color: white; padding: 15px; font-weight: bold; text-align: center; margin: 0; }
+        .leaderboard-list { flex: 1; overflow-y: auto; padding: 10px; list-style: none; margin: 0; }
+        .leaderboard-list li { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #ccc; font-size: 14px; }
+        .close-game-btn { background: #ff5252; padding: 10px; text-align: center; color: white; cursor: pointer; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -109,9 +140,16 @@
         <h2>💬 스쿨 톡 에 오신 것을 환영합니다!</h2>
         <div class="login-box">
             <label>학년</label>
-            <select id="grade"><option value="1학년">1학년</option><option value="2학년">2학년</option><option value="3학년">3학년</option><option value="4학년">4학년</option><option value="5학년">5학년</option><option value="6학년">6학년</option><option value="동아리">동아리</option></select>
+            <select id="grade">
+                <option value="1학년">1학년</option><option value="2학년">2학년</option><option value="3학년">3학년</option>
+                <option value="4학년">4학년</option><option value="5학년">5학년</option><option value="6학년">6학년</option>
+                <option value="동아리">동아리</option>
+            </select>
             <label>반</label>
-            <select id="classNum"><option value="1반">1반</option><option value="2반">2반</option><option value="3반">3반</option><option value="4반">4반</option><option value="5반">5반</option><option value="6반">6반</option></select>
+            <select id="classNum">
+                <option value="1반">1반</option><option value="2반">2반</option><option value="3반">3반</option>
+                <option value="4반">4반</option><option value="5반">5반</option><option value="6반">6반</option>
+            </select>
             <label>본인 이름 (실명)</label>
             <input type="text" id="username" placeholder="이름을 입력하세요">
             
@@ -123,13 +161,17 @@
             <button onclick="login(false)">학생으로 입장하기</button>
             <button onclick="login(true)" class="btn-teacher">👨‍🏫 선생님으로 입장하기</button>
         </div>
-        <button class="btn-shortcut">🚀 바탕화면에 바로 가기 만들기</button>
+        <button onclick="downloadShortcut()" class="btn-shortcut">🚀 바탕화면에 바로 가기 만들기</button>
     </div>
 
     <div id="teacher-auth-modal" class="modal-overlay">
-        <div style="background: white; padding: 30px; border-radius: 12px; width: 320px; text-align: center;">
+        <div style="background: white; padding: 30px; border-radius: 12px; width: 320px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
             <h3 style="margin-top: 0; color: #2196F3;">👨‍🏫 선생님 인증</h3>
             <input type="password" id="teacher-pwd" placeholder="선생님 암호를 입력하세요">
+            <div class="checkbox-container" style="justify-content: center;">
+                <input type="checkbox" id="saveTeacherPwd">
+                <label for="saveTeacherPwd">선생님 암호 자동 저장</label>
+            </div>
             <button onclick="confirmTeacherLogin()" style="background-color: #2196F3; margin-bottom: 10px;">확인</button>
             <button onclick="document.getElementById('teacher-auth-modal').style.display='none'" style="background-color: #9e9e9e;">취소</button>
         </div>
@@ -153,19 +195,101 @@
         <div class="header" style="background: #2196F3;">
             <span id="teacher-welcome-msg">👨‍🏫 선생님 대시보드</span>
             <div style="display:flex; gap:10px;">
+                <button onclick="openGlobalNoticeModal()" style="background:#e91e63; font-size:13px; padding:5px 12px; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">📢 전체 공지</button>
                 <button onclick="resetAllUsers()" style="background:#ff9800; font-size:13px; padding:5px 12px;">👻 전체 접속자 초기화</button>
                 <button onclick="handleLogout()" style="font-size:13px; padding:5px 12px;">로그아웃</button>
             </div>
         </div>
         <div class="main-area">
-            <div class="sidebar">
-                <h3>👥 접속자 명단</h3>
+            <div class="sidebar" id="teacher-sidebar" ondrop="handleRemoveDrop(event)" ondragover="handleRemoveDragOver(event)" ondragleave="handleRemoveDragLeave(event)">
+                <div id="remove-dropzone-hint">🗑️ 이곳에 놓아 방에서 퇴장</div>
+                <h3>👥 접속자 명단<br><span style="font-size:11px; font-weight:normal; color:#666;">(클릭으로 여러 명 선택 후 우측으로 드래그!)</span></h3>
                 <ul class="user-list" id="teacher-user-list-ul"></ul>
             </div>
+            
             <div style="display: flex; flex-direction: column; flex: 1; overflow: hidden; background: #f5f5f5;">
+                <div style="padding: 12px 20px; background: #e3f2fd; font-weight: bold; border-bottom: 1px solid #bbdefb; color: #1565c0; flex-shrink: 0; display: flex; justify-content: space-between; align-items: center;">
+                    <div>📢 <span id="selected-room-title" style="color: #d32f2f; background: white; padding: 4px 10px; border-radius: 4px; border: 1px solid #ccc; font-size: 15px;">채팅창을 클릭하여 선택하세요!</span></div>
+                    
+                    <div id="teacher-game-area" style="display: none; align-items: center; gap: 15px;">
+                        <div style="display: flex; align-items: center; gap: 5px;">
+                            <select id="hancom-game-select" style="margin: 0; padding: 6px; width: 140px; border-radius: 4px; border: 1px solid #1565c0; font-size: 13px;">
+                                <option value="https://tt.hancomtaja.com/ko?pr=W|낱말연습">📖 낱말연습</option>
+                                <option value="https://tt.hancomtaja.com/ko?pr=SW|단문연습">📝 단문연습</option>
+                                <option value="https://acidrain.hancomtaja.com/?gamekey=acidrain|산성비">☔ 산성비</option>
+                                <option value="https://wcs.hancomtaja.com/ko?mode=WCS|워드크러시">💥 워드크러시</option>
+                                <option value="https://lab.hancomtaja.com/|타자실험실">🧪 타자실험실</option>
+                                <option value="https://checkspelling.hancomtaja.com/|맞춤법 퀴즈">✅ 맞춤법 퀴즈</option>
+                                <option value="https://checkspelling.hancomtaja.com/?mode=chosung|초성 퀴즈">💡 초성 퀴즈</option>
+                            </select>
+                            <button onclick="sendSelectedGameLink()" style="background-color: #8e44ad; border:none; padding:7px 12px; color:white; border-radius:4px; font-weight: bold; cursor: pointer; font-size: 12px; white-space: nowrap;">게임 전송 🚀</button>
+                        </div>
+                        <span style="color:#bbdefb;">|</span>
+                        <div style="display: flex; align-items: center; gap: 5px;">
+                            <button onclick="toggleMissionInput()" style="background-color: #ff5722; border:none; padding:7px 12px; color:white; border-radius:4px; font-weight: bold; cursor: pointer; font-size: 12px; white-space: nowrap;">미션 전달 🔗</button>
+                            <div id="custom-mission-area" style="display: none; align-items: center; gap: 5px;">
+                                <input type="text" id="custom-mission-url" placeholder="URL 입력 (http://...)" style="margin: 0; padding: 6px; width: 300px; border-radius: 4px; border: 1px solid #ff5722; font-size: 13px; font-weight: normal;">
+                                <button onclick="sendCustomMission()" style="background-color: #d84315; border:none; padding:7px 12px; color:white; border-radius:4px; font-weight: bold; cursor: pointer; font-size: 12px; white-space: nowrap;">전송</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div id="teacher-grid"></div>
+                
+                <div class="input-area" id="teacher-input-area" style="border-top: 3px solid #2196F3; display: none; padding:15px; background:#f0f0f0; align-items: center; flex-shrink: 0;">
+                    <input type="text" id="teacher-msg-input" placeholder="선택한 방들에 공지 메시지 전송..." onkeypress="if(event.keyCode==13) sendTeacherMessage()" style="flex: 1; margin: 0; padding: 12px; border-radius: 6px;">
+                    <button onclick="sendTeacherMessage()" style="background-color: #2196F3; border:none; padding:12px; color:white; border-radius:6px; margin-left:10px; width:90px; font-weight: bold; cursor: pointer; white-space: nowrap;">전송</button>
+                </div>
             </div>
         </div>
+    </div>
+</div>
+
+<div id="global-notice-modal" class="modal-overlay">
+    <div style="background: white; padding: 30px; border-radius: 12px; width: 450px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+        <h2 style="margin-top: 0; color: #e91e63;">📢 우리 반 공지 전송</h2>
+        <p style="font-size: 13px; color: #666; margin-bottom: 15px;">우리 반 모든 채팅방의 학생들 화면에 알림창을 띄웁니다.</p>
+        <textarea id="global-notice-text" rows="6" placeholder="여기에 전달할 공지 내용을 입력하세요..." style="width: 100%; padding: 12px; box-sizing: border-box; border-radius: 6px; border: 1px solid #ccc; font-size: 15px; font-family: inherit; resize: none;"></textarea>
+        <div style="margin-top: 15px; display: flex; gap: 10px; justify-content: center;">
+            <button onclick="sendGlobalNotice()" style="background-color: #e91e63;">🚀 전체 전송</button>
+            <button onclick="document.getElementById('global-notice-modal').style.display='none'" style="background-color: #9e9e9e;">취소</button>
+        </div>
+    </div>
+</div>
+
+<div id="game-modal" class="modal-overlay">
+    <div class="game-wrapper">
+        <div class="game-play-area">
+            <div class="game-header">
+                <span id="game-room-name">방 이름</span>
+                <span>점수: <span id="game-score" style="color:#ffeb3b; font-size:20px;">0</span> | 생명: <span id="game-lives" style="color:#ff5252; font-size:20px;">❤️❤️❤️❤️❤️</span></span>
+            </div>
+            <div class="game-sky" id="game-sky">
+                <div id="game-start-overlay" style="position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:flex; flex-direction:column; justify-content:center; align-items:center; z-index:10; gap:15px;"></div>
+            </div>
+            <div class="game-input-area">
+                <input type="text" id="game-input" placeholder="여기에 단어를 입력하고 엔터를 누르세요!" onkeypress="if(event.keyCode==13) checkGameWord()" disabled autocomplete="off">
+            </div>
+        </div>
+        <div class="game-leaderboard">
+            <h3 class="leaderboard-title">🏆 실시간 방 랭킹</h3>
+            <ul class="leaderboard-list" id="leaderboard-list">
+                <li style="text-align:center; color:#888;">데이터를 불러오는 중...</li>
+            </ul>
+            <div class="close-game-btn" onclick="closeGame()">나가기</div>
+        </div>
+    </div>
+</div>
+
+<div id="fullscreen-alert-modal" class="modal-overlay" style="flex-direction: column;">
+    <div style="background: white; color: #333; padding: 40px; border-radius: 16px; width: 85%; max-width: 480px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+        <h1 style="margin: 0 0 10px 0; color: #8e44ad; font-size: 30px;">👨‍🏫 선생님의 특급 호출!</h1>
+        <p id="alert-desc-text" style="font-size: 18px; margin: 15px 0; line-height: 1.6; color: #444;"></p>
+        <button id="alert-action-btn" onclick="openGameFromAlert()" style="background: #8e44ad; color: white; font-size: 20px; padding: 16px 20px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 15px;">
+            🎯 지금 즉시 이동하기
+        </button>
+        <button onclick="closeFullscreenAlert()" style="background: #eee; color: #666; font-size: 13px; padding: 12px; border: none; border-radius: 6px; cursor: pointer; width: 100%; margin-top: 12px; font-weight: bold;">확인 (닫기)</button>
     </div>
 </div>
 
@@ -175,67 +299,143 @@
         const firebaseConfig = { databaseURL: "https://school-chat-7051e-default-rtdb.firebaseio.com/" };
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         database = firebase.database();
-    } catch (e) { console.error("Firebase 초기화 에러:", e); }
+    } catch (e) { console.error("Pyrebase 초기화 에러:", e); }
 
     let myInfo = {};
     let myUserRef = null;
+    
+    let currentTeacherTargets = new Set();
+    let selectedStudents = new Set(); 
+    
     let localUsers = {};
     let localRooms = {};
     let localMessages = [];
-    
-    // 💡 핵심: 각 방의 메시지 갯수를 추적하여 스크롤 내림 여부를 결정하는 객체
-    let roomMessageCounts = {};
+    let localClassScores = {};    
+    let sessionStartTime = Date.now();
+    let lastAlertTimestamps = {};
+    let alertTargetGameUrl = "";
+
+    let currentGameRoomId = null;
+    let isGameHost = false;
+
+    window.onload = function() {
+        try {
+            if(localStorage.getItem('school_chat_save_account') === 'true') {
+                document.getElementById('saveAccountInfo').checked = true;
+                if(localStorage.getItem('school_chat_grade')) document.getElementById('grade').value = localStorage.getItem('school_chat_grade');
+                if(localStorage.getItem('school_chat_classNum')) document.getElementById('classNum').value = localStorage.getItem('school_chat_classNum');
+                if(localStorage.getItem('school_chat_name')) document.getElementById('username').value = localStorage.getItem('school_chat_name');
+            }
+            
+            if(localStorage.getItem('school_chat_save_pwd') === 'true') {
+                document.getElementById('saveTeacherPwd').checked = true;
+                if(localStorage.getItem('school_chat_teacher_pwd_val')) {
+                    document.getElementById('teacher-pwd').value = localStorage.getItem('school_chat_teacher_pwd_val');
+                }
+            }
+        } catch(e) { console.warn("로컬스토리지 접근 제한"); }
+    };
 
     function login(isTeacher) {
         if(!database) { alert("파이어베이스 연결을 확인해주세요."); return; }
         const name = document.getElementById('username').value.trim();
         if (name === "") { alert("이름을 입력해주세요!"); return; }
 
-        if (isTeacher) document.getElementById('teacher-auth-modal').style.display = 'flex';
-        else executeLogin(false);
+        const saveAccountChecked = document.getElementById('saveAccountInfo').checked;
+        const grade = document.getElementById('grade').value;
+        const classNum = document.getElementById('classNum').value;
+
+        try {
+            if (saveAccountChecked) {
+                localStorage.setItem('school_chat_save_account', 'true');
+                localStorage.setItem('school_chat_grade', grade);
+                localStorage.setItem('school_chat_classNum', classNum);
+                localStorage.setItem('school_chat_name', name);
+            } else {
+                localStorage.removeItem('school_chat_save_account');
+                localStorage.removeItem('school_chat_grade');
+                localStorage.removeItem('school_chat_classNum');
+                localStorage.removeItem('school_chat_name');
+            }
+        } catch(e) { console.warn("로컬스토리지 권한 없음"); }
+
+        if (isTeacher) {
+            document.getElementById('teacher-auth-modal').style.display = 'flex';
+        } else {
+            executeLogin(false);
+        }
     }
 
     function confirmTeacherLogin() {
         const masterPassword = document.getElementById('teacher-pwd').value;
-        if (masterPassword !== "school1234") { alert("❌ 암호가 일치하지 않습니다."); return; }
+        const savePwdChecked = document.getElementById('saveTeacherPwd').checked;
+
+        if (masterPassword !== "school1234") { 
+            alert("❌ 암호가 일치하지 않습니다."); 
+            return; 
+        }
+
+        try {
+            if (savePwdChecked) {
+                localStorage.setItem('school_chat_save_pwd', 'true');
+                localStorage.setItem('school_chat_teacher_pwd_val', masterPassword);
+            } else {
+                localStorage.removeItem('school_chat_save_pwd');
+                localStorage.removeItem('school_chat_teacher_pwd_val');
+            }
+        } catch(e) { console.warn("로컬스토리지 권한 없음"); }
+
         document.getElementById('teacher-auth-modal').style.display = 'none';
         executeLogin(true);
     }
 
     function executeLogin(isTeacher) {
-        const grade = document.getElementById('grade').value;
-        const classNum = document.getElementById('classNum').value;
-        const name = document.getElementById('username').value.trim();
+        try {
+            const grade = document.getElementById('grade').value;
+            const classNum = document.getElementById('classNum').value;
+            const name = document.getElementById('username').value.trim();
 
-        myInfo = { grade: grade, classNum: classNum, name: name, isTeacher: isTeacher };
-        document.getElementById('login-screen').style.display = 'none';
+            myInfo = { grade: grade, classNum: classNum, name: name, isTeacher: isTeacher };
+            document.getElementById('login-screen').style.display = 'none';
+            sessionStartTime = Date.now();
 
-        if (isTeacher) {
-            document.getElementById('teacher-screen').style.display = 'flex';
-            document.getElementById('teacher-welcome-msg').innerText = `👨‍🏫 ${grade} ${classNum} ${name} 선생님`;
-        } else {
-            document.getElementById('chat-screen').style.display = 'flex';
-            document.getElementById('welcome-msg').innerText = `🏫 ${grade} ${classNum} 【${name}】 학생`;
-
-            const defaultRoomId = `group_${grade}_${classNum}`;
-            database.ref(`rooms/${defaultRoomId}`).once('value', function(snap) {
-                if(!snap.exists()) {
-                    database.ref(`rooms/${defaultRoomId}`).set({
-                        roomId: defaultRoomId, title: `${grade} ${classNum} 단체방`, isDefault: true, members: { [name]: true }
-                    });
-                } else {
-                    database.ref(`rooms/${defaultRoomId}/members/${name}`).set(true);
+            if (!isTeacher) {
+                if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") {
+                    Notification.requestPermission();
                 }
-                database.ref(`rooms/${defaultRoomId}/members/${name}`).onDisconnect().remove();
+            }
+
+            if (isTeacher) {
+                document.getElementById('teacher-screen').style.display = 'flex';
+                document.getElementById('teacher-welcome-msg').innerText = `👨‍🏫 ${grade} ${classNum} ${name} 선생님`;
+            } else {
+                document.getElementById('chat-screen').style.display = 'flex';
+                document.getElementById('welcome-msg').innerText = `🏫 ${grade} ${classNum} 【${name}】 학생`;
+
+                const defaultRoomId = `group_${grade}_${classNum}`;
+                database.ref(`rooms/${defaultRoomId}`).once('value', function(snap) {
+                    if(!snap.exists()) {
+                        database.ref(`rooms/${defaultRoomId}`).set({
+                            roomId: defaultRoomId, title: `${grade} ${classNum} 단체방`, grade: grade, classNum: classNum, isDefault: true, creator: "시스템", members: { [name]: true }
+                        });
+                    } else {
+                        database.ref(`rooms/${defaultRoomId}/members/${name}`).set(true);
+                    }
+                    database.ref(`rooms/${defaultRoomId}/members/${name}`).onDisconnect().remove();
+                });
+            }
+
+            const userType = isTeacher ? "teacher" : "student";
+            const userKey = `user_${grade}_${classNum}_${name}_${userType}`; 
+            myUserRef = database.ref(`users/${userKey}`);
+            
+            myUserRef.set(myInfo).catch(err => {
+                alert("❗ 네트워크 상태나 권한을 확인해주세요. (" + err.message + ")");
             });
-        }
+            myUserRef.onDisconnect().remove();
 
-        const userKey = `user_${grade}_${classNum}_${name}_${isTeacher ? 'teacher' : 'student'}`; 
-        myUserRef = database.ref(`users/${userKey}`);
-        myUserRef.set(myInfo);
-        myUserRef.onDisconnect().remove();
-
-        startRealtimeListening();
+            startRealtimeListening();
+        } catch (error) { alert("로그인 에러: " + error.message); }
     }
 
     function handleLogout() {
@@ -249,173 +449,620 @@
 
     function resetAllUsers() {
         if(!myInfo.isTeacher) return;
-        if (confirm(`⚠️ 모든 학생 접속 기록을 초기화하시겠습니까?`)) {
+        if (confirm(`⚠️ 정말 [${myInfo.grade} ${myInfo.classNum}]의 모든 학생 접속 기록을 초기화하시겠습니까?`)) {
             database.ref('users').once('value', snapshot => {
                 if (!snapshot.exists()) return;
                 let updates = {};
                 snapshot.forEach(child => {
                     let user = child.val();
-                    if (user.grade === myInfo.grade && user.classNum === myInfo.classNum && !user.isTeacher) updates[child.key] = null; 
+                    if (user.grade === myInfo.grade && user.classNum === myInfo.classNum && !user.isTeacher) {
+                        updates[child.key] = null; 
+                    }
                 });
-                if (Object.keys(updates).length > 0) database.ref('users').update(updates);
+                if (Object.keys(updates).length > 0) {
+                    database.ref('users').update(updates).then(() => {
+                        alert(`✨ 학생들 접속 기록이 초기화되었습니다!`);
+                    });
+                } else { alert("초기화할 학생이 없습니다."); }
             });
         }
     }
 
-    // 💡 리스너 수정: 무식하게 스크롤을 전부 내리던 코드를 제거하고, 단순히 화면만 갱신(updateViews)하도록 분리합니다.
+    function getRankString(userName) {
+        if (!localClassScores || Object.keys(localClassScores).length === 0) return "";
+        const scoreArray = [];
+        for (let name in localClassScores) scoreArray.push({ name: name, score: localClassScores[name].score });
+        scoreArray.sort((a, b) => b.score - a.score);
+        let rank = scoreArray.findIndex(s => s.name === userName) + 1;
+        if (rank === 0) return "";
+        if (rank === 1) return `[🏆1위] `;
+        if (rank === 2) return `[🥈2위] `;
+        if (rank === 3) return `[🥉3위] `;
+        return `[${rank}위] `;
+    }
+
+    function linkify(text) {
+        if (!text) return "";
+        let escaped = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        return escaped.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" style="color: #2196F3; text-decoration: underline; font-weight: bold;">$1</a>');
+    }
+
+    function clearRoomMessages(roomId) {
+        if (!confirm("🧹 이 방의 대화 내용을 초기화하시겠습니까?")) return;
+        database.ref('messages').orderByChild('roomId').equalTo(roomId).once('value', snapshot => {
+            if (!snapshot.exists()) return;
+            let updates = {};
+            snapshot.forEach(child => { updates[child.key] = null; });
+            database.ref('messages').update(updates);
+        });
+    }
+
     function startRealtimeListening() {
         database.ref('users').on('value', snapshot => { localUsers = snapshot.val() || {}; updateViews(); });
-        database.ref('rooms').on('value', snapshot => { 
-            localRooms = {}; 
-            snapshot.forEach(child => { localRooms[child.key] = child.val(); }); 
-            updateViews(); 
-        });
-        database.ref('messages').on('value', snapshot => { 
-            localMessages = []; 
-            snapshot.forEach(child => { localMessages.push(child.val()); }); 
-            updateViews(); 
+        database.ref('rooms').on('value', snapshot => { localRooms = {}; snapshot.forEach(child => { localRooms[child.key] = child.val(); }); updateViews(); });
+        database.ref('messages').on('value', snapshot => { localMessages = []; snapshot.forEach(child => { localMessages.push(child.val()); }); updateViews(); });
+        database.ref(`classScores/${myInfo.grade}_${myInfo.classNum}`).on('value', snapshot => { localClassScores = snapshot.val() || {}; updateViews(); });
+        
+        database.ref('gameAlerts').on('value', snapshot => {
+            if (!myInfo || myInfo.isTeacher) return; 
+            snapshot.forEach(child => {
+                const roomId = child.key; const alertData = child.val();
+                if (localRooms[roomId] && localRooms[roomId].members && localRooms[roomId].members[myInfo.name]) {
+                    const thresholdTime = lastAlertTimestamps[roomId] || sessionStartTime;
+                    if (alertData.timestamp > thresholdTime) {
+                        lastAlertTimestamps[roomId] = alertData.timestamp;
+                        showFullscreenAlert(alertData.gameName, alertData.gameUrl, alertData.type);
+                    }
+                }
+            });
         });
     }
 
-    // 💡 화면 렌더링 방식 수정: 전체 창을 다시 그리지 않고, '메시지 리스트 영역'만 업데이트합니다.
+    function showFullscreenAlert(gameName, gameUrl, type) {
+        alertTargetGameUrl = gameUrl;
+        const descText = document.getElementById('alert-desc-text');
+        const actionBtn = document.getElementById('alert-action-btn');
+        actionBtn.style.display = 'block';
+
+        if (type === 'notice') {
+            descText.innerHTML = `<span style="font-size:24px; font-weight:bold; color: #e91e63;">${gameName}</span><br><br><div style="text-align:left; background:#f5f5f5; padding:20px; border-radius:8px; border:1px solid #ccc; font-size:16px; white-space:pre-wrap; color: #333;">${gameUrl}</div>`;
+            actionBtn.style.display = 'none'; 
+        } else if (type === 'custom') {
+            descText.innerHTML = `새로운 미션!<br><span style="color: #ff5722; font-weight:bold;">${gameName}</span> 으로 이동하세요!`;
+            actionBtn.innerHTML = `🔗 미션 링크로 이동하기`;
+            actionBtn.style.background = "#ff5722"; 
+        } else {
+            descText.innerHTML = `선생님이 호출하셨습니다!<br><span style="color: #8e44ad; font-weight:bold;">🎯 ${gameName}</span> 에 입장하세요!`;
+            actionBtn.innerHTML = `🎯 게임 시작하기`;
+            actionBtn.style.background = "#8e44ad"; 
+        }
+        
+        document.getElementById('fullscreen-alert-modal').style.display = 'flex';
+
+        if ("Notification" in window && Notification.permission === "granted") {
+            let n = new Notification("👨‍🏫 선생님 호출!", { body: `[${gameName}] 메시지가 도착했습니다! 클릭해서 확인해라!`, requireInteraction: true });
+            n.onclick = function() { window.focus(); this.close(); };
+        }
+        try { let audio = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg'); audio.play(); } catch(e) { }
+    }
+
+    function openGameFromAlert() { if (alertTargetGameUrl) window.open(alertTargetGameUrl, '_blank'); closeFullscreenAlert(); }
+    function closeFullscreenAlert() { 
+        document.getElementById('fullscreen-alert-modal').style.display = 'none'; 
+        document.getElementById('alert-action-btn').style.display = 'block';
+    }
+
+    // 💡 수정됨: 스크롤 및 입력창 포커스 원상복구 로직 일원화
     function updateViews() {
-        renderUserList();
-
-        const gridId = myInfo.isTeacher ? 'teacher-grid' : 'student-grid';
-        const grid = document.getElementById(gridId);
+        // 1. 현재 포커스된 입력창 기억 (모바일 키보드 내려감 방지)
+        let activeInputId = null;
+        if (document.activeElement && document.activeElement.tagName === 'INPUT') {
+            activeInputId = document.activeElement.id;
+        }
         
-        // 내가 속한 방 필터링 (선생님은 모든 방, 학생은 본인이 속한 방)
-        const myRooms = myInfo.isTeacher 
-            ? Object.values(localRooms).filter(r => r.roomId.includes(`_${myInfo.grade}_${myInfo.classNum}`))
-            : Object.values(localRooms).filter(r => r.members && r.members[myInfo.name]);
-
-        // 없어진 방 삭제
-        Array.from(grid.children).forEach(child => {
-            const roomId = child.id.replace('chat-card-', '');
-            if (!myRooms.find(r => r.roomId === roomId)) { grid.removeChild(child); }
+        // 2. 모든 채팅창의 스크롤 상태 백업
+        let scrollStates = {};
+        document.querySelectorAll('.chat-card-messages').forEach(el => {
+            // 모바일 키보드 등장이나 약간의 딜레이를 고려해 150px 여유값 허용
+            let isAtBottom = (el.scrollHeight - el.scrollTop) <= (el.clientHeight + 150);
+            scrollStates[el.dataset.roomid] = { top: el.scrollTop, isAtBottom: isAtBottom };
         });
 
-        // 각 방의 HTML을 업데이트하거나 새로 생성
-        myRooms.forEach(room => {
-            let card = document.getElementById(`chat-card-${room.roomId}`);
-            
-            // 💡 창이 처음 생길 때만 인풋(Input) 껍데기를 만들어 간섭을 방지합니다.
-            if (!card) {
-                card = document.createElement('div');
-                card.className = 'chat-card';
-                card.id = `chat-card-${room.roomId}`;
-                card.innerHTML = `
-                    <div class="chat-card-header">
-                        <span>${room.title}</span>
-                    </div>
-                    <div class="chat-card-body">
-                        <div class="chat-card-messages" id="messages-${room.roomId}"></div>
-                        <div class="chat-card-participants" id="participants-${room.roomId}"></div>
-                    </div>
-                    <div class="chat-card-input-area">
-                        <input type="text" id="input-${room.roomId}" placeholder="메시지 입력..." 
-                               onkeypress="if(event.key === 'Enter') sendMessage('${room.roomId}')">
-                        <button onclick="sendMessage('${room.roomId}')">전송</button>
-                    </div>
-                `;
-                grid.appendChild(card);
+        // 3. 화면 새로그리기
+        renderUserList(); 
+        if(myInfo.isTeacher) renderTeacherDashboard();
+        else renderStudentMultiScreen();
+
+        // 4. 새로그린 후 스크롤/포커스 복구 (DOM 렌더링 시간 확보를 위해 setTimeout 사용)
+        setTimeout(() => {
+            document.querySelectorAll('.chat-card-messages').forEach(el => {
+                let state = scrollStates[el.dataset.roomid];
+                if (!state || state.isAtBottom) {
+                    el.scrollTop = el.scrollHeight; // 맨 아래 유지
+                } else {
+                    el.scrollTop = state.top; // 원래 있던 위치 유지
+                }
+            });
+
+            // 포커스 복구하여 커서 유지
+            if (activeInputId) {
+                let inputEl = document.getElementById(activeInputId);
+                if (inputEl) inputEl.focus({ preventScroll: true }); 
             }
-
-            // 메시지 및 참가자 영역만 갱신 (인풋창은 건드리지 않음)
-            updateRoomContent(room.roomId);
-        });
-    }
-
-    // 💡 메시지 그리기 & 똑똑한 개별 스크롤 적용
-    function updateRoomContent(roomId) {
-        const msgContainer = document.getElementById(`messages-${roomId}`);
-        const partContainer = document.getElementById(`participants-${roomId}`);
-        if (!msgContainer || !partContainer) return;
-
-        // --- 참가자 목록 갱신 ---
-        const room = localRooms[roomId];
-        if(room && room.members) {
-            partContainer.innerHTML = Object.keys(room.members).map(m => `<div class="participant-item">${m}</div>`).join('');
-        }
-
-        // --- 메시지 목록 갱신 ---
-        const roomMsgs = localMessages.filter(m => m.roomId === roomId);
-        let html = '';
-        roomMsgs.forEach(msg => {
-            const isMe = msg.sender === myInfo.name;
-            const timeStr = new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-            html += `
-                <div class="msg-line ${isMe ? 'me' : 'other'}">
-                    ${!isMe ? `<div class="msg-sender">${msg.sender}</div>` : ''}
-                    <div class="msg-text">${msg.text}</div>
-                    <div class="msg-time">${timeStr}</div>
-                </div>
-            `;
-        });
-        
-        msgContainer.innerHTML = html;
-
-        // 💡 새 메시지가 도착했을 때만 "해당 방"의 스크롤을 내립니다.
-        const prevCount = roomMessageCounts[roomId] || 0;
-        if (roomMsgs.length > prevCount) {
-            // 약간의 딜레이를 주어 화면에 그려진 후 스크롤되도록 처리
-            setTimeout(() => { msgContainer.scrollTop = msgContainer.scrollHeight; }, 10);
-        }
-        roomMessageCounts[roomId] = roomMsgs.length; // 현재 메시지 갯수 기억
-    }
-
-    // 💡 전송 함수: 넘어온 roomId에 해당하는 인풋창 값만 비웁니다.
-    function sendMessage(roomId) {
-        const input = document.getElementById(`input-${roomId}`);
-        if (!input || input.value.trim() === '') return;
-        
-        const text = input.value.trim();
-        input.value = ''; // 내가 방금 엔터를 친 그 방의 텍스트만 싹 비우기
-
-        database.ref('messages').push({
-            roomId: roomId,
-            sender: myInfo.name,
-            text: text,
-            timestamp: Date.now()
-        });
+        }, 20); 
     }
 
     function renderUserList() {
-        const ul = document.getElementById(myInfo.isTeacher ? 'teacher-user-list-ul' : 'user-list-ul');
-        if(!ul) return;
-        ul.innerHTML = '';
-        const sameClassUsers = Object.values(localUsers).filter(u => u.grade === myInfo.grade && u.classNum === myInfo.classNum && !u.isTeacher);
-        
-        sameClassUsers.forEach(u => {
-            const li = document.createElement('li');
-            li.innerText = `🟢 ${u.name}`;
-            if(!myInfo.isTeacher && u.name !== myInfo.name) {
-                li.onclick = () => createPrivateRoom(u.name);
+        const studentUl = document.getElementById('user-list-ul');
+        const teacherUl = document.getElementById('teacher-user-list-ul');
+        if (studentUl) studentUl.innerHTML = ""; if (teacherUl) teacherUl.innerHTML = "";
+
+        for (let key in localUsers) {
+            let u = localUsers[key];
+            if(u.grade === myInfo.grade && u.classNum === myInfo.classNum) {
+                let li = document.createElement('li');
+                let rankStr = getRankString(u.name); 
+                let isMe = (u.name === myInfo.name && u.isTeacher === myInfo.isTeacher);
+                let displayName = `${rankStr} 👤 [${u.classNum}] ${u.name}` + (u.isTeacher ? " 👨‍🏫" : "");
+                
+                li.innerText = displayName;
+
+                if (isMe) {
+                    li.innerText = `⭐ ${displayName} (나)`;
+                    li.style.background = '#e3f2fd'; li.style.fontWeight = 'bold'; li.style.color = '#1565c0'; li.style.cursor = 'default';
+                } else {
+                    li.style.cursor = 'pointer';
+                    li.onclick = () => {
+                        if (!myInfo.isTeacher && !u.isTeacher) {
+                            confirmAndCreateRoom(u.name);
+                        } else if (myInfo.isTeacher && !u.isTeacher) {
+                            if (selectedStudents.has(u.name)) selectedStudents.delete(u.name);
+                            else selectedStudents.add(u.name);
+                            renderUserList(); 
+                        }
+                    };
+                }
+
+                if (myInfo.isTeacher && teacherUl) {
+                    if (!u.isTeacher) {
+                        li.draggable = true;
+                        li.className = 'draggable-student';
+                        if (selectedStudents.has(u.name)) {
+                            li.style.background = '#bbdefb';
+                            li.style.borderLeft = '4px solid #1565c0';
+                            li.style.fontWeight = 'bold';
+                        }
+                        li.ondragstart = e => {
+                            if (!selectedStudents.has(u.name)) {
+                                selectedStudents.clear();
+                                selectedStudents.add(u.name);
+                                renderUserList();
+                            }
+                            e.dataTransfer.setData("studentNames", JSON.stringify(Array.from(selectedStudents)));
+                        };
+                    }
+                    teacherUl.appendChild(li);
+                } else if (!myInfo.isTeacher && studentUl) {
+                    studentUl.appendChild(li);
+                }
             }
-            ul.appendChild(li);
+        }
+    }
+
+    function confirmAndCreateRoom(targetName) {
+        if (!confirm(`💬 ${targetName} 학생과 1:1 대화방을 만드시겠습니까?`)) return;
+        const roomId = `room_${Date.now()}_${Math.floor(Math.random()*1000)}`;
+        database.ref(`rooms/${roomId}`).set({
+            roomId: roomId, title: `${myInfo.name}, ${targetName}의 대화방`, grade: myInfo.grade, classNum: myInfo.classNum, creator: myInfo.name, members: { [myInfo.name]: true, [targetName]: true }
         });
     }
 
-    // 💡 수정됨: 개인방을 만들 때 학년과 반 정보를 방 ID와 데이터에 포함시킵니다.
-function createPrivateRoom(targetName) {
-    // 방 ID에 학년과 반 정보를 추가 (예: private_1학년_1반_김철수_홍길동)
-    const roomId = `private_${myInfo.grade}_${myInfo.classNum}_${[myInfo.name, targetName].sort().join('_')}`;
-    
-    database.ref(`rooms/${roomId}`).once('value', snap => {
-        if(!snap.exists()) {
-            database.ref(`rooms/${roomId}`).set({
-                roomId: roomId, 
-                title: `1:1 대화 (${myInfo.name}, ${targetName})`, 
-                grade: myInfo.grade,       // 학년 정보 추가
-                classNum: myInfo.classNum, // 반 정보 추가
-                isDefault: false, 
-                members: { [myInfo.name]: true, [targetName]: true }
-            });
-        } else {
-            database.ref(`rooms/${roomId}/members/${myInfo.name}`).set(true);
+    function destroyRoom(roomId) {
+        if (localRooms[roomId] && localRooms[roomId].isDefault) return alert("🚫 학급 전체 채팅방은 폭파할 수 없습니다!");
+        if (!confirm("⚠️ 정말 이 채팅방을 폭파하시겠습니까?")) return;
+        database.ref(`rooms/${roomId}`).remove();
+        database.ref('messages').orderByChild('roomId').equalTo(roomId).once('value', snap => {
+            if (!snap.exists()) return;
+            let updates = {}; snap.forEach(c => { updates[c.key] = null; });
+            database.ref('messages').update(updates);
+        });
+        if (currentTeacherTargets.has(roomId)) { currentTeacherTargets.delete(roomId); updateTeacherSelectionUI(); }
+    }
+
+    function leaveRoom(roomId) {
+        if (!confirm("🚪 이 방에서 나가시겠습니까?")) return;
+        database.ref(`rooms/${roomId}/members/${myInfo.name}`).remove();
+    }
+
+    function handleGridDrop(event) {
+        event.preventDefault(); event.stopPropagation();
+        let studentData = event.dataTransfer.getData("studentNames");
+        if (!studentData) return;
+        let students = JSON.parse(studentData);
+        if (students.length === 0) return;
+
+        let namesStr = students.join(", ");
+        if (confirm(`💬 ${namesStr} 학생(${students.length}명)과 새로운 대화방을 만드시겠습니까?`)) {
+            const roomId = `room_${Date.now()}_${Math.floor(Math.random()*1000)}`;
+            let membersObj = { [myInfo.name]: true };
+            students.forEach(s => membersObj[s] = true);
+            database.ref(`rooms/${roomId}`).set({ roomId: roomId, title: `👨‍🏫 선생님과 학생들의 방`, grade: myInfo.grade, classNum: myInfo.classNum, creator: myInfo.name, members: membersObj });
+            selectedStudents.clear();
+            updateViews();
         }
-    });
-}
+        document.getElementById('new-room-dropzone').style.background = "#e3f2fd";
+    }
+
+    function handleCardDrop(event, roomId, roomTitle) {
+        event.preventDefault(); event.stopPropagation(); 
+        let studentData = event.dataTransfer.getData("studentNames");
+        if (!studentData) return;
+        let students = JSON.parse(studentData);
+        if (students.length === 0) return;
+        
+        if (confirm(`➕ ${students.join(", ")} 학생을 이 방에 초대하시겠습니까?`)) {
+            let updates = {};
+            students.forEach(s => {
+                if (!(localRooms[roomId] && localRooms[roomId].members && localRooms[roomId].members[s])) {
+                    updates[`rooms/${roomId}/members/${s}`] = true;
+                }
+            });
+            if (Object.keys(updates).length > 0) database.ref().update(updates);
+            selectedStudents.clear();
+            updateViews();
+        }
+    }
+
+    function handleOutDropStart(event, studentName, roomId) {
+        event.dataTransfer.setData("removeStudent", studentName);
+        event.dataTransfer.setData("removeFromRoom", roomId);
+        document.getElementById('remove-dropzone-hint').style.display = 'block'; 
+    }
+    
+    function handleOutDropEnd(event) {
+        document.getElementById('remove-dropzone-hint').style.display = 'none';
+        document.getElementById('teacher-sidebar').style.background = "#f9f9f9";
+    }
+    
+    function handleRemoveDragOver(event) {
+        event.preventDefault();
+        if(event.dataTransfer.types.includes("removestudent")) document.getElementById('teacher-sidebar').style.background = "#ffcdd2"; 
+    }
+    
+    function handleRemoveDragLeave(event) { document.getElementById('teacher-sidebar').style.background = "#f9f9f9"; }
+    
+    function handleRemoveDrop(event) {
+        event.preventDefault();
+        document.getElementById('teacher-sidebar').style.background = "#f9f9f9";
+        document.getElementById('remove-dropzone-hint').style.display = 'none';
+        
+        const studentName = event.dataTransfer.getData("removeStudent");
+        const roomId = event.dataTransfer.getData("removeFromRoom");
+        
+        if(studentName && roomId) {
+            if (localRooms[roomId] && localRooms[roomId].isDefault) return alert("🚫 학급 전체 대화방에서는 학생을 내보낼 수 없습니다!");
+            if(confirm(`🚪 ${studentName} 학생을 방에서 강제 퇴장시키겠습니까?`)) database.ref(`rooms/${roomId}/members/${studentName}`).remove();
+        }
+    }
+
+    function updateTeacherSelectionUI() {
+        if (currentTeacherTargets.size > 0) {
+            document.getElementById('selected-room-title').innerText = `✔️ 선택된 방: ${currentTeacherTargets.size}개`;
+            document.getElementById('selected-room-title').style.color = '#1565c0';
+            document.getElementById('selected-room-title').style.borderColor = '#2196F3';
+            document.getElementById('teacher-input-area').style.display = 'flex';
+            document.getElementById('teacher-game-area').style.display = 'flex';
+        } else {
+            document.getElementById('selected-room-title').innerText = "채팅창을 클릭하여 선택하세요!";
+            document.getElementById('selected-room-title').style.color = '#d32f2f';
+            document.getElementById('selected-room-title').style.borderColor = '#ccc';
+            document.getElementById('teacher-input-area').style.display = 'none';
+            document.getElementById('teacher-game-area').style.display = 'none';
+        }
+    }
+
+    function renderTeacherDashboard() {
+        const grid = document.getElementById('teacher-grid');
+        grid.innerHTML = "";
+        
+        const dropZone = document.createElement('div');
+        dropZone.id = 'new-room-dropzone';
+        dropZone.className = 'chat-card';
+        dropZone.style.border = "3px dashed #2196F3";
+        dropZone.style.background = "#e3f2fd";
+        dropZone.style.display = "flex"; dropZone.style.alignItems = "center"; dropZone.style.justifyContent = "center"; dropZone.style.color = "#1565c0"; dropZone.style.fontWeight = "bold"; dropZone.style.textAlign = "center";
+        dropZone.innerHTML = "<div style='pointer-events: none;'><span style='font-size:30px;'>➕</span><br><br>학생을 드래그하여<br>새 채팅방 만들기</div>";
+        dropZone.ondrop = e => handleGridDrop(e);
+        dropZone.ondragover = e => { e.preventDefault(); dropZone.style.background = "#bbdefb"; };
+        dropZone.ondragleave = e => dropZone.style.background = "#e3f2fd";
+        grid.appendChild(dropZone);
+        
+        for (let id in localRooms) {
+            const room = localRooms[id];
+            if (room.grade === myInfo.grade && room.classNum === myInfo.classNum) {
+                if (Object.keys(room.members || {}).length <= 0) continue; 
+
+                const card = document.createElement('div');
+                card.className = 'chat-card';
+                card.style.border = currentTeacherTargets.has(room.roomId) ? "3px solid #2196F3" : "1px solid #ccc";
+                if (currentTeacherTargets.has(room.roomId)) card.style.boxShadow = "0 0 10px rgba(33, 150, 243, 0.4)";
+                card.style.cursor = "pointer";
+                
+                card.onclick = function() {
+                    if (currentTeacherTargets.has(room.roomId)) currentTeacherTargets.delete(room.roomId);
+                    else currentTeacherTargets.add(room.roomId);
+                    updateTeacherSelectionUI();
+                    updateViews();
+                };
+
+                card.ondrop = e => handleCardDrop(e, room.roomId, room.title);
+                card.ondragover = e => { e.preventDefault(); card.style.border = "3px dashed #ff9800"; };
+                card.ondragleave = e => card.style.border = currentTeacherTargets.has(room.roomId) ? "3px solid #2196F3" : "1px solid #ccc";
+
+                const header = document.createElement('div');
+                header.className = 'chat-card-header';
+                header.style.background = room.isDefault ? '#4CAF50' : '#2196F3';
+                
+                let gameBtn = room.isDefault ? `<button class="btn-game" onclick="event.stopPropagation(); openGame('${room.roomId}', '${room.title}', true)">🎮 게임</button>` : "";
+                let deleteBtn = room.isDefault ? "" : `<button style="background:#ff5252; color:white; font-size:11px; padding:4px 6px; border:none; border-radius:4px;" onclick="event.stopPropagation(); destroyRoom('${room.roomId}')">❌</button>`;
+
+                header.innerHTML = `
+                    <div style="pointer-events: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 110px;">
+                        ${currentTeacherTargets.has(room.roomId) ? '✔️ ' : '🔍 '}${room.title}
+                    </div>
+                    <div class="btn-group" style="display:flex; gap:3px; flex-shrink:0;">
+                        ${gameBtn}
+                        <button style="background:#ff9800; color:white; font-size:11px; padding:4px 6px; border:none; border-radius:4px;" onclick="event.stopPropagation(); clearRoomMessages('${room.roomId}')">🧹</button>
+                        ${deleteBtn}
+                    </div>
+                `;
+                card.appendChild(header);
+
+                const body = document.createElement('div');
+                body.className = 'chat-card-body';
+                
+                const msgArea = document.createElement('div');
+                msgArea.className = 'chat-card-messages';
+                msgArea.dataset.roomid = room.roomId;
+                
+                localMessages.forEach(m => {
+                    if(m.roomId === room.roomId) msgArea.innerHTML += `<div style="margin-bottom:5px;"><strong>${getRankString(m.sender)}${m.sender}:</strong> ${linkify(m.text)} <span style="font-size:9px; color:#888;">(${m.time})</span></div>`;
+                });
+                
+                const participantsArea = document.createElement('div');
+                participantsArea.className = 'chat-card-participants';
+                
+                for(let member in room.members) {
+                    if(member !== myInfo.name) {
+                        participantsArea.innerHTML += `<div class="participant-item" draggable="true" ondragstart="handleOutDropStart(event, '${member}', '${room.roomId}')" ondragend="handleOutDropEnd(event)">${member}</div>`;
+                    } else {
+                        participantsArea.innerHTML += `<div class="participant-item" style="background:#e3f2fd; color:#1565c0;">${member}</div>`;
+                    }
+                }
+
+                body.appendChild(msgArea);
+                body.appendChild(participantsArea);
+                card.appendChild(body);
+                grid.appendChild(card);
+            }
+        }
+    }
+
+    function renderStudentMultiScreen() {
+        const grid = document.getElementById('student-grid');
+        grid.innerHTML = "";
+        let myActiveRooms = [];
+        
+        for(let id in localRooms) { 
+            let room = localRooms[id];
+            let isMyDefaultRoom = (room.isDefault === true && room.grade === myInfo.grade && room.classNum === myInfo.classNum);
+            if (isMyDefaultRoom || (room.members && room.members[myInfo.name] === true)) {
+                myActiveRooms.push(room); 
+            }
+        }
+
+        myActiveRooms.forEach(room => {
+            const isCreator = room.creator === myInfo.name;
+            const isHost = room.isDefault ? false : isCreator; 
+
+            const card = document.createElement('div');
+            card.className = 'chat-card';
+
+            const header = document.createElement('div');
+            header.className = 'chat-card-header';
+            header.style.background = room.isDefault ? '#4CAF50' : '#673AB7';
+
+            let actionBtn = !room.isDefault ? (isCreator ? `<button class="btn-danger" onclick="destroyRoom('${room.roomId}')">❌ 폭파</button>` : `<button class="btn-warning" onclick="leaveRoom('${room.roomId}')">🚪 나가기</button>`) : "";
+            let gameBtn = room.isDefault ? `<button class="btn-game" onclick="openGame('${room.roomId}', '${room.title}', ${isHost})">🎮 게임</button>` : "";
+
+            header.innerHTML = `<div>${room.title}</div><div class="btn-group">${gameBtn}${actionBtn}</div>`;
+            card.appendChild(header);
+
+            const body = document.createElement('div');
+            body.className = 'chat-card-body';
+
+            const msgArea = document.createElement('div');
+            msgArea.className = 'chat-card-messages';
+            msgArea.dataset.roomid = room.roomId;
+
+            localMessages.forEach(m => {
+                if(m.roomId === room.roomId) {
+                    const isMe = m.sender === myInfo.name;
+                    const displaySender = isMe ? '나' : getRankString(m.sender) + m.sender;
+                    msgArea.innerHTML += `<div class="msg-line ${isMe ? 'me' : 'other'}"><div class="msg-sender" style="color: ${isMe ? '#4CAF50' : '#d32f2f'}">${displaySender}</div><div class="msg-text">${linkify(m.text)}</div><div class="msg-time">${m.time}</div></div>`;
+                }
+            });
+            body.appendChild(msgArea);
+
+            let partHTML = `<div class="chat-card-participants">`;
+            for(let member in room.members) { partHTML += `<div style="font-size:11px; text-align:center; padding:4px; border-bottom:1px solid #ddd;">${member}</div>`; }
+            partHTML += `</div>`;
+            body.innerHTML += partHTML;
+
+            card.appendChild(body);
+
+            const inputArea = document.createElement('div');
+            inputArea.className = 'chat-card-input-area';
+            inputArea.innerHTML = `<input type="text" id="input-${room.roomId}" placeholder="대화 입력..." onkeypress="if(event.keyCode==13) sendMultiMessage('${room.roomId}')"><button onclick="sendMultiMessage('${room.roomId}')">전송</button>`;
+            
+            card.appendChild(inputArea);
+            grid.appendChild(card);
+        });
+    }
+
+    function sendMultiMessage(roomId) {
+        const input = document.getElementById(`input-${roomId}`);
+        const text = input.value.trim();
+        if(text === "") return;
+        const now = new Date(); const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        database.ref('messages').push({ roomId: roomId, sender: myInfo.name, text: text, time: timeStr, grade: myInfo.grade, classNum: myInfo.classNum });
+        input.value = "";
+    }
+    
+    function sendTeacherMessage() {
+        const input = document.getElementById('teacher-msg-input');
+        const text = input.value.trim();
+        if (text === "" || currentTeacherTargets.size === 0) return;
+        const now = new Date(); const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        
+        currentTeacherTargets.forEach(roomId => {
+            database.ref('messages').push({ roomId: roomId, sender: `${myInfo.name}(선생님)`, text: text, time: timeStr, grade: myInfo.grade, classNum: myInfo.classNum });
+        });
+        input.value = "";
+    }
+
+    function sendSelectedGameLink() {
+        if (currentTeacherTargets.size === 0) return alert("❌ 먼저 학생들 채팅방을 클릭해서 선택해주세요!");
+        const selectEl = document.getElementById('hancom-game-select');
+        const [gameUrl, gameName] = selectEl.value.split('|');
+        
+        if (confirm(`📢 선택한 ${currentTeacherTargets.size}개 방에 [${gameName}] 강제 호출을 보내시겠습니까?`)) {
+            const timestamp = Date.now();
+            const now = new Date(); 
+            const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+            
+            currentTeacherTargets.forEach(roomId => {
+                database.ref(`gameAlerts/${roomId}`).set({ gameName: gameName, gameUrl: gameUrl, timestamp: timestamp, type: 'hancom' });
+                database.ref('messages').push({ 
+                    roomId: roomId, sender: `${myInfo.name}(선생님)`, text: `📢 [${gameName}] 타자게임 호출이 도착했습니다!\n바로 가기 링크: ${gameUrl}`, time: timeStr, grade: myInfo.grade, classNum: myInfo.classNum 
+                });
+            });
+            alert(`✅ ${gameName} 호출 및 채팅창 안내 메시지 전송 성공!`);
+        }
+    }
+
+    function toggleMissionInput() {
+        const area = document.getElementById('custom-mission-area');
+        area.style.display = area.style.display === 'none' ? 'flex' : 'none';
+    }
+
+    function sendCustomMission() {
+        if (currentTeacherTargets.size === 0) return alert("❌ 미션을 전송할 채팅방을 먼저 선택해주세요!");
+        const urlInput = document.getElementById('custom-mission-url').value.trim();
+        if (!urlInput) return alert("❌ 전달할 URL 주소를 입력해주세요!");
+        let finalUrl = urlInput.startsWith('http') ? urlInput : 'https://' + urlInput;
+
+        if (confirm(`📢 선택한 ${currentTeacherTargets.size}개 방에 미션 링크 팝업을 전송하시겠습니까?`)) {
+            const timestamp = Date.now();
+            const now = new Date(); 
+            const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+            currentTeacherTargets.forEach(roomId => {
+                database.ref(`gameAlerts/${roomId}`).set({ gameName: "🔗 특별 미션", gameUrl: finalUrl, timestamp: timestamp, type: 'custom' });
+                database.ref('messages').push({ 
+                    roomId: roomId, sender: `${myInfo.name}(선생님)`, text: `🔗 [특별 학습 미션]이 도착했습니다!\n바로 가기 링크: ${finalUrl}`, time: timeStr, grade: myInfo.grade, classNum: myInfo.classNum 
+                });
+            });
+            alert(`✅ 미션 팝업 및 채팅창 링크 안내 전송 성공!`);
+            document.getElementById('custom-mission-url').value = ""; 
+            toggleMissionInput(); 
+        }
+    }
+
+    function openGlobalNoticeModal() {
+        document.getElementById('global-notice-text').value = '';
+        document.getElementById('global-notice-modal').style.display = 'flex';
+    }
+
+    function sendGlobalNotice() {
+        const text = document.getElementById('global-notice-text').value.trim();
+        if(!text) return alert("내용을 입력해주세요.");
+        if(confirm("이 공지를 우리 반 전체 화면에 긴급 공출하시겠습니까?")) {
+            const timestamp = Date.now();
+            for(let roomId in localRooms) {
+                if (localRooms[roomId].grade === myInfo.grade && localRooms[roomId].classNum === myInfo.classNum) {
+                    database.ref(`gameAlerts/${roomId}`).set({ gameName: "📢 전체 공지", gameUrl: text, timestamp: timestamp, type: 'notice' });
+                }
+            }
+            alert("✅ 우리 반 전역 긴급 공지 송출 완료!");
+            document.getElementById('global-notice-modal').style.display='none';
+        }
+    }
+
+    function openGame(roomId, roomTitle, isHost) { 
+        currentGameRoomId = roomId;
+        isGameHost = isHost;
+        document.getElementById('game-room-name').innerText = roomTitle;
+        document.getElementById('game-modal').style.display = 'flex'; 
+        
+        const overlay = document.getElementById('game-start-overlay');
+        overlay.style.display = 'flex';
+        
+        if (isHost) {
+            overlay.innerHTML = `<h2 style="color:white; margin-bottom:10px; font-size: 28px;">🎮 타자 방어 게임</h2><p style="color:#ccc; margin-bottom:20px;">시작 버튼을 누르면 모든 학생들의 대기화면이 열리며 게임이 시작됩니다.</p><button onclick="startBuiltInGame()" style="background:#ffeb3b; color:black; font-size:20px; padding:15px 30px; border-radius:30px; border:none; font-weight:bold; cursor:pointer; box-shadow:0 4px 15px rgba(255,235,59,0.4);">🚀 게임 시작하기</button>`;
+        } else {
+            overlay.innerHTML = `<h2 style="color:white; margin-bottom:10px; font-size: 28px;">🎮 타자 방어 게임</h2><div style="color:#ffeb3b; font-size:20px; font-weight:bold; animation: pulse 1s infinite alternate;">👨‍🏫 선생님이 시작 신호를 보낼 때까지 기다려 주세요...</div>`;
+        }
+
+        database.ref(`rooms/${roomId}/gameState`).on('value', snap => {
+            const state = snap.val();
+            if (state && state.isRunning) {
+                document.getElementById('game-start-overlay').style.display = 'none';
+                const input = document.getElementById('game-input');
+                input.disabled = false; input.focus();
+            } else {
+                document.getElementById('game-start-overlay').style.display = 'flex';
+                document.getElementById('game-input').disabled = true;
+            }
+        });
+    }
+
+    function startBuiltInGame() {
+        if (!currentGameRoomId) return;
+        database.ref(`rooms/${currentGameRoomId}/gameState`).set({ isRunning: true, startTime: Date.now() });
+    }
+
+    function closeGame() { 
+        document.getElementById('game-modal').style.display = 'none'; 
+        if (currentGameRoomId) {
+            database.ref(`rooms/${currentGameRoomId}/gameState`).off(); 
+            if (isGameHost) database.ref(`rooms/${currentGameRoomId}/gameState/isRunning`).set(false);
+        }
+        currentGameRoomId = null;
+    }
+
+    function checkGameWord() { 
+        const input = document.getElementById('game-input');
+        const word = input.value.trim();
+        if(!word) return;
+        input.value = "";
+    }
+
+    function downloadShortcut() {
+        const currentUrl = window.location.href;
+        const title = "스쿨 톡";
+        const shortcutContent = `[InternetShortcut]\nURL=${currentUrl}\nIconIndex=0\nIconFile=https://www.google.com/s2/favicons?domain=${currentUrl}\n`;
+        const blob = new Blob([shortcutContent], { type: "text/plain" });
+        const blobUrl = URL.createObjectURL(blob);
+        const downloadLink = document.createElement("a");
+        downloadLink.href = blobUrl;
+        downloadLink.download = `${title}.url`;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        URL.revokeObjectURL(blobUrl);
+        alert("📥 바로 가기가 다운로드되었습니다!\n바탕화면으로 드래그해 사용하세요.");
+    }
 </script>
 </body>
 </html>
