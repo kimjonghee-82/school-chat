@@ -504,7 +504,20 @@
     function startRealtimeListening() {
         database.ref('users').on('value', snapshot => { localUsers = snapshot.val() || {}; updateViews(); });
         database.ref('rooms').on('value', snapshot => { localRooms = {}; snapshot.forEach(child => { localRooms[child.key] = child.val(); }); updateViews(); });
-        database.ref('messages').on('value', snapshot => { localMessages = []; snapshot.forEach(child => { localMessages.push(child.val()); }); updateViews(); });
+       // 💡 기존의 한 줄짜리 코드를 아래처럼 여러 줄로 늘려서 교체합니다.
+        database.ref('messages').on('value', snapshot => { 
+            localMessages = []; 
+            snapshot.forEach(child => { localMessages.push(child.val()); }); 
+            updateViews(); 
+            
+            // 새 메시지가 오면 스크롤을 맨 밑으로 내리는 코드
+            setTimeout(() => {
+                const messageAreas = document.querySelectorAll('.chat-card-messages');
+                messageAreas.forEach(area => {
+                    area.scrollTop = area.scrollHeight;
+                });
+            }, 10);
+        });
         database.ref(`classScores/${myInfo.grade}_${myInfo.classNum}`).on('value', snapshot => { localClassScores = snapshot.val() || {}; updateViews(); });
         
         database.ref('gameAlerts').on('value', snapshot => {
