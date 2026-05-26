@@ -230,6 +230,7 @@
             <span id="teacher-welcome-msg">👨‍🏫 선생님 대시보드</span>
             <div style="display:flex; gap:10px;">
                 <button onclick="openGlobalNoticeModal()" style="background:#e91e63; font-size:13px; padding:5px 12px; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">📢 전체 공지</button>
+                <button onclick="deleteAllRooms()" style="background:#f44336; font-size:13px; padding:5px 12px; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">🗑️ 전체방 삭제</button>
                 <button onclick="resetAllUsers()" style="background:#ff9800; font-size:13px; padding:5px 12px;">👻 전체 접속자 초기화</button>
                 <button onclick="handleLogout()" style="font-size:13px; padding:5px 12px;">로그아웃</button>
             </div>
@@ -427,6 +428,7 @@
     let currentGameRoomId = null;
     let isGameHost = false;
     let persistentScrollState = {};
+    let isLoggingOut = false;
 
     const GAME_WORDS = ['사과','배','귤','포도','딸기','수박','강','산','하늘','바다','봄','여름','가을','겨울','꽃','나무','달','별','해','구름','개','고양이','새','물','불','바람','눈','비','땅','돌','학교','선생님','학생','공부','숙제','친구','가족','사랑','행복','음악','피자','라면','김밥','치킨','냉면','불고기','삼겹살','비빔밥','된장국','잡채','축구','야구','농구','수영','달리기','자전거','태권도','줄넘기','배드민턴','탁구','컴퓨터','스마트폰','인터넷','도서관','수영장','놀이공원','박물관','자동차','비행기','기차','과학기술','우주여행','인공지능','환경보호','생태계','문화유산','민주주의','경제성장','사회복지','교육개혁','도전정신','창의력','협동심','책임감','자신감','끈기','성실함','배려심','도전의식','탐구심'];
     let localGameWords = {};
@@ -554,6 +556,7 @@
                 if (!isTeacher) {
                     const defaultRoomId = `group_${grade}_${classNum}`;
                     database.ref(`rooms/${defaultRoomId}/members/${name}`).set(true);
+                    database.ref(`rooms/${defaultRoomId}/members/${name}`).onDisconnect().remove();
                 }
             });
 
@@ -562,6 +565,37 @@
     }
 
     function handleLogout() {
+        isLoggingOut = true;
+        window.onbeforeunload = null;
+        if (myInfo.isTeacher) {
+            const grade = myInfo.grade, classNum = myInfo.classNum;
+            const defaultRoomId = `group_${grade}_${classNum}`;
+            const promises = [];
+            // 전체방 제외 모든 방 삭제
+            for (let roomId in localRooms) {
+                const room = localRooms[roomId];
+                if (room.grade === grade && room.classNum === classNum && !room.isDefault) {
+                    promises.push(database.ref(`rooms/${roomId}`).remove());
+                    // 메시지 정리 (background)
+                    database.ref('messages').orderByChild('roomId').equalTo(roomId).once('value', snap => {
+                        if (!snap.exists()) return;
+                        let u = {}; snap.forEach(c => { u[c.key] = null; });
+                        database.ref('messages').update(u);
+                    });
+                }
+            }
+            // 전체방 메시지 초기화
+            promises.push(
+                database.ref('messages').orderByChild('roomId').equalTo(defaultRoomId).once('value').then(snap => {
+                    if (!snap.exists()) return;
+                    let u = {}; snap.forEach(c => { u[c.key] = null; });
+                    return database.ref('messages').update(u);
+                })
+            );
+            if (myUserRef) promises.push(myUserRef.remove());
+            Promise.all(promises).then(() => location.reload()).catch(() => location.reload());
+            return;
+        }
         if (!myInfo.isTeacher && myInfo.name) {
             const defaultRoomId = `group_${myInfo.grade}_${myInfo.classNum}`;
             database.ref(`rooms/${defaultRoomId}/members/${myInfo.name}`).remove();
@@ -612,6 +646,7 @@
 
     function clearRoomMessages(roomId) {
         if (!confirm("🧹 이 방의 대화 내용을 초기화하시겠습니까?")) return;
+        database.ref(`gameAlerts/${roomId}`).set({ gameName: "🧹 채팅 내용 초기화", gameUrl: "선생님이 이 채팅방의 대화 내용을 초기화했습니다.", timestamp: Date.now(), type: 'notice' });
         database.ref('messages').orderByChild('roomId').equalTo(roomId).once('value', snapshot => {
             if (!snapshot.exists()) return;
             let updates = {};
@@ -621,6 +656,24 @@
     }
 
     function startRealtimeListening() {
+        window.addEventListener('beforeunload', function(e) {
+            if (!myInfo || !myInfo.name || isLoggingOut) return;
+            e.preventDefault();
+            e.returnValue = '';
+        });
+
+        window.addEventListener('unload', function() {
+            if (!myInfo || !myInfo.name || isLoggingOut) return;
+            if (myInfo.isTeacher) {
+                for (let roomId in localRooms) {
+                    const room = localRooms[roomId];
+                    if (room.grade === myInfo.grade && room.classNum === myInfo.classNum && !room.isDefault) {
+                        database.ref(`rooms/${roomId}`).remove();
+                    }
+                }
+            }
+        });
+
         database.ref('users').on('value', snapshot => { localUsers = snapshot.val() || {}; updateViews(); });
         database.ref('rooms').on('value', snapshot => { localRooms = {}; snapshot.forEach(child => { localRooms[child.key] = child.val(); }); updateViews(); });
         database.ref('messages').on('value', snapshot => { localMessages = []; snapshot.forEach(child => { localMessages.push(child.val()); }); updateViews(); });
@@ -816,16 +869,47 @@
         });
     }
 
+    function deleteAllRooms() {
+        if (!confirm("⚠️ 이 반의 모든 개별 채팅방을 삭제하시겠습니까?\n(전체 단체방은 유지됩니다)")) return;
+        for (let roomId in localRooms) {
+            const room = localRooms[roomId];
+            if (room.grade === myInfo.grade && room.classNum === myInfo.classNum && !room.isDefault) {
+                database.ref(`rooms/${roomId}`).remove();
+                database.ref('messages').orderByChild('roomId').equalTo(roomId).once('value', snap => {
+                    if (!snap.exists()) return;
+                    let u = {}; snap.forEach(c => { u[c.key] = null; });
+                    database.ref('messages').update(u);
+                });
+            }
+        }
+    }
+
+    function clearRoomMembers(roomId) {
+        const room = localRooms[roomId];
+        if (!room || !room.members) return alert('명단이 없습니다.');
+        const updates = {};
+        for (let member in room.members) {
+            const isOnline = Object.values(localUsers).some(u => u.name === member && u.grade === myInfo.grade && u.classNum === myInfo.classNum);
+            if (!isOnline) updates[member] = null;
+        }
+        if (Object.keys(updates).length === 0) return alert('현재 오프라인 인원이 없습니다.');
+        if (!confirm(`👥 오프라인 인원 ${Object.keys(updates).length}명을 명단에서 제거하시겠습니까?`)) return;
+        database.ref(`rooms/${roomId}/members`).update(updates);
+    }
+
     function destroyRoom(roomId) {
         if (localRooms[roomId] && localRooms[roomId].isDefault) return alert("🚫 학급 전체 채팅방은 폭파할 수 없습니다!");
-        if (!confirm("⚠️ 정말 이 채팅방을 폭파하시겠습니까?")) return;
-        database.ref(`rooms/${roomId}`).remove();
-        database.ref('messages').orderByChild('roomId').equalTo(roomId).once('value', snap => {
-            if (!snap.exists()) return;
-            let updates = {}; snap.forEach(c => { updates[c.key] = null; });
-            database.ref('messages').update(updates);
-        });
-        if (currentTeacherTargets.has(roomId)) { currentTeacherTargets.delete(roomId); updateTeacherSelectionUI(); }
+        if (!confirm("⚠️ 정말 이 채팅방을 폭파하시겠습니까?\n학생들에게 10초 카운트다운이 표시됩니다.")) return;
+        database.ref(`gameAlerts/${roomId}`).set({ gameName: "💥 방 폭파 예고!", gameUrl: "10초 뒤 이 채팅방이 폭파됩니다!\n선생님이 채팅방을 닫습니다. 지금 내용을 확인하세요.", timestamp: Date.now(), type: 'notice' });
+        setTimeout(() => {
+            database.ref(`rooms/${roomId}`).remove();
+            database.ref('messages').orderByChild('roomId').equalTo(roomId).once('value', snap => {
+                if (!snap.exists()) return;
+                let updates = {}; snap.forEach(c => { updates[c.key] = null; });
+                database.ref('messages').update(updates);
+            });
+            if (currentTeacherTargets.has(roomId)) { currentTeacherTargets.delete(roomId); updateTeacherSelectionUI(); }
+        }, 10000);
     }
 
     function leaveRoom(roomId) {
@@ -963,8 +1047,9 @@
                 header.style.background = room.isDefault ? '#4CAF50' : '#2196F3';
 
                 let gameBtn = room.isDefault ? `<button class="btn-game" onclick="event.stopPropagation(); openGame('${room.roomId}', '${room.title}', true)">🎮 게임</button>` : "";
-                let deleteBtn = room.isDefault ? "" : `<button style="background:#ff5252; color:white; font-size:11px; padding:4px 6px; border:none; border-radius:4px;" onclick="event.stopPropagation(); destroyRoom('${room.roomId}')">❌</button>`;
-                let pauseBtn = `<button style="background:${room.paused ? '#f44336' : '#607d8b'}; color:white; font-size:11px; padding:4px 6px; border:none; border-radius:4px;" onclick="event.stopPropagation(); toggleRoomPause('${room.roomId}', ${!!room.paused})">${room.paused ? '▶️' : '⏸️'}</button>`;
+                let deleteBtn = room.isDefault ? "" : `<button title="폭파" style="background:#ff5252; color:white; font-size:11px; padding:4px 6px; border:none; border-radius:4px; cursor:pointer;" onclick="event.stopPropagation(); destroyRoom('${room.roomId}')">❌</button>`;
+                let pauseBtn = `<button title="${room.paused ? '재개' : '일시정지'}" style="background:${room.paused ? '#f44336' : '#607d8b'}; color:white; font-size:11px; padding:4px 6px; border:none; border-radius:4px; cursor:pointer;" onclick="event.stopPropagation(); toggleRoomPause('${room.roomId}', ${!!room.paused})">${room.paused ? '▶️' : '⏸️'}</button>`;
+                let memberClearBtn = `<button title="명단 초기화" style="background:#9c27b0; color:white; font-size:11px; padding:4px 6px; border:none; border-radius:4px; cursor:pointer;" onclick="event.stopPropagation(); clearRoomMembers('${room.roomId}')">👥</button>`;
 
                 header.innerHTML = `
                     <div style="pointer-events: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 110px;">
@@ -973,7 +1058,8 @@
                     <div class="btn-group" style="display:flex; gap:3px; flex-shrink:0;">
                         ${gameBtn}
                         ${pauseBtn}
-                        <button style="background:#ff9800; color:white; font-size:11px; padding:4px 6px; border:none; border-radius:4px;" onclick="event.stopPropagation(); clearRoomMessages('${room.roomId}')">🧹</button>
+                        ${memberClearBtn}
+                        <button title="내용 초기화" style="background:#ff9800; color:white; font-size:11px; padding:4px 6px; border:none; border-radius:4px; cursor:pointer;" onclick="event.stopPropagation(); clearRoomMessages('${room.roomId}')">🧹</button>
                         ${deleteBtn}
                     </div>
                 `;
@@ -1063,7 +1149,10 @@
             body.appendChild(msgArea);
 
             let partHTML = `<div class="chat-card-participants">`;
-            for(let member in room.members) { partHTML += `<div style="font-size:11px; text-align:center; padding:4px; border-bottom:1px solid #ddd;">${member}</div>`; }
+            for(let member in room.members) {
+                const isOnline = Object.values(localUsers).some(u => u.name === member && u.grade === myInfo.grade && u.classNum === myInfo.classNum);
+                if (isOnline) partHTML += `<div style="font-size:11px; text-align:center; padding:4px; border-bottom:1px solid #ddd;">${member}</div>`;
+            }
             partHTML += `</div>`;
             body.innerHTML += partHTML;
 
@@ -1072,7 +1161,7 @@
             const inputArea = document.createElement('div');
             inputArea.className = 'chat-card-input-area';
             const isPaused = !!room.paused;
-            inputArea.innerHTML = `<input type="text" id="input-${room.roomId}" placeholder="${isPaused ? '⏸️ 일시정지 중' : '대화 입력...'}" ${isPaused ? 'disabled' : ''} onkeypress="if(event.keyCode==13) sendMultiMessage('${room.roomId}')"><button onclick="sendMultiMessage('${room.roomId}')" ${isPaused ? 'disabled' : ''}>전송</button>`;
+            inputArea.innerHTML = `<input type="text" id="input-${room.roomId}" placeholder="${isPaused ? '⏸️ 일시정지 중' : '대화 입력...'}" ${isPaused ? 'disabled' : ''} onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();sendMultiMessage('${room.roomId}')}"><button onclick="sendMultiMessage('${room.roomId}')" ${isPaused ? 'disabled' : ''}>전송</button>`;
 
             card.appendChild(inputArea);
             grid.appendChild(card);
@@ -1083,9 +1172,9 @@
         const input = document.getElementById(`input-${roomId}`);
         const text = input.value.trim();
         if(text === "") return;
+        input.value = "";
         const now = new Date(); const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
         database.ref('messages').push({ roomId: roomId, sender: myInfo.name, text: text, time: timeStr, grade: myInfo.grade, classNum: myInfo.classNum });
-        input.value = "";
     }
 
     function sendTeacherMessage() {
@@ -1729,10 +1818,13 @@
 
     // =================== PAUSE ROOM ===================
     function toggleRoomPause(roomId, currentlyPaused) {
+        const ts = Date.now();
         if (currentlyPaused) {
             database.ref(`rooms/${roomId}/paused`).remove();
+            database.ref(`gameAlerts/${roomId}`).set({ gameName: "▶️ 채팅방 재개", gameUrl: "선생님이 채팅방을 재개했습니다.\n이제 자유롭게 대화할 수 있습니다.", timestamp: ts, type: 'notice' });
         } else {
             database.ref(`rooms/${roomId}/paused`).set(true);
+            database.ref(`gameAlerts/${roomId}`).set({ gameName: "⏸️ 채팅방 일시정지", gameUrl: "선생님이 채팅방을 일시정지했습니다.\n잠시 조용히 기다려 주세요.", timestamp: ts, type: 'notice' });
         }
     }
 
