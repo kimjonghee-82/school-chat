@@ -6,6 +6,8 @@
     <title>스쿨 톡</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
     <style>
         /* 기본 스타일 */
@@ -162,6 +164,30 @@
         .rg-lb { width:220px; background:#f4f4f4; border-left:2px solid #ddd; display:flex; flex-direction:column; }
         /* Paused overlay */
         .room-paused-overlay { position:absolute; inset:0; background:rgba(0,0,0,0.6); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:5; border-radius:inherit; color:white; font-size:18px; font-weight:bold; gap:8px; }
+        /* =================== SKETCHBOOK CSS =================== */
+        #sk-canvas-container.sk-lined-mode { overflow-y:auto; background:#e0e6ed; display:flex; justify-content:center; }
+        #sk-canvas-wrapper.sk-lined-mode { box-shadow:0 0 15px rgba(0,0,0,0.1); margin:20px auto; width:100%; max-width:900px; }
+        .floating-text, .floating-image { position:absolute; z-index:10; display:flex; flex-direction:column; min-width:100px; border:2px dashed transparent; }
+        .floating-text .drag-handle, .floating-image .drag-handle { background:#3498db; color:white; font-size:11px; text-align:center; cursor:grab; padding:4px; border-radius:6px 6px 0 0; display:none; user-select:none; font-weight:bold; justify-content:space-between; align-items:center; position:absolute; top:-24px; left:-2px; right:-2px; }
+        .floating-image .drag-handle { background:#e67e22; }
+        .floating-text .text-content { outline:none; white-space:pre-wrap; padding:4px; min-height:1.2em; font-family:'Malgun Gothic',sans-serif; line-height:1.2; box-sizing:border-box; }
+        .floating-text:hover .drag-handle, .floating-text:focus-within .drag-handle, .floating-image:hover .drag-handle { display:flex; }
+        .floating-text:hover, .floating-text:focus-within, .floating-image:hover { border-color:#3498db; background:rgba(255,255,255,0.7); }
+        .floating-image:hover { border-color:#e67e22; }
+        .floating-image img { display:block; width:100%; height:100%; pointer-events:none; }
+        .floating-image .delete-btn, .floating-text .delete-btn { background:#c0392b; border:none; color:white; border-radius:50%; width:16px; height:16px; font-size:9px; cursor:pointer; display:flex; justify-content:center; align-items:center; }
+        .floating-image .resize-handle { position:absolute; bottom:-6px; right:-6px; width:16px; height:16px; background:#e67e22; border-radius:50%; cursor:nwse-resize; display:none; border:2px solid white; }
+        .floating-image:hover .resize-handle { display:block; }
+        .drag-handle-buttons { display:flex; gap:4px; align-items:center; }
+        .drag-handle-buttons button { background:#fff; border:none; border-radius:3px; cursor:pointer; font-size:10px; padding:2px 5px; font-weight:bold; }
+        .drag-handle-buttons .bg-btn { color:#27ae60; background:#eafaf1; }
+        .drag-handle-buttons .layer-btn { color:#2980b9; }
+        .sk-tool-btn { width:100%; padding:8px 2px; border:1px solid #34495e; background:#34495e; color:white; border-radius:6px; cursor:pointer; text-align:center; font-size:13px; transition:0.2s; }
+        .sk-tool-btn.sk-active { background:#3498db; border-color:#3498db; font-weight:bold; box-shadow:inset 0 0 5px rgba(0,0,0,0.2); }
+        .sk-tab { padding:15px 20px; cursor:pointer; font-weight:bold; color:#7f8c8d; border-bottom:3px solid transparent; }
+        .sk-tab.sk-tab-active { color:#2980b9; border-bottom-color:#2980b9; }
+        .sk-tab-content { flex-grow:1; overflow-y:auto; display:none; }
+        .sk-tab-content.sk-tab-active { display:block; }
     </style>
 </head>
 <body>
@@ -213,8 +239,13 @@
             <span id="welcome-msg">환영합니다!</span>
             <div style="display:flex; gap:8px; align-items:center;">
                 <button onclick="openTypingPractice()" style="background:#673AB7;">⌨️ 한글 연습</button>
+                <button onclick="switchToSketchbook()" style="background:#27ae60;">🎨 스케치북</button>
                 <button onclick="handleLogout()">로그아웃</button>
             </div>
+        </div>
+        <div id="sk-teacher-mode-banner" style="display:none; background:#8e44ad; color:white; padding:10px 16px; align-items:center; justify-content:space-between; flex-shrink:0; gap:10px;">
+            <span style="font-weight:bold; font-size:14px;">🎨 선생님이 스케치북 수업을 시작했습니다!</span>
+            <button onclick="switchToSketchbook()" style="background:#27ae60; color:white; border:none; border-radius:20px; padding:7px 18px; font-weight:bold; cursor:pointer; font-size:13px; white-space:nowrap;">🎨 스케치북 열기 →</button>
         </div>
         <div class="main-area">
             <div class="sidebar">
@@ -232,6 +263,7 @@
                 <button onclick="openGlobalNoticeModal()" style="background:#e91e63; font-size:13px; padding:5px 12px; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">📢 전체 공지</button>
                 <button onclick="deleteAllRooms()" style="background:#f44336; font-size:13px; padding:5px 12px; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">🗑️ 전체방 삭제</button>
                 <button onclick="resetAllUsers()" style="background:#ff9800; font-size:13px; padding:5px 12px;">👻 전체 접속자 초기화</button>
+                <button onclick="switchToSketchbook()" style="background:#27ae60; font-size:13px; padding:5px 12px;">🎨 스케치북</button>
                 <button onclick="handleLogout()" style="font-size:13px; padding:5px 12px;">로그아웃</button>
             </div>
         </div>
@@ -281,6 +313,141 @@
                     <input type="text" id="teacher-msg-input" placeholder="선택한 방들에 공지 메시지 전송..." onkeypress="if(event.keyCode==13) sendTeacherMessage()" style="flex: 1; margin: 0; padding: 12px; border-radius: 6px;">
                     <button onclick="sendTeacherMessage()" style="background-color: #2196F3; border:none; padding:12px; color:white; border-radius:6px; margin-left:10px; width:90px; font-weight: bold; cursor: pointer; white-space: nowrap;">전송</button>
                 </div>
+            </div>
+        </div>
+    </div>
+    <!-- =================== SKETCHBOOK STUDENT SCREEN =================== -->
+    <div id="sk-student-screen" style="display:none; height:100%; flex-direction:row;">
+        <div id="sk-sidebar" style="width:130px; background:#2c3e50; padding:10px 8px; display:flex; flex-direction:column; align-items:center; gap:6px; box-sizing:border-box; overflow-y:auto; z-index:100; flex-shrink:0;">
+            <!-- 비율 선택 -->
+            <label style="color:#ecf0f1; font-size:10px; display:block; text-align:center;">📐 화면 비율</label>
+            <div style="display:flex; gap:4px; width:100%;">
+                <button id="sk-btn-ratio-16-9" onclick="sk_setAspectRatio('16:9')" class="sk-tool-btn sk-active" style="flex:1; font-size:10px; padding:5px 0;">16:9</button>
+                <button id="sk-btn-ratio-9-16" onclick="sk_setAspectRatio('9:16')" class="sk-tool-btn" style="flex:1; font-size:10px; padding:5px 0;">9:16</button>
+            </div>
+            <hr style="border:0; border-top:1px solid #4a6278; margin:1px 0; width:100%;">
+            <!-- 색상 + 굵기 -->
+            <label style="color:#ecf0f1; font-size:10px; display:block; text-align:center;">🎨 색상</label>
+            <input type="color" id="sk-colorPicker" value="#000000" oninput="sk_updateCursor()" style="width:45px; height:45px; border:none; cursor:pointer; background:transparent; padding:0; border-radius:5px;">
+            <input type="range" id="sk-lineWidth" min="1" max="50" value="5" style="width:100%;" oninput="sk_updateCursor()" title="굵기">
+            <hr style="border:0; border-top:1px solid #4a6278; margin:1px 0; width:100%;">
+            <!-- 그리기 도구 -->
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px; width:100%;">
+                <button id="sk-btn-move" onclick="sk_setTool('move')" class="sk-tool-btn" title="이동" style="font-size:15px; padding:6px 0;">🖐️</button>
+                <button id="sk-btn-pen" onclick="sk_setTool('pen')" class="sk-tool-btn sk-active" title="펜" style="font-size:15px; padding:6px 0;">✒️</button>
+                <button id="sk-btn-fill" onclick="sk_setTool('fill')" class="sk-tool-btn" title="색 채우기" style="font-size:15px; padding:6px 0;">🪣</button>
+                <button id="sk-btn-eraser" onclick="sk_setTool('eraser')" class="sk-tool-btn" title="지우개" style="font-size:15px; padding:6px 0;">🧼</button>
+            </div>
+            <hr style="border:0; border-top:1px solid #4a6278; margin:1px 0; width:100%;">
+            <!-- 텍스트 -->
+            <div style="background:#1abc9c; padding:6px 5px; border-radius:8px; width:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; gap:3px;">
+                <input type="range" id="sk-textSize" min="12" max="80" value="30" style="width:90%;" title="글자 크기">
+                <button id="sk-btn-text" onclick="sk_setTool('text')" class="sk-tool-btn" style="background:#16a085; border:none; width:100%; font-size:10px; padding:5px 0;">🔤 텍스트</button>
+            </div>
+            <!-- 도형 -->
+            <div style="background:#7d3c98; padding:6px; border-radius:8px; width:100%; box-sizing:border-box; display:flex; flex-direction:column; gap:4px;">
+                <!-- 선 굵기 드롭다운 -->
+                <div style="position:relative; width:100%;" id="sk-width-wrap">
+                    <button onclick="sk_toggleWidthMenu(event)" style="width:100%;background:#5b2c6f;border:1px solid #8e44ad;border-radius:6px;padding:5px 6px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:4px;" title="선 굵기">
+                        <svg id="sk-width-preview-svg" width="72" height="14"><line x1="2" y1="7" x2="70" y2="7" stroke="white" stroke-width="3" stroke-linecap="round"/></svg>
+                        <span style="color:#ccc;font-size:9px;">▼</span>
+                    </button>
+                    <div id="sk-width-menu" style="display:none;position:absolute;left:0;right:0;top:calc(100% + 2px);z-index:300;background:#2c3e50;border:1px solid #8e44ad;border-radius:6px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.5);">
+                        <div onclick="sk_setShapeWidth(1)"  style="padding:7px 8px;cursor:pointer;display:flex;align-items:center;gap:6px;border-bottom:1px solid #4a6278;" onmouseover="this.style.background='#3d5165'" onmouseout="this.style.background=''"><svg width="70" height="12"><line x1="2" y1="6" x2="68" y2="6" stroke="white" stroke-width="1"  stroke-linecap="round"/></svg><span style="color:#ccc;font-size:10px;white-space:nowrap;">1px</span></div>
+                        <div onclick="sk_setShapeWidth(3)"  style="padding:7px 8px;cursor:pointer;display:flex;align-items:center;gap:6px;border-bottom:1px solid #4a6278;" onmouseover="this.style.background='#3d5165'" onmouseout="this.style.background=''"><svg width="70" height="12"><line x1="2" y1="6" x2="68" y2="6" stroke="white" stroke-width="3"  stroke-linecap="round"/></svg><span style="color:#ccc;font-size:10px;white-space:nowrap;">3px</span></div>
+                        <div onclick="sk_setShapeWidth(6)"  style="padding:7px 8px;cursor:pointer;display:flex;align-items:center;gap:6px;border-bottom:1px solid #4a6278;" onmouseover="this.style.background='#3d5165'" onmouseout="this.style.background=''"><svg width="70" height="14"><line x1="2" y1="7" x2="68" y2="7" stroke="white" stroke-width="6"  stroke-linecap="round"/></svg><span style="color:#ccc;font-size:10px;white-space:nowrap;">6px</span></div>
+                        <div onclick="sk_setShapeWidth(12)" style="padding:7px 8px;cursor:pointer;display:flex;align-items:center;gap:6px;" onmouseover="this.style.background='#3d5165'" onmouseout="this.style.background=''"><svg width="70" height="18"><line x1="2" y1="9" x2="68" y2="9" stroke="white" stroke-width="12" stroke-linecap="round"/></svg><span style="color:#ccc;font-size:10px;white-space:nowrap;">12px</span></div>
+                    </div>
+                </div>
+                <!-- 실선/점선 -->
+                <div style="display:flex;gap:3px;">
+                    <button id="sk-dash-off" onclick="sk_setDashed(false)" class="sk-tool-btn sk-active" style="flex:1;font-size:10px;padding:4px 0;">─실선</button>
+                    <button id="sk-dash-on"  onclick="sk_setDashed(true)"  class="sk-tool-btn" style="flex:1;background:#6c3483;border:none;font-size:10px;padding:4px 0;">┄점선</button>
+                </div>
+                <!-- 선택/이동 -->
+                <button id="sk-btn-shape-select" onclick="sk_setTool('shape-select')" class="sk-tool-btn" style="background:#6c3483;border:none;font-size:11px;padding:5px 0;">↖ 선택/이동</button>
+                <!-- 도형 버튼 2열 -->
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:3px;">
+                    <button id="sk-btn-shape-rect"    onclick="sk_setTool('shape-rect')"    class="sk-tool-btn" style="background:#6c3483;border:none;font-size:16px;padding:6px 0;" title="사각형">▬</button>
+                    <button id="sk-btn-shape-rrect"   onclick="sk_setTool('shape-rrect')"   class="sk-tool-btn" style="background:#6c3483;border:none;font-size:16px;padding:6px 0;" title="둥근사각형">🟦</button>
+                    <button id="sk-btn-shape-tri"     onclick="sk_setTool('shape-tri')"     class="sk-tool-btn" style="background:#6c3483;border:none;font-size:16px;padding:6px 0;" title="삼각형">🔺</button>
+                    <button id="sk-btn-shape-rtri"    onclick="sk_setTool('shape-rtri')"    class="sk-tool-btn" style="background:#6c3483;border:none;font-size:16px;padding:6px 0;" title="직각삼각형">📐</button>
+                    <button id="sk-btn-shape-circle"  onclick="sk_setTool('shape-circle')"  class="sk-tool-btn" style="background:#6c3483;border:none;font-size:16px;padding:6px 0;" title="원/타원">⭕</button>
+                    <button id="sk-btn-shape-line"    onclick="sk_setTool('shape-line')"    class="sk-tool-btn" style="background:#6c3483;border:none;font-size:16px;padding:6px 0;" title="직선">╱</button>
+                    <button id="sk-btn-shape-arrow"   onclick="sk_setTool('shape-arrow')"   class="sk-tool-btn" style="background:#6c3483;border:none;font-size:16px;padding:6px 0;" title="화살표">→</button>
+                    <button id="sk-btn-shape-bubble"  onclick="sk_setTool('shape-bubble')"  class="sk-tool-btn" style="background:#6c3483;border:none;font-size:15px;padding:6px 0;" title="말풍선(아래꼬리)">💬</button>
+                    <button id="sk-btn-shape-bubble2" onclick="sk_setTool('shape-bubble2')" class="sk-tool-btn" style="background:#6c3483;border:none;font-size:15px;padding:6px 0;" title="말풍선(오른꼬리)">💭</button>
+                    <button id="sk-btn-shape-bubble3" onclick="sk_setTool('shape-bubble3')" class="sk-tool-btn" style="background:#6c3483;border:none;font-size:15px;padding:6px 0;" title="생각말풍선">🗯️</button>
+                    <button id="sk-btn-shape-bubble4" onclick="sk_setTool('shape-bubble4')" class="sk-tool-btn" style="background:#6c3483;border:none;font-size:15px;padding:6px 0;" title="폭발풍선">💥</button>
+                    <button id="sk-btn-shape-grid"    onclick="sk_setTool('shape-grid')"    class="sk-tool-btn" style="background:#6c3483;border:none;font-size:14px;padding:6px 0;" title="격자">⊞</button>
+                </div>
+                <button id="sk-btn-merge"   onclick="sk_mergeSelected()"   style="display:none;background:#e67e22;color:white;border:none;border-radius:6px;cursor:pointer;width:100%;font-size:10px;padding:5px 0;">🔗 병합</button>
+                <button id="sk-btn-unmerge" onclick="sk_unmergeSelected()" style="display:none;background:#e67e22;color:white;border:none;border-radius:6px;cursor:pointer;width:100%;font-size:10px;padding:5px 0;">🔓 풀기</button>
+            </div>
+            <hr style="border:0; border-top:1px solid #4a6278; margin:1px 0; width:100%;">
+            <!-- 사진/PC -->
+            <div style="display:flex; gap:4px; width:100%;">
+                <button onclick="sk_openCamera()" class="sk-tool-btn" style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; padding:5px 0; font-size:10px;"><span style="font-size:14px;">📸</span><span>사진</span></button>
+                <button onclick="document.getElementById('sk-file-upload').click()" class="sk-tool-btn" style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; padding:5px 0; font-size:10px;"><span style="font-size:14px;">📁</span><span>PC</span></button>
+            </div>
+            <input type="file" id="sk-file-upload" accept="image/*" style="display:none" onchange="sk_loadImage(event)">
+            <!-- 되돌리기 -->
+            <div style="display:flex; gap:4px; width:100%;">
+                <button onclick="sk_undo()" style="flex:1; font-size:16px; padding:5px 0; background:#444; border:none; border-radius:6px; cursor:pointer; color:white;" title="되돌리기">↩️</button>
+                <button onclick="sk_redo()" style="flex:1; font-size:16px; padding:5px 0; background:#444; border:none; border-radius:6px; cursor:pointer; color:white;" title="앞으로">↪️</button>
+            </div>
+            <hr style="border:0; border-top:1px solid #4a6278; margin:1px 0; width:100%;">
+            <!-- 저장/제출/지우기 -->
+            <button onclick="sk_saveAndDownload()" class="sk-tool-btn" style="background:#2ecc71; border-color:#2ecc71; width:100%; font-size:10px; padding:6px 2px;">💾 저장하기</button>
+            <button onclick="sk_showInviteModal()" class="sk-tool-btn" style="background:#3498db; border-color:#3498db; width:100%; font-size:10px; padding:6px 2px;">👥 초대하기</button>
+            <button onclick="sk_submitToTeacher()" id="sk-submit-btn" class="sk-tool-btn" style="background:#9b59b6; border-color:#9b59b6; font-weight:bold; width:100%; font-size:10px; padding:6px 2px;">📤 제출</button>
+            <button onclick="sk_clearCanvas()" class="sk-tool-btn" style="background:#e74c3c; width:100%; font-size:10px; padding:6px 2px; line-height:1.3;">🗑️전체지우기</button>
+        </div>
+        <div id="sk-canvas-container" style="flex-grow:1; overflow:hidden; background:#888; position:relative; display:flex; align-items:center; justify-content:center;">
+            <button onclick="switchToChat()" style="position:absolute; top:10px; right:12px; z-index:50; background:#27ae60; color:white; border:none; border-radius:20px; padding:7px 16px; font-size:13px; font-weight:bold; cursor:pointer; width:auto; box-shadow:0 2px 8px rgba(0,0,0,0.35);">💬 채팅으로</button>
+            <div id="sk-canvas-wrapper" style="position:relative; background:white; flex-shrink:0; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,0.3);">
+                <canvas id="sk-bgCanvas" style="display:block; position:absolute; top:0; left:0; width:100%; height:100%; z-index:1;"></canvas>
+                <canvas id="sk-studentCanvas" style="display:block; touch-action:none; position:absolute; top:0; left:0; width:100%; height:100%; z-index:20; background:transparent;"></canvas>
+                <canvas id="sk-shapesCanvas"  style="display:block; touch-action:none; position:absolute; top:0; left:0; width:100%; height:100%; z-index:25; background:transparent; pointer-events:none;"></canvas>
+                <canvas id="sk-collabCanvas" style="display:block; position:absolute; top:0; left:0; width:100%; height:100%; z-index:28; background:transparent; pointer-events:none;"></canvas>
+                <canvas id="sk-teacherOverlayCanvas" style="display:block; position:absolute; top:0; left:0; width:100%; height:100%; z-index:30; background:transparent; pointer-events:none;"></canvas>
+            </div>
+        </div>
+        <!-- 공유 친구 목록 패널 -->
+        <div id="sk-collab-panel" style="display:none; width:150px; background:#2c3e50; padding:8px; box-sizing:border-box; flex-shrink:0; flex-direction:column; gap:6px; overflow-y:auto;">
+            <div style="color:white; font-size:12px; font-weight:bold; text-align:center; padding:4px 0; border-bottom:1px solid #4a6278; margin-bottom:4px;">👥 공유 중</div>
+            <ul id="sk-collab-list" style="list-style:none; padding:0; margin:0; flex:1; overflow-y:auto;"></ul>
+            <button onclick="sk_leaveRoom()" style="background:#e74c3c; color:white; border:none; border-radius:6px; padding:8px; cursor:pointer; font-size:12px; font-weight:bold; width:100%; margin-top:auto;">🚪 나가기</button>
+        </div>
+    </div>
+
+    <!-- =================== SKETCHBOOK TEACHER SCREEN =================== -->
+    <div id="sk-teacher-screen" style="display:none; height:100%; flex-direction:row; background:#f0f2f5;">
+        <div id="sk-teacher-sidebar" style="width:220px; background:#2c3e50; color:white; display:flex; flex-direction:column; flex-shrink:0;">
+            <div style="padding:15px; background:#1a252f; font-weight:bold; font-size:15px; text-align:center;">🟢 접속 명단 (<span id="sk-user-count">0</span>)</div>
+            <ul id="sk-active-user-list" style="flex-grow:1; overflow-y:auto; padding:10px; list-style:none; margin:0;"></ul>
+            <div style="padding:15px; background:#1a252f;">
+                <button onclick="document.getElementById('sk-broadcast-file').click()" style="width:100%; padding:12px; background:#e67e22; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">📤 전체 자료 전송</button>
+                <input type="file" id="sk-broadcast-file" accept="image/*" style="display:none" onchange="sk_sendBroadcastImage(event)">
+                <button onclick="sk_clearSubmissions()" style="width:100%; margin-top:10px; padding:10px; background:#c0392b; color:white; border:none; border-radius:6px; cursor:pointer;">🗑️ 제출함 비우기</button>
+                <div style="margin-top:12px; border-top:1px solid #3d5165; padding-top:10px;">
+                    <div style="font-size:11px; color:#aaa; margin-bottom:6px; text-align:center;">🎨 학생 스케치북 초기화</div>
+                    <button onclick="sk_clearAllStudentsCanvas()" style="width:100%; padding:9px; background:#922b21; color:white; border:none; border-radius:6px; cursor:pointer; font-size:12px; font-weight:bold; margin-bottom:5px;">🗑️ 전체 지우기</button>
+                    <button onclick="sk_clearSelectedStudentsCanvas()" style="width:100%; padding:9px; background:#e67e22; color:white; border:none; border-radius:6px; cursor:pointer; font-size:12px;">✂️ 선택 지우기</button>
+                </div>
+                <button onclick="switchToChatTeacher()" style="width:100%; margin-top:10px; padding:10px; background:#27ae60; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">💬 채팅으로</button>
+            </div>
+        </div>
+        <div id="sk-teacher-main" style="flex-grow:1; display:flex; flex-direction:column; overflow:hidden;">
+            <div style="display:flex; background:white; border-bottom:2px solid #ddd; padding:0 20px; flex-shrink:0;">
+                <div class="sk-tab sk-tab-active" onclick="sk_switchTab(event,'live')">👀 실시간 캔버스 보기</div>
+                <div class="sk-tab" onclick="sk_switchTab(event,'sub')">📁 제출된 최종 작품</div>
+            </div>
+            <div id="sk-tab-live" class="sk-tab-content sk-tab-active">
+                <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:15px; padding:20px;" id="sk-live-gallery"></div>
+            </div>
+            <div id="sk-tab-sub" class="sk-tab-content">
+                <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:15px; padding:20px;" id="sk-sub-gallery"></div>
             </div>
         </div>
     </div>
@@ -401,6 +568,41 @@
             <div onclick="closeRoomGame()" style="background:#ff5252; padding:10px; text-align:center; color:white; cursor:pointer; font-weight:bold; font-size:14px;">나가기</div>
         </div>
     </div>
+</div>
+
+<!-- =================== SKETCHBOOK MODALS =================== -->
+<div id="sk-camera-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.85); z-index:9000; justify-content:center; align-items:center; flex-direction:column;">
+    <video id="sk-camera-video" autoplay playsinline style="width:90%; max-width:500px; border-radius:12px; background:#000; box-shadow:0 5px 20px rgba(0,0,0,0.5);"></video>
+    <div style="margin-top:20px; display:flex; gap:10px;">
+        <button onclick="sk_capturePhoto()" style="padding:12px 24px; border-radius:8px; border:none; font-size:14px; font-weight:bold; cursor:pointer; background:#e74c3c; color:white; width:auto;">📸 촬영하기</button>
+        <button onclick="sk_closeCamera()" style="padding:12px 24px; border-radius:8px; border:none; font-size:14px; font-weight:bold; cursor:pointer; background:#7f8c8d; color:white; width:auto;">❌ 닫기</button>
+    </div>
+</div>
+
+<div id="sk-teacher-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.9); z-index:9100; flex-direction:column;">
+    <div style="background:#222; color:white; padding:15px 20px; display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
+        <h3 id="sk-modal-student-name" style="margin:0;">학생 이름</h3>
+        <div style="display:flex; gap:10px; align-items:center;">
+            <label>🖍️ 첨삭펜:</label>
+            <input type="color" id="sk-t-color" value="#e74c3c" style="width:30px; height:30px; border:none; cursor:pointer;">
+            <input type="range" id="sk-t-width" min="1" max="20" value="3">
+            <button onclick="sk_closeTeacherModal()" style="padding:8px 15px; background:#7f8c8d; color:white; border:none; border-radius:5px; cursor:pointer; width:auto;">닫기 ❌</button>
+        </div>
+    </div>
+    <div id="sk-modal-body" style="flex-grow:1; display:flex; justify-content:center; align-items:center; padding:20px; position:relative;">
+        <div id="sk-modal-canvas-wrapper" style="background:white; position:relative; border-radius:8px; overflow:hidden; box-shadow:0 10px 30px rgba(0,0,0,0.5);">
+            <img id="sk-teacher-bg-img" style="position:absolute; top:0; left:0; width:100%; height:100%; object-fit:fill;">
+            <canvas id="sk-teacherLiveCanvas" style="position:absolute; top:0; left:0; width:100%; height:100%; touch-action:none; cursor:crosshair; z-index:10;"></canvas>
+        </div>
+    </div>
+</div>
+
+<div id="sk-submission-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.9); z-index:9200; flex-direction:column; justify-content:center; align-items:center;">
+    <div style="width:100%; padding:15px; text-align:right; box-sizing:border-box; position:absolute; top:0;">
+        <button onclick="sk_closeSubmissionModal()" style="padding:10px 20px; background:#e74c3c; color:white; border:none; border-radius:5px; cursor:pointer; font-weight:bold; font-size:16px; width:auto;">닫기 ❌</button>
+    </div>
+    <img id="sk-submission-full-img" style="max-width:90%; max-height:80%; border-radius:8px; box-shadow:0 5px 25px rgba(0,0,0,0.5); object-fit:contain; background:white;">
+    <h3 id="sk-submission-title" style="color:white; margin-top:20px; font-size:20px;"></h3>
 </div>
 
 <script>
@@ -532,6 +734,7 @@
             } else {
                 document.getElementById('chat-screen').style.display = 'flex';
                 document.getElementById('welcome-msg').innerText = `🏫 ${grade} ${classNum} 【${name}】 학생`;
+                setTimeout(sk_listenToTeacherModeFromChat, 800);
 
                 const defaultRoomId = `group_${grade}_${classNum}`;
                 database.ref(`rooms/${defaultRoomId}`).once('value', function(snap) {
@@ -1842,6 +2045,1140 @@
         reader.onload = e => { missionFileData = e.target.result; };
         reader.readAsDataURL(file);
     }
+
+    // =================== SKETCHBOOK (스마트 스케치북) ===================
+    let sketchDb;
+    try {
+        const sketchFirebaseConfig = {
+            apiKey: "AIzaSyDzmtiyyzMh0ZTSbb4IxosvwAq3FQj42cM",
+            authDomain: "smart-sketchbook.firebaseapp.com",
+            databaseURL: "https://smart-sketchbook-default-rtdb.firebaseio.com",
+            projectId: "smart-sketchbook",
+            storageBucket: "smart-sketchbook.firebasestorage.app",
+            messagingSenderId: "1016265560332",
+            appId: "1:1016265560332:web:f9bb194628a3b41e4f3929"
+        };
+        const sketchApp = firebase.initializeApp(sketchFirebaseConfig, 'sketchbook');
+        sketchDb = sketchApp.database();
+    } catch(e) { console.error("스케치북 Firebase 초기화 에러:", e); }
+
+    let sk_myUid = "", sk_myInfo = {}, sk_lastSyncTs = 0;
+    let sk_canvasBg, sk_ctxBg, sk_canvas, sk_ctx, sk_teacherCanvas, sk_tOverlayCtx;
+    let sk_wrapper, sk_container;
+    let sk_isDrawing = false, sk_currentTool = 'pen', sk_lastX = 0, sk_lastY = 0;
+    let sk_aspectRatio = '16:9';
+    let sk_shapeStartX = 0, sk_shapeStartY = 0;
+    let sk_shapesCanvas, sk_shapesCtx;
+    let sk_shapes = [], sk_shapeIdCounter = 0, sk_selectedIds = [];
+    let sk_shapeStrokeWidth = 3, sk_shapeDashed = false;
+    let sk_isMovingShape = false, sk_isRotatingShape = false;
+    let sk_shapeInteractStartX = 0, sk_shapeInteractStartY = 0;
+    let sk_shapeDragOrigins = [], sk_rotateShapeId = null, sk_rotateStartAngle = 0;
+    let sk_mergeGroupCounter = 0;
+    let sk_historyArray = [], sk_historyStep = -1;
+    let sk_cameraStream = null;
+    let sk_editingUid = null, sk_tCanvas, sk_tCtx;
+    let sk_isTDrawing = false, sk_tLastX = 0, sk_tLastY = 0;
+    let sk_teacherLiveRef = null;
+    let sk_lastEditTs = 0;
+    let sk_studentInited = false, sk_teacherInited = false;
+
+    function switchToSketchbook() {
+        if (!myInfo || !myInfo.name) return alert('먼저 로그인해주세요.');
+        sk_myUid = myInfo.grade + '-' + myInfo.classNum + '-' + myInfo.name;
+        sk_myInfo = { grade: myInfo.grade, classNum: myInfo.classNum, name: myInfo.name, submitted: false };
+        const userRef = sketchDb.ref('users/' + sk_myUid);
+        userRef.set(sk_myInfo);
+        userRef.onDisconnect().remove();
+        sketchDb.ref('live/' + sk_myUid).onDisconnect().remove();
+        sketchDb.ref('live_edits/' + sk_myUid).onDisconnect().remove();
+        if (myInfo.isTeacher) {
+            document.getElementById('teacher-screen').style.display = 'none';
+            document.getElementById('sk-teacher-screen').style.display = 'flex';
+            sketchDb.ref('teacherMode').set({ active: true, ts: Date.now() });
+            if (!sk_teacherInited) {
+                sk_teacherInited = true;
+                sk_initTeacherDashboard();
+                sk_initTeacherDrawing();
+            }
+        } else {
+            document.getElementById('chat-screen').style.display = 'none';
+            document.getElementById('sk-student-screen').style.display = 'flex';
+            if (!sk_studentInited) {
+                sk_studentInited = true;
+                sk_initStudentDrawing();
+                sk_loadAutoSave();
+                sk_listenToTeacherBroadcast();
+                sk_listenToTeacherEdits();
+                sk_listenToClearCommands();
+            }
+        }
+    }
+
+    function switchToChat() {
+        if (sk_hasUnsavedChanges) {
+            if (!confirm('저장하지 않고 나가면 캔버스 내용이 모두 초기화됩니다.\n나가시겠습니까?')) return;
+            sk_clearCanvasSilently();
+            if (sk_myUid) localStorage.removeItem('sk_autosave_' + sk_myUid);
+        }
+        if (sk_myRoomId) sk_leaveRoom();
+        document.getElementById('sk-student-screen').style.display = 'none';
+        document.getElementById('chat-screen').style.display = 'flex';
+    }
+
+    function switchToChatTeacher() {
+        document.getElementById('sk-teacher-screen').style.display = 'none';
+        document.getElementById('teacher-screen').style.display = 'flex';
+        if (sketchDb) sketchDb.ref('teacherMode').remove();
+    }
+
+    // ====== 선생님 스케치북 모드 브로드캐스트 ======
+    let sk_lastClearTs = 0;
+
+    function sk_listenToTeacherModeFromChat() {
+        if (!sketchDb) return;
+        sketchDb.ref('teacherMode').on('value', snap => {
+            const d = snap.val();
+            const banner = document.getElementById('sk-teacher-mode-banner');
+            if (banner) banner.style.display = (d && d.active) ? 'flex' : 'none';
+        });
+    }
+
+    function sk_listenToClearCommands() {
+        if (!sketchDb || !sk_myUid) return;
+        sketchDb.ref('teacherCmd/clearAll').on('value', snap => {
+            const d = snap.val();
+            if (d && d.ts > sk_lastClearTs) { sk_lastClearTs = d.ts; sk_clearCanvasSilently(); }
+        });
+        sketchDb.ref('teacherCmd/clearStudent/' + sk_myUid).on('value', snap => {
+            const d = snap.val();
+            if (d && d.ts > sk_lastClearTs) { sk_lastClearTs = d.ts; sk_clearCanvasSilently(); }
+        });
+    }
+
+    function sk_clearCanvasSilently() {
+        if (!sk_ctx) return;
+        sk_ctx.clearRect(0, 0, sk_canvas.width, sk_canvas.height);
+        sk_tOverlayCtx.clearRect(0, 0, sk_teacherCanvas.width, sk_teacherCanvas.height);
+        sk_shapes = []; sk_selectedIds = []; sk_renderShapes(); sk_updateMergeButtons();
+        document.querySelectorAll('#sk-canvas-wrapper .floating-text, #sk-canvas-wrapper .floating-image').forEach(b => b.remove());
+        sk_saveState();
+    }
+
+    function sk_clearAllStudentsCanvas() {
+        if (confirm('모든 학생의 스케치북을 초기화할까요?\n이 작업은 되돌릴 수 없습니다.')) {
+            sketchDb.ref('teacherCmd/clearAll').set({ ts: Date.now() });
+        }
+    }
+
+    function sk_clearSelectedStudentsCanvas() {
+        const checked = Array.from(document.querySelectorAll('.sk-clear-cb:checked'));
+        if (checked.length === 0) { alert('초기화할 학생을 선택해주세요.'); return; }
+        if (confirm(`선택한 ${checked.length}명의 스케치북을 초기화할까요?`)) {
+            checked.forEach(cb => sketchDb.ref('teacherCmd/clearStudent/' + cb.value).set({ ts: Date.now() }));
+        }
+    }
+
+    function sk_toggleWidthMenu(e) {
+        e.stopPropagation();
+        const menu = document.getElementById('sk-width-menu');
+        if (menu) menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+    }
+    document.addEventListener('click', () => {
+        const menu = document.getElementById('sk-width-menu');
+        if (menu) menu.style.display = 'none';
+    });
+
+    function sk_initStudentDrawing() {
+        sk_wrapper = document.getElementById('sk-canvas-wrapper');
+        sk_container = document.getElementById('sk-canvas-container');
+        sk_canvasBg = document.getElementById('sk-bgCanvas'); sk_ctxBg = sk_canvasBg.getContext('2d');
+        sk_canvas = document.getElementById('sk-studentCanvas'); sk_ctx = sk_canvas.getContext('2d', { willReadFrequently: true });
+        sk_shapesCanvas = document.getElementById('sk-shapesCanvas'); sk_shapesCtx = sk_shapesCanvas.getContext('2d');
+        sk_teacherCanvas = document.getElementById('sk-teacherOverlayCanvas'); sk_tOverlayCtx = sk_teacherCanvas.getContext('2d');
+        sk_collabCanvas = document.getElementById('sk-collabCanvas'); sk_collabCtx = sk_collabCanvas.getContext('2d');
+        sk_resizeCanvas();
+        window.addEventListener('resize', sk_resizeCanvas);
+        setTimeout(sk_listenForInvites, 1000);
+
+        const getP = (e) => sk_getCoordinates(e.clientX !== undefined ? e : (e.touches ? e.touches[0] || e.changedTouches[0] : e));
+
+        const start = (e) => {
+            const p = getP(e);
+            if (sk_currentTool === 'move') return;
+            if (sk_currentTool === 'text') { sk_createFloatingText(p.x, p.y); return; }
+            if (sk_currentTool === 'fill') { sk_floodFillAt(p.x, p.y); return; }
+
+            if (sk_currentTool === 'shape-select') {
+                for (const id of sk_selectedIds) {
+                    const s = sk_shapes.find(x => x.id === id);
+                    if (s && sk_hitTestRotateHandle(s, p.x, p.y)) {
+                        const c = sk_getShapeCenterPx(s);
+                        sk_isRotatingShape = true; sk_rotateShapeId = id;
+                        sk_rotateStartAngle = Math.atan2(p.y - c.cy, p.x - c.cx) - s.rotation;
+                        return;
+                    }
+                }
+                let hit = null;
+                for (let i = sk_shapes.length - 1; i >= 0; i--) {
+                    if (sk_hitTestShape(sk_shapes[i], p.x, p.y)) { hit = sk_shapes[i]; break; }
+                }
+                if (hit) {
+                    if (!e.shiftKey) {
+                        if (!sk_selectedIds.includes(hit.id)) sk_selectedIds = [hit.id];
+                    } else {
+                        sk_selectedIds = sk_selectedIds.includes(hit.id)
+                            ? sk_selectedIds.filter(id => id !== hit.id)
+                            : [...sk_selectedIds, hit.id];
+                    }
+                    sk_isMovingShape = true;
+                    sk_shapeInteractStartX = p.x; sk_shapeInteractStartY = p.y;
+                    sk_shapeDragOrigins = sk_selectedIds.map(id => {
+                        const s = sk_shapes.find(x => x.id === id);
+                        return s ? {id, nx1:s.nx1, ny1:s.ny1, nx2:s.nx2, ny2:s.ny2} : null;
+                    }).filter(Boolean);
+                } else if (!e.shiftKey) { sk_selectedIds = []; }
+                sk_renderShapes(); sk_updateMergeButtons(); return;
+            }
+
+            if (sk_currentTool.startsWith('shape-')) {
+                sk_selectedIds = [];
+                sk_shapeStartX = p.x; sk_shapeStartY = p.y;
+                sk_isDrawing = true; return;
+            }
+            sk_isDrawing = true; sk_lastX = p.x; sk_lastY = p.y; sk_draw(e);
+        };
+
+        const move = (e) => {
+            if (sk_isRotatingShape) {
+                e.preventDefault();
+                const p = getP(e);
+                const s = sk_shapes.find(x => x.id === sk_rotateShapeId);
+                if (s) { const c = sk_getShapeCenterPx(s); s.rotation = Math.atan2(p.y-c.cy, p.x-c.cx) - sk_rotateStartAngle; sk_renderShapes(); }
+                return;
+            }
+            if (sk_isMovingShape) {
+                e.preventDefault();
+                const p = getP(e);
+                const W = sk_shapesCanvas.width, H = sk_shapesCanvas.height;
+                const dnx = (p.x - sk_shapeInteractStartX)/W, dny = (p.y - sk_shapeInteractStartY)/H;
+                sk_shapeDragOrigins.forEach(o => {
+                    const s = sk_shapes.find(x => x.id === o.id);
+                    if (s) { s.nx1=o.nx1+dnx; s.ny1=o.ny1+dny; s.nx2=o.nx2+dnx; s.ny2=o.ny2+dny; }
+                });
+                sk_renderShapes(); return;
+            }
+            if (!sk_isDrawing || sk_currentTool === 'text' || sk_currentTool === 'move') return;
+            e.preventDefault();
+            if (sk_currentTool.startsWith('shape-')) {
+                const p = getP(e);
+                const W = sk_shapesCanvas.width, H = sk_shapesCanvas.height;
+                sk_renderShapes();
+                const _ptype=sk_currentTool.replace('shape-','');
+                const _pprev={id:-1, type:_ptype,
+                    nx1:sk_shapeStartX/W, ny1:sk_shapeStartY/H, nx2:p.x/W, ny2:p.y/H,
+                    rotation:0, strokeColor:document.getElementById('sk-colorPicker').value,
+                    strokeWidth:sk_shapeStrokeWidth, dashed:sk_shapeDashed, fillColor:'transparent', mergeGroupId:null};
+                if(_ptype==='grid'){_pprev.cols=Math.max(1,Math.round(Math.abs(p.x-sk_shapeStartX)/60));_pprev.rows=Math.max(1,Math.round(Math.abs(p.y-sk_shapeStartY)/60));}
+                sk_drawShapeObj(sk_shapesCtx, _pprev);
+                return;
+            }
+            sk_draw(e);
+        };
+
+        const end = (e) => {
+            if (sk_isRotatingShape) { sk_isRotatingShape = false; sk_saveState(); return; }
+            if (sk_isMovingShape) { sk_isMovingShape = false; sk_saveState(); return; }
+            if (sk_isDrawing) {
+                sk_isDrawing = false;
+                if (sk_currentTool.startsWith('shape-')) {
+                    const p = e ? getP(e) : null;
+                    if (p) {
+                        const W = sk_shapesCanvas.width, H = sk_shapesCanvas.height;
+                        const ns = { id:++sk_shapeIdCounter, type:sk_currentTool.replace('shape-',''),
+                            nx1:sk_shapeStartX/W, ny1:sk_shapeStartY/H, nx2:p.x/W, ny2:p.y/H,
+                            rotation:0, strokeColor:document.getElementById('sk-colorPicker').value,
+                            strokeWidth:sk_shapeStrokeWidth, dashed:sk_shapeDashed, fillColor:'transparent', mergeGroupId:null };
+                        if(ns.type==='grid'){ns.cols=Math.max(1,Math.round(Math.abs(p.x-sk_shapeStartX)/60));ns.rows=Math.max(1,Math.round(Math.abs(p.y-sk_shapeStartY)/60));}
+                        sk_shapes.push(ns); sk_selectedIds = [ns.id];
+                        sk_renderShapes(); sk_updateMergeButtons();
+                    }
+                    sk_saveState(); return;
+                }
+                sk_ctx.beginPath(); sk_saveState();
+            }
+        };
+
+        sk_wrapper.addEventListener('mousedown', start);
+        sk_wrapper.addEventListener('mousemove', move);
+        sk_wrapper.addEventListener('mouseup', end);
+        sk_wrapper.addEventListener('mouseout', () => {
+            if (sk_isRotatingShape) { sk_isRotatingShape=false; sk_saveState(); return; }
+            if (sk_isMovingShape) { sk_isMovingShape=false; sk_saveState(); return; }
+            if (sk_isDrawing) { sk_isDrawing=false; sk_ctx.beginPath(); sk_saveState(); }
+        });
+        sk_wrapper.addEventListener('touchstart', e => { e.preventDefault(); start(e); }, {passive:false});
+        sk_wrapper.addEventListener('touchmove', e => { move(e); }, {passive:false});
+        sk_wrapper.addEventListener('touchend', e => end(e));
+        sk_updateCursor();
+    }
+
+    function sk_drawBackground() {
+        sk_ctxBg.fillStyle = 'white';
+        sk_ctxBg.fillRect(0, 0, sk_canvasBg.width, sk_canvasBg.height);
+    }
+
+    function sk_resizeCanvas() {
+        if (!sk_canvasBg) return;
+        const cW = sk_container.offsetWidth, cH = sk_container.offsetHeight;
+        let w, h;
+        if (sk_aspectRatio === '9:16') {
+            h = cH; w = h * 9 / 16;
+            if (w > cW) { w = cW; h = w * 16 / 9; }
+        } else {
+            w = cW; h = w * 9 / 16;
+            if (h > cH) { h = cH; w = h * 16 / 9; }
+        }
+        w = Math.max(1, Math.floor(w)); h = Math.max(1, Math.floor(h));
+        sk_wrapper.style.width = w + 'px'; sk_wrapper.style.height = h + 'px';
+        [sk_canvasBg, sk_canvas, sk_shapesCanvas, sk_collabCanvas, sk_teacherCanvas].forEach(c => { if(c){c.width=w;c.height=h;} });
+        sk_drawBackground();
+        if (sk_historyArray.length > 0 && sk_historyStep >= 0) sk_restoreStateNoSync();
+        else if (sk_shapesCtx) sk_renderShapes();
+        sk_redrawCollabCanvas();
+    }
+
+    function sk_setAspectRatio(ratio) {
+        sk_aspectRatio = ratio;
+        document.getElementById('sk-btn-ratio-16-9').classList.toggle('sk-active', ratio === '16:9');
+        document.getElementById('sk-btn-ratio-9-16').classList.toggle('sk-active', ratio === '9:16');
+        sk_historyArray = []; sk_historyStep = -1;
+        sk_shapes = []; sk_selectedIds = [];
+        document.querySelectorAll('#sk-canvas-wrapper .floating-text, #sk-canvas-wrapper .floating-image').forEach(b => b.remove());
+        sk_ctx.clearRect(0, 0, sk_canvas.width, sk_canvas.height);
+        sk_tOverlayCtx.clearRect(0, 0, sk_teacherCanvas.width, sk_teacherCanvas.height);
+        sk_resizeCanvas(); sk_saveState();
+    }
+
+    function sk_saveState() {
+        sk_historyStep++; sk_historyArray.length = sk_historyStep;
+        sk_historyArray.push({ canvasData: sk_canvas.toDataURL(), shapes: JSON.parse(JSON.stringify(sk_shapes)) });
+        sk_hasUnsavedChanges = true;
+        sk_syncMyCanvasToLive(); sk_autoSave();
+    }
+
+    function sk_restoreStateNoSync() {
+        const state = sk_historyArray[sk_historyStep];
+        if (!state) return;
+        const img = new Image();
+        img.onload = () => { sk_ctx.clearRect(0,0,sk_canvas.width,sk_canvas.height); sk_ctx.drawImage(img,0,0); };
+        if (typeof state === 'string') { img.src = state; }
+        else {
+            img.src = state.canvasData;
+            sk_shapes = JSON.parse(JSON.stringify(state.shapes || []));
+            sk_selectedIds = []; sk_renderShapes(); sk_updateMergeButtons();
+        }
+    }
+
+    function sk_restoreState() { sk_restoreStateNoSync(); setTimeout(()=>{ sk_syncMyCanvasToLive(); sk_autoSave(); }, 50); }
+    function sk_undo() { if (sk_historyStep > 0) { sk_historyStep--; sk_restoreState(); } }
+    function sk_redo() { if (sk_historyStep < sk_historyArray.length-1) { sk_historyStep++; sk_restoreState(); } }
+
+    function sk_clearCanvas() {
+        if(confirm('모두 지우시겠습니까?')) {
+            sk_ctx.clearRect(0,0,sk_canvas.width,sk_canvas.height);
+            sk_tOverlayCtx.clearRect(0,0,sk_teacherCanvas.width,sk_teacherCanvas.height);
+            document.querySelectorAll('#sk-canvas-wrapper .floating-text, #sk-canvas-wrapper .floating-image').forEach(b=>b.remove());
+            sk_shapes = []; sk_selectedIds = []; sk_renderShapes(); sk_updateMergeButtons();
+            sk_saveState();
+        }
+    }
+
+    function sk_draw(e) {
+        const p = sk_getCoordinates(e);
+        const color = document.getElementById('sk-colorPicker').value;
+        const width = document.getElementById('sk-lineWidth').value;
+        sk_ctx.beginPath(); sk_ctx.moveTo(sk_lastX, sk_lastY); sk_ctx.lineTo(p.x, p.y);
+        sk_ctx.lineCap = 'round'; sk_ctx.lineJoin = 'round';
+        if (sk_currentTool === 'eraser') {
+            sk_ctx.globalCompositeOperation = 'destination-out'; sk_ctx.lineWidth = width * 2; sk_ctx.strokeStyle = 'rgba(0,0,0,1)';
+        } else {
+            sk_ctx.globalCompositeOperation = 'source-over'; sk_ctx.strokeStyle = color; sk_ctx.lineWidth = width;
+        }
+        sk_ctx.stroke(); sk_ctx.globalCompositeOperation = 'source-over'; sk_lastX = p.x; sk_lastY = p.y;
+    }
+
+    function sk_setTool(tool) {
+        sk_currentTool = tool;
+        ['pen','eraser','text','move','fill','shape-select',
+         'shape-rect','shape-rrect','shape-tri','shape-rtri','shape-circle',
+         'shape-line','shape-arrow','shape-bubble','shape-bubble2','shape-bubble3','shape-bubble4','shape-grid'
+        ].forEach(t => { const btn=document.getElementById('sk-btn-'+t); if(btn) btn.classList.remove('sk-active'); });
+        const ab = document.getElementById('sk-btn-'+tool);
+        if(ab) ab.classList.add('sk-active');
+        sk_canvas.style.pointerEvents = (tool === 'move' || tool === 'text') ? 'none' : 'auto';
+        sk_updateCursor();
+    }
+
+    function sk_updateCursor() {
+        if (!sk_wrapper) return;
+        if (sk_currentTool === 'text') { sk_wrapper.style.cursor = 'text'; return; }
+        if (sk_currentTool === 'move' || sk_currentTool === 'shape-select') { sk_wrapper.style.cursor = 'default'; return; }
+        if (sk_currentTool === 'fill') { sk_wrapper.style.cursor = 'cell'; return; }
+        if (sk_currentTool.startsWith('shape-')) { sk_wrapper.style.cursor = 'crosshair'; return; }
+        const baseW = parseInt(document.getElementById('sk-lineWidth').value);
+        const toolSize = sk_currentTool === 'eraser' ? baseW * 2 : baseW;
+        if (toolSize < 3) { sk_wrapper.style.cursor = 'crosshair'; return; }
+        const c = sk_currentTool === 'eraser' ? 'gray' : document.getElementById('sk-colorPicker').value;
+        const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="'+toolSize+'" height="'+toolSize+'" viewBox="0 0 '+toolSize+' '+toolSize+'"><circle cx="'+toolSize/2+'" cy="'+toolSize/2+'" r="'+(toolSize/2-1)+'" fill="none" stroke="'+c+'" stroke-width="1.5"/></svg>';
+        sk_wrapper.style.cursor = 'url("data:image/svg+xml;utf8,'+encodeURIComponent(svg)+'") '+toolSize/2+' '+toolSize/2+', auto';
+    }
+
+    // ====== SHAPE OBJECT SYSTEM ======
+    function sk_shapeToPixels(s) {
+        const w=sk_shapesCanvas.width, h=sk_shapesCanvas.height;
+        return {x1:s.nx1*w, y1:s.ny1*h, x2:s.nx2*w, y2:s.ny2*h};
+    }
+    function sk_getShapeCenterPx(s) {
+        const p=sk_shapeToPixels(s); return {cx:(p.x1+p.x2)/2, cy:(p.y1+p.y2)/2};
+    }
+    function sk_getRotateHandlePx(s) {
+        const p=sk_shapeToPixels(s), {cx,cy}=sk_getShapeCenterPx(s);
+        const halfH=Math.abs(p.y2-p.y1)/2, dy=-(halfH+28);
+        return {x:cx-dy*Math.sin(s.rotation), y:cy+dy*Math.cos(s.rotation)};
+    }
+    function sk_hitTestShape(s, px, py) {
+        const p=sk_shapeToPixels(s), {cx,cy}=sk_getShapeCenterPx(s);
+        const cos=Math.cos(-s.rotation), sin=Math.sin(-s.rotation);
+        const dx=px-cx, dy=py-cy;
+        const ux=cx+dx*cos-dy*sin, uy=cy+dx*sin+dy*cos;
+        const pad=Math.max(s.strokeWidth/2+6,8);
+        const x1=Math.min(p.x1,p.x2), x2=Math.max(p.x1,p.x2), y1=Math.min(p.y1,p.y2), y2=Math.max(p.y1,p.y2);
+        if (s.type==='line'||s.type==='arrow') {
+            const ldx=p.x2-p.x1, ldy=p.y2-p.y1, len=Math.sqrt(ldx*ldx+ldy*ldy);
+            if(len<1)return false;
+            const t=Math.max(0,Math.min(1,((ux-p.x1)*ldx+(uy-p.y1)*ldy)/(len*len)));
+            return Math.sqrt((ux-p.x1-t*ldx)**2+(uy-p.y1-t*ldy)**2)<=pad;
+        }
+        return ux>=x1-pad&&ux<=x2+pad&&uy>=y1-pad&&uy<=y2+pad;
+    }
+    function sk_hitTestRotateHandle(s, px, py) {
+        const h=sk_getRotateHandlePx(s); return Math.sqrt((px-h.x)**2+(py-h.y)**2)<=12;
+    }
+
+    function sk_renderShapes() {
+        if (!sk_shapesCtx) return;
+        sk_shapesCtx.clearRect(0,0,sk_shapesCanvas.width,sk_shapesCanvas.height);
+        const groups={}, ungrouped=[];
+        sk_shapes.forEach(s => { if(s.mergeGroupId!=null){if(!groups[s.mergeGroupId])groups[s.mergeGroupId]=[];groups[s.mergeGroupId].push(s);}else{ungrouped.push(s);} });
+        ungrouped.forEach(s => sk_drawShapeObj(sk_shapesCtx, s));
+        Object.values(groups).forEach(grp => {
+            const gsel = grp.some(s=>sk_selectedIds.includes(s.id));
+            grp.forEach(s => sk_drawShapeObj(sk_shapesCtx, {...s, fillColor:s.fillColor==='transparent'?'white':s.fillColor}, false, true, false));
+            grp.forEach(s => sk_drawShapeObj(sk_shapesCtx, s, gsel, false, true));
+        });
+        sk_selectedIds.forEach(id => { const s=sk_shapes.find(x=>x.id===id); if(s) sk_drawSelectionHandles(sk_shapesCtx,s); });
+    }
+
+    function sk_drawSelectionHandles(ctx, s) {
+        const p=sk_shapeToPixels(s), {cx,cy}=sk_getShapeCenterPx(s);
+        const x1=Math.min(p.x1,p.x2)-5, y1=Math.min(p.y1,p.y2)-5, x2=Math.max(p.x1,p.x2)+5, y2=Math.max(p.y1,p.y2)+5;
+        ctx.save(); ctx.translate(cx,cy); ctx.rotate(s.rotation); ctx.translate(-cx,-cy);
+        ctx.strokeStyle='#3498db'; ctx.lineWidth=1.5; ctx.setLineDash([5,3]);
+        ctx.strokeRect(x1,y1,x2-x1,y2-y1); ctx.setLineDash([]);
+        [[x1,y1],[x2,y1],[x1,y2],[x2,y2]].forEach(([hx,hy])=>{
+            ctx.fillStyle='white'; ctx.strokeStyle='#3498db'; ctx.lineWidth=1.5;
+            ctx.beginPath(); ctx.arc(hx,hy,4,0,Math.PI*2); ctx.fill(); ctx.stroke();
+        });
+        ctx.beginPath(); ctx.moveTo(cx,y1); ctx.lineTo(cx,y1-20); ctx.stroke();
+        ctx.restore();
+        const rh=sk_getRotateHandlePx(s);
+        ctx.fillStyle='#27ae60'; ctx.strokeStyle='white'; ctx.lineWidth=2;
+        ctx.beginPath(); ctx.arc(rh.x,rh.y,8,0,Math.PI*2); ctx.fill(); ctx.stroke();
+        ctx.fillStyle='white'; ctx.font='bold 11px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText('↻',rh.x,rh.y);
+    }
+
+    function sk_drawShapeObj(ctx, s, isSelected, fillOnly, strokeOnly) {
+        fillOnly=!!fillOnly; strokeOnly=!!strokeOnly;
+        const p=sk_shapeToPixels(s), {cx,cy}=sk_getShapeCenterPx(s);
+        const x1=p.x1,y1=p.y1,x2=p.x2,y2=p.y2;
+        const lx=Math.min(x1,x2),ty=Math.min(y1,y2),rx=Math.max(x1,x2),by=Math.max(y1,y2);
+        ctx.save();
+        ctx.translate(cx,cy); ctx.rotate(s.rotation); ctx.translate(-cx,-cy);
+        ctx.strokeStyle=s.strokeColor; ctx.lineWidth=s.strokeWidth;
+        ctx.fillStyle=s.fillColor==='transparent'?'rgba(0,0,0,0)':s.fillColor;
+        ctx.setLineDash(s.dashed?[s.strokeWidth*3,s.strokeWidth*2]:[]);
+        ctx.lineCap='round'; ctx.lineJoin='round';
+        const t=s.type;
+        if (t==='line'||t==='arrow') {
+            if (!fillOnly) {
+                ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+                if (t==='arrow') {
+                    const ang=Math.atan2(y2-y1,x2-x1), hl=Math.max(12,s.strokeWidth*3.5);
+                    ctx.setLineDash([]); ctx.beginPath();
+                    ctx.moveTo(x2,y2); ctx.lineTo(x2-hl*Math.cos(ang-Math.PI/6),y2-hl*Math.sin(ang-Math.PI/6));
+                    ctx.moveTo(x2,y2); ctx.lineTo(x2-hl*Math.cos(ang+Math.PI/6),y2-hl*Math.sin(ang+Math.PI/6));
+                    ctx.stroke();
+                }
+            }
+            ctx.restore(); return;
+        }
+        if (t==='grid') {
+            const cols=s.cols||3, rows=s.rows||3;
+            const gx=Math.min(x1,x2),gy=Math.min(y1,y2),gw=Math.abs(x2-x1),gh=Math.abs(y2-y1);
+            const cw=gw/cols, ch=gh/rows;
+            if(!fillOnly){
+                if(!strokeOnly&&s.fillColor!=='transparent'){ctx.fillStyle=s.fillColor;ctx.fillRect(gx,gy,gw,gh);}
+                ctx.strokeRect(gx,gy,gw,gh);
+                for(let i=1;i<cols;i++){ctx.beginPath();ctx.moveTo(gx+i*cw,gy);ctx.lineTo(gx+i*cw,gy+gh);ctx.stroke();}
+                for(let j=1;j<rows;j++){ctx.beginPath();ctx.moveTo(gx,gy+j*ch);ctx.lineTo(gx+gw,gy+j*ch);ctx.stroke();}
+            } else { ctx.fillStyle=s.fillColor; ctx.fillRect(gx,gy,gw,gh); }
+            ctx.restore(); return;
+        }
+        ctx.beginPath();
+        if (t==='rect') { ctx.rect(x1,y1,x2-x1,y2-y1);
+        } else if (t==='rrect') {
+            const r=Math.min(rx-lx,by-ty)*0.15;
+            ctx.moveTo(lx+r,ty); ctx.lineTo(rx-r,ty); ctx.arcTo(rx,ty,rx,ty+r,r);
+            ctx.lineTo(rx,by-r); ctx.arcTo(rx,by,rx-r,by,r);
+            ctx.lineTo(lx+r,by); ctx.arcTo(lx,by,lx,by-r,r);
+            ctx.lineTo(lx,ty+r); ctx.arcTo(lx,ty,lx+r,ty,r); ctx.closePath();
+        } else if (t==='tri') {
+            ctx.moveTo((x1+x2)/2,y1); ctx.lineTo(x2,y2); ctx.lineTo(x1,y2); ctx.closePath();
+        } else if (t==='rtri') {
+            ctx.moveTo(x1,y1); ctx.lineTo(x1,y2); ctx.lineTo(x2,y2); ctx.closePath();
+        } else if (t==='circle') {
+            ctx.ellipse((x1+x2)/2,(y1+y2)/2,Math.abs(x2-x1)/2,Math.abs(y2-y1)/2,0,0,Math.PI*2);
+        } else if (t==='bubble') {
+            const r=Math.min(rx-lx,by-ty)*0.15, tail=(by-ty)*0.25, bY=by-tail;
+            ctx.moveTo(lx+r,ty); ctx.lineTo(rx-r,ty); ctx.arcTo(rx,ty,rx,ty+r,r);
+            ctx.lineTo(rx,bY-r); ctx.arcTo(rx,bY,rx-r,bY,r);
+            ctx.lineTo(lx+(rx-lx)*0.45,bY); ctx.lineTo(lx+(rx-lx)*0.3,by); ctx.lineTo(lx+(rx-lx)*0.15,bY);
+            ctx.lineTo(lx+r,bY); ctx.arcTo(lx,bY,lx,bY-r,r);
+            ctx.lineTo(lx,ty+r); ctx.arcTo(lx,ty,lx+r,ty,r); ctx.closePath();
+        } else if (t==='bubble2') {
+            const r=Math.min(rx-lx,by-ty)*0.15, tail=(rx-lx)*0.25, bX=rx-tail;
+            ctx.moveTo(lx+r,ty); ctx.lineTo(bX-r,ty); ctx.arcTo(bX,ty,bX,ty+r,r);
+            ctx.lineTo(bX,(ty+by)/2-(by-ty)*0.15); ctx.lineTo(rx,(ty+by)/2); ctx.lineTo(bX,(ty+by)/2+(by-ty)*0.15);
+            ctx.lineTo(bX,by-r); ctx.arcTo(bX,by,bX-r,by,r);
+            ctx.lineTo(lx+r,by); ctx.arcTo(lx,by,lx,by-r,r);
+            ctx.lineTo(lx,ty+r); ctx.arcTo(lx,ty,lx+r,ty,r); ctx.closePath();
+        } else if (t==='bubble3') {
+            const bodyH=(by-ty)*0.72;
+            ctx.ellipse((lx+rx)/2,ty+bodyH/2,(rx-lx)/2,bodyH/2,0,0,Math.PI*2); ctx.closePath();
+            if(!strokeOnly) ctx.fill(); if(!fillOnly) ctx.stroke();
+            const bcx=lx+(rx-lx)*0.3, bcy=ty+bodyH+2;
+            [[7,0,0],[5,9,8],[3,16,15]].forEach(([sr,ox,oy])=>{
+                ctx.beginPath(); ctx.arc(bcx-ox*0.3,bcy+oy*0.8,sr,0,Math.PI*2);
+                if(!strokeOnly&&s.fillColor!=='transparent') ctx.fill(); if(!fillOnly) ctx.stroke();
+            });
+            ctx.restore(); return;
+        } else if (t==='bubble4') {
+            const ccx=(lx+rx)/2, ccy=(ty+by)/2, orx=(rx-lx)/2, ory=(by-ty)/2;
+            const irx=orx*0.65, iry=ory*0.65, sp=10;
+            for(let i=0;i<=sp*2;i++){
+                const ang=(i*Math.PI)/sp-Math.PI/2;
+                const er=(i%2===0)?orx:irx, ef=(i%2===0)?ory:iry;
+                const ex=ccx+Math.cos(ang)*er, ey=ccy+Math.sin(ang)*ef;
+                if(i===0) ctx.moveTo(ex,ey); else ctx.lineTo(ex,ey);
+            }
+            ctx.closePath();
+        }
+        if(!strokeOnly&&s.fillColor!=='transparent') ctx.fill();
+        if(!fillOnly) ctx.stroke();
+        ctx.restore();
+    }
+
+    function sk_setShapeWidth(w) {
+        sk_shapeStrokeWidth = w;
+        const line = document.querySelector('#sk-width-preview-svg line');
+        if (line) line.setAttribute('stroke-width', Math.min(w, 12));
+        const menu = document.getElementById('sk-width-menu');
+        if (menu) menu.style.display = 'none';
+    }
+    function sk_setDashed(v) {
+        sk_shapeDashed=v;
+        document.getElementById('sk-dash-off').classList.toggle('sk-active',!v);
+        document.getElementById('sk-dash-on').classList.toggle('sk-active',v);
+    }
+    function sk_mergeSelected() {
+        if(sk_selectedIds.length<2) return;
+        sk_mergeGroupCounter++;
+        sk_selectedIds.forEach(id=>{const s=sk_shapes.find(x=>x.id===id);if(s)s.mergeGroupId=sk_mergeGroupCounter;});
+        sk_renderShapes(); sk_updateMergeButtons(); sk_saveState();
+    }
+    function sk_unmergeSelected() {
+        const gids=new Set(sk_selectedIds.map(id=>sk_shapes.find(s=>s.id===id)?.mergeGroupId).filter(g=>g!=null));
+        gids.forEach(gid=>sk_shapes.forEach(s=>{if(s.mergeGroupId===gid)s.mergeGroupId=null;}));
+        sk_renderShapes(); sk_updateMergeButtons(); sk_saveState();
+    }
+    function sk_updateMergeButtons() {
+        const sel=sk_selectedIds.map(id=>sk_shapes.find(s=>s.id===id)).filter(Boolean);
+        const mb=document.getElementById('sk-btn-merge'), ub=document.getElementById('sk-btn-unmerge');
+        if(mb) mb.style.display=sel.length>=2?'block':'none';
+        if(ub) ub.style.display=sel.some(s=>s.mergeGroupId!=null)?'block':'none';
+    }
+
+    function sk_floodFillAt(x, y) {
+        const imgData = sk_ctx.getImageData(0, 0, sk_canvas.width, sk_canvas.height);
+        const data = imgData.data;
+        const W = sk_canvas.width, H = sk_canvas.height;
+        const ix = Math.floor(x), iy = Math.floor(y);
+        if (ix < 0 || iy < 0 || ix >= W || iy >= H) return;
+        const idx0 = (iy * W + ix) * 4;
+        const tR = data[idx0], tG = data[idx0+1], tB = data[idx0+2], tA = data[idx0+3];
+        const hex = document.getElementById('sk-colorPicker').value;
+        const fR = parseInt(hex.slice(1,3),16), fG = parseInt(hex.slice(3,5),16), fB = parseInt(hex.slice(5,7),16);
+        if (tR===fR && tG===fG && tB===fB && tA===255) return;
+        const tol = 25;
+        const match = (i) => Math.abs(data[i]-tR)<=tol && Math.abs(data[i+1]-tG)<=tol && Math.abs(data[i+2]-tB)<=tol && Math.abs(data[i+3]-tA)<=tol;
+        const visited = new Uint8Array(W * H);
+        const stack = [[ix, iy]]; visited[iy * W + ix] = 1;
+        while (stack.length) {
+            const [cx, cy] = stack.pop();
+            const ci = (cy * W + cx) * 4;
+            data[ci]=fR; data[ci+1]=fG; data[ci+2]=fB; data[ci+3]=255;
+            for (const [nx, ny] of [[cx-1,cy],[cx+1,cy],[cx,cy-1],[cx,cy+1]]) {
+                if (nx<0||ny<0||nx>=W||ny>=H) continue;
+                const ni = ny * W + nx;
+                if (!visited[ni] && match(ni*4)) { visited[ni]=1; stack.push([nx,ny]); }
+            }
+        }
+        sk_ctx.putImageData(imgData, 0, 0);
+        sk_saveState();
+    }
+
+    function sk_getCoordinates(e) {
+        const r = sk_wrapper.getBoundingClientRect();
+        return { x:((e.clientX||e.touches[0].clientX)-r.left)*(sk_canvas.width/r.width), y:((e.clientY||e.touches[0].clientY)-r.top)*(sk_canvas.height/r.height) };
+    }
+
+    function sk_createFloatingText(x, y, restoredItem) {
+        restoredItem = restoredItem || null;
+        const color = restoredItem ? restoredItem.color : document.getElementById('sk-colorPicker').value;
+        const fSize = restoredItem ? restoredItem.fontSize : document.getElementById('sk-textSize').value+'px';
+        const textVal = restoredItem ? restoredItem.text : '';
+        const div = document.createElement('div'); div.className='floating-text';
+        div.style.left = restoredItem ? restoredItem.left : x+'px';
+        div.style.top  = restoredItem ? restoredItem.top  : y+'px';
+        const handle = document.createElement('div'); handle.className='drag-handle'; handle.innerHTML='🖐️ 이동 <button class="delete-btn">X</button>';
+        const content = document.createElement('div'); content.className='text-content'; content.contentEditable='true';
+        content.style.color=color; content.style.fontSize=fSize; content.innerText=textVal;
+        div.appendChild(handle); div.appendChild(content); document.getElementById('sk-canvas-wrapper').appendChild(div);
+        handle.querySelector('.delete-btn').onclick = (e)=>{ e.stopPropagation(); div.remove(); sk_syncMyCanvasToLive(); sk_autoSave(); };
+        if(!restoredItem) setTimeout(()=>content.focus(), 50);
+        content.addEventListener('blur', ()=>{ if(content.innerText.trim()==='') div.remove(); sk_syncMyCanvasToLive(); sk_autoSave(); });
+        let isDragging=false, sX,sY,sL,sT;
+        const ds=(e)=>{isDragging=true;sX=e.clientX||e.touches[0].clientX;sY=e.clientY||e.touches[0].clientY;sL=parseInt(div.style.left);sT=parseInt(div.style.top);e.preventDefault();};
+        const dm=(e)=>{if(!isDragging)return;div.style.left=sL+((e.clientX||e.touches[0].clientX)-sX)+'px';div.style.top=sT+((e.clientY||e.touches[0].clientY)-sY)+'px';};
+        const de=()=>{if(isDragging){isDragging=false;sk_syncMyCanvasToLive();sk_autoSave();}};
+        handle.addEventListener('mousedown',ds); handle.addEventListener('touchstart',ds,{passive:false});
+        document.addEventListener('mousemove',dm); document.addEventListener('touchmove',dm,{passive:false});
+        document.addEventListener('mouseup',de); document.addEventListener('touchend',de);
+        div.addEventListener('mousedown',e=>e.stopPropagation());
+        if(!restoredItem) sk_setTool('move');
+    }
+
+    async function sk_openCamera() {
+        try {
+            sk_cameraStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+            document.getElementById('sk-camera-video').srcObject = sk_cameraStream;
+            document.getElementById('sk-camera-modal').style.display = 'flex';
+        } catch(err) { alert("카메라를 사용할 수 없습니다."); }
+    }
+
+    function sk_capturePhoto() {
+        const v = document.getElementById('sk-camera-video'); if(!v.videoWidth) return;
+        const tc = document.createElement('canvas'); tc.width=v.videoWidth; tc.height=v.videoHeight;
+        tc.getContext('2d').drawImage(v,0,0);
+        sk_createFloatingImage(tc.toDataURL('image/png')); sk_closeCamera();
+    }
+
+    function sk_closeCamera() {
+        if(sk_cameraStream) sk_cameraStream.getTracks().forEach(t=>t.stop());
+        document.getElementById('sk-camera-modal').style.display = 'none';
+    }
+
+    function sk_loadImage(e) {
+        const f = e.target.files[0]; if(!f) return;
+        const r = new FileReader(); r.onload=(ev)=>sk_createFloatingImage(ev.target.result); r.readAsDataURL(f); e.target.value='';
+    }
+
+    function sk_createFloatingImage(src, restoredItem) {
+        restoredItem = restoredItem || null;
+        const div = document.createElement('div'); div.className='floating-image';
+        div.style.left   = restoredItem ? restoredItem.left   : '50px';
+        div.style.top    = restoredItem ? restoredItem.top    : '100px';
+        div.style.width  = restoredItem ? restoredItem.width  : '200px';
+        div.style.height = restoredItem ? restoredItem.height : 'auto';
+        div.style.zIndex = restoredItem ? restoredItem.zIndex : '10';
+        const handle = document.createElement('div'); handle.className='drag-handle';
+        handle.innerHTML='<span>🖐️이동</span><div class="drag-handle-buttons"><button class="layer-btn up-btn" title="앞으로">🔼</button><button class="layer-btn down-btn" title="뒤로">🔽</button><button class="bg-btn" title="배경으로 고정">📌배경</button><button class="delete-btn" title="삭제">❌</button></div>';
+        const img = document.createElement('img'); img.src=src;
+        const resize = document.createElement('div'); resize.className='resize-handle';
+        div.appendChild(handle); div.appendChild(img); div.appendChild(resize);
+        document.getElementById('sk-canvas-wrapper').appendChild(div);
+        handle.querySelector('.delete-btn').onclick=(e)=>{e.stopPropagation();div.remove();sk_syncMyCanvasToLive();sk_autoSave();};
+        handle.querySelector('.up-btn').onclick=(e)=>{e.stopPropagation();div.style.zIndex=parseInt(div.style.zIndex||10)+1;sk_syncMyCanvasToLive();sk_autoSave();};
+        handle.querySelector('.down-btn').onclick=(e)=>{e.stopPropagation();div.style.zIndex=Math.max(1,parseInt(div.style.zIndex||10)-1);sk_syncMyCanvasToLive();sk_autoSave();};
+        handle.querySelector('.bg-btn').onclick=(e)=>{e.stopPropagation();if(confirm("이 사진을 고정 배경으로 지정할까요? (기존 낙서 초기화)")){{sk_setAsBackground(src);div.remove();}}};
+        let isDragging=false,sX,sY,sL,sT;
+        const ds=(e)=>{isDragging=true;sX=e.clientX||e.touches[0].clientX;sY=e.clientY||e.touches[0].clientY;sL=parseInt(div.style.left||0);sT=parseInt(div.style.top||0);e.preventDefault();e.stopPropagation();};
+        const dm=(e)=>{if(!isDragging)return;div.style.left=sL+((e.clientX||e.touches[0].clientX)-sX)+'px';div.style.top=sT+((e.clientY||e.touches[0].clientY)-sY)+'px';};
+        const de=()=>{if(isDragging){isDragging=false;sk_syncMyCanvasToLive();sk_autoSave();}};
+        let isResizing=false,rsW,rsH,rX,rY;
+        const rs=(e)=>{isResizing=true;rX=e.clientX||e.touches[0].clientX;rY=e.clientY||e.touches[0].clientY;rsW=div.offsetWidth;rsH=div.offsetHeight;e.preventDefault();e.stopPropagation();};
+        const rm=(e)=>{if(!isResizing)return;div.style.width=Math.max(50,rsW+((e.clientX||e.touches[0].clientX)-rX))+'px';div.style.height=Math.max(50,rsH+((e.clientY||e.touches[0].clientY)-rY))+'px';};
+        const re=()=>{if(isResizing){isResizing=false;sk_syncMyCanvasToLive();sk_autoSave();}};
+        handle.addEventListener('mousedown',ds); handle.addEventListener('touchstart',ds,{passive:false});
+        resize.addEventListener('mousedown',rs); resize.addEventListener('touchstart',rs,{passive:false});
+        document.addEventListener('mousemove',(e)=>{dm(e);rm(e);}); document.addEventListener('touchmove',(e)=>{dm(e);rm(e);},{passive:false});
+        document.addEventListener('mouseup',()=>{de();re();}); document.addEventListener('touchend',()=>{de();re();});
+        div.addEventListener('mousedown',e=>e.stopPropagation());
+        if(!restoredItem) sk_setTool('move');
+        if(!restoredItem) setTimeout(sk_syncMyCanvasToLive,100);
+    }
+
+    function sk_setAsBackground(src) {
+        const img = new Image();
+        img.onload = () => {
+            const w=sk_wrapper.offsetWidth; const ratio=img.naturalHeight/img.naturalWidth; const h=w*ratio;
+            sk_wrapper.style.width=w+'px'; sk_wrapper.style.height=h+'px'; sk_container.style.overflowY='auto';
+            sk_container.classList.add('sk-lined-mode');
+            [sk_canvasBg,sk_canvas,sk_shapesCanvas,sk_teacherCanvas].forEach(c=>{if(c){c.width=w;c.height=h;}});
+            sk_ctxBg.clearRect(0,0,sk_canvasBg.width,sk_canvasBg.height); sk_ctxBg.drawImage(img,0,0,sk_canvasBg.width,sk_canvasBg.height);
+            sk_ctx.clearRect(0,0,sk_canvas.width,sk_canvas.height); sk_tOverlayCtx.clearRect(0,0,sk_teacherCanvas.width,sk_teacherCanvas.height);
+            sk_historyArray=[]; sk_historyStep=-1; sk_saveState();
+        };
+        img.src=src;
+    }
+
+    function sk_autoSave() {
+        if(!sk_myUid||!sk_canvas) return;
+        localStorage.setItem('sk_autosave_'+sk_myUid, JSON.stringify({ aspectRatio:sk_aspectRatio, canvasData:sk_canvas.toDataURL(), shapes:sk_shapes, floating:sk_getFloatingData() }));
+    }
+
+    function sk_getFloatingData() {
+        let items=[];
+        document.querySelectorAll('#sk-canvas-wrapper .floating-text').forEach(el=>{
+            const c=el.querySelector('.text-content');
+            if(c) items.push({type:'text',left:el.style.left,top:el.style.top,color:c.style.color,fontSize:c.style.fontSize,text:c.innerText});
+        });
+        document.querySelectorAll('#sk-canvas-wrapper .floating-image').forEach(el=>{
+            const i=el.querySelector('img');
+            if(i) items.push({type:'image',left:el.style.left,top:el.style.top,width:el.style.width,height:el.style.height,zIndex:el.style.zIndex,src:i.src});
+        });
+        return items;
+    }
+
+    function sk_loadAutoSave() {
+        const saved = localStorage.getItem('sk_autosave_'+sk_myUid);
+        if(!saved) { sk_saveState(); return; }
+        const state = JSON.parse(saved);
+        if(state.aspectRatio) {
+            sk_aspectRatio = state.aspectRatio;
+            document.getElementById('sk-btn-ratio-16-9').classList.toggle('sk-active', sk_aspectRatio === '16:9');
+            document.getElementById('sk-btn-ratio-9-16').classList.toggle('sk-active', sk_aspectRatio === '9:16');
+        }
+        if(state.shapes) { sk_shapes=state.shapes; sk_shapeIdCounter=Math.max(0,...sk_shapes.map(s=>s.id)); }
+        sk_resizeCanvas(); sk_loadCanvasAndFloating(state);
+    }
+
+    function sk_loadCanvasAndFloating(state) {
+        const img=new Image();
+        img.onload=()=>{
+            sk_ctx.clearRect(0,0,sk_canvas.width,sk_canvas.height); sk_ctx.drawImage(img,0,0);
+            document.querySelectorAll('#sk-canvas-wrapper .floating-text, #sk-canvas-wrapper .floating-image').forEach(b=>b.remove());
+            (state.floating||[]).forEach(item=>{
+                if(item.type==='text') sk_createFloatingText(null,null,item);
+                else if(item.type==='image') sk_createFloatingImage(item.src,item);
+            });
+            sk_renderShapes();
+            sk_historyArray=[{canvasData:sk_canvas.toDataURL(),shapes:JSON.parse(JSON.stringify(sk_shapes))}]; sk_historyStep=0; sk_syncMyCanvasToLive();
+        };
+        img.src=state.canvasData;
+    }
+
+    function sk_hideSelectionForCapture() {
+        const prev=[...sk_selectedIds]; sk_selectedIds=[]; sk_renderShapes(); return prev;
+    }
+    function sk_restoreSelectionAfterCapture(prev) {
+        sk_selectedIds=prev; sk_renderShapes();
+    }
+
+    async function sk_exportToPDF() {
+        const target=document.getElementById('sk-canvas-wrapper');
+        const prev=sk_hideSelectionForCapture();
+        document.querySelectorAll('#sk-canvas-wrapper .drag-handle, #sk-canvas-wrapper .resize-handle').forEach(h=>h.style.visibility='hidden');
+        try {
+            const cap=await html2canvas(target,{useCORS:true,scale:2});
+            const pdf=new window.jspdf.jsPDF({orientation:target.offsetWidth>target.offsetHeight?'l':'p',unit:'px',format:[target.offsetWidth,target.offsetHeight]});
+            pdf.addImage(cap.toDataURL('image/jpeg',0.95),'JPEG',0,0,target.offsetWidth,target.offsetHeight);
+            pdf.save(sk_myInfo.grade+'학년_'+sk_myInfo.classNum+'반_'+sk_myInfo.name+'.pdf');
+        } catch(e) { alert("PDF 저장 실패"); }
+        finally {
+            document.querySelectorAll('#sk-canvas-wrapper .drag-handle, #sk-canvas-wrapper .resize-handle').forEach(h=>h.style.visibility='visible');
+            sk_restoreSelectionAfterCapture(prev);
+        }
+    }
+
+    async function sk_syncMyCanvasToLive() {
+        if(!sk_myUid||!sk_canvas) return;
+        const prev=sk_hideSelectionForCapture();
+        const target=document.getElementById('sk-canvas-wrapper');
+        document.querySelectorAll('#sk-canvas-wrapper .drag-handle, #sk-canvas-wrapper .resize-handle').forEach(h=>h.style.display='none');
+        try {
+            const cap=await html2canvas(target,{scale:1});
+            const imgData=cap.toDataURL('image/jpeg',0.85);
+            sk_lastSyncTs=Date.now();
+            sketchDb.ref('live/'+sk_myUid).set({img:imgData,ts:sk_lastSyncTs});
+            if(sk_myRoomId) sketchDb.ref('sk_rooms/'+sk_myRoomId+'/canvases/'+sk_myUid).set({img:imgData,ts:sk_lastSyncTs});
+        } catch(e) {}
+        finally { document.querySelectorAll('#sk-canvas-wrapper .drag-handle, #sk-canvas-wrapper .resize-handle').forEach(h=>h.style.display=''); sk_restoreSelectionAfterCapture(prev); }
+    }
+
+    async function sk_submitToTeacher() {
+        const btn=document.getElementById('sk-submit-btn'); btn.innerText='전송중...'; btn.disabled=true;
+        const prev=sk_hideSelectionForCapture();
+        const target=document.getElementById('sk-canvas-wrapper');
+        document.querySelectorAll('#sk-canvas-wrapper .drag-handle, #sk-canvas-wrapper .resize-handle').forEach(h=>h.style.display='none');
+        try {
+            const cap=await html2canvas(target,{scale:1.5});
+            const imgData=cap.toDataURL('image/jpeg',0.9);
+            await sketchDb.ref('submissions/'+sk_myUid).set(Object.assign({},sk_myInfo,{image:imgData,timestamp:Date.now()}));
+            await sketchDb.ref('users/'+sk_myUid).update({submitted:true});
+            alert("제출 완료! 🎉");
+        } catch(e) { alert("제출 오류"); }
+        finally {
+            document.querySelectorAll('#sk-canvas-wrapper .drag-handle, #sk-canvas-wrapper .resize-handle').forEach(h=>h.style.display='');
+            sk_restoreSelectionAfterCapture(prev);
+            btn.innerText='📤 제출'; btn.disabled=false;
+        }
+    }
+
+    function sk_listenToTeacherBroadcast() {
+        sketchDb.ref('broadcast').on('value', snap=>{ const d=snap.val(); if(d&&d.img) sk_createFloatingImage(d.img); });
+    }
+
+    function sk_listenToTeacherEdits() {
+        sketchDb.ref('live_edits/'+sk_myUid).on('value', snap=>{
+            const d=snap.val();
+            if(d&&d.ts>sk_lastEditTs&&d.img) {
+                sk_lastEditTs=d.ts;
+                const img=new Image();
+                img.onload=()=>{ sk_tOverlayCtx.clearRect(0,0,sk_teacherCanvas.width,sk_teacherCanvas.height); sk_tOverlayCtx.drawImage(img,0,0,sk_teacherCanvas.width,sk_teacherCanvas.height); sk_syncMyCanvasToLive(); };
+                img.src=d.img;
+            }
+        });
+    }
+
+    function sk_switchTab(e, tabId) {
+        document.querySelectorAll('#sk-teacher-main .sk-tab').forEach(t=>t.classList.remove('sk-tab-active'));
+        document.querySelectorAll('#sk-teacher-main .sk-tab-content').forEach(c=>c.classList.remove('sk-tab-active'));
+        e.target.classList.add('sk-tab-active');
+        document.getElementById('sk-tab-'+tabId).classList.add('sk-tab-active');
+    }
+
+    function sk_initTeacherDashboard() {
+        sketchDb.ref('users').on('value', snap=>{
+            const users=snap.val()||{};
+            const list=document.getElementById('sk-active-user-list');
+            document.getElementById('sk-user-count').innerText=Object.keys(users).length;
+            list.innerHTML='';
+            Object.keys(users).forEach(uid=>{
+                const u=users[uid];
+                const tag=u.submitted?'<span style="font-size:10px;padding:2px 5px;border-radius:4px;background:#2ecc71;color:white;font-weight:bold;">✅</span>':'<span style="font-size:10px;padding:2px 5px;border-radius:4px;background:#95a5a6;color:white;">🖊</span>';
+                list.innerHTML+=`<li style="background:#34495e;padding:8px 10px;margin-bottom:6px;border-radius:6px;font-size:12px;display:flex;align-items:center;gap:6px;"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;flex:1;"><input type="checkbox" class="sk-clear-cb" value="${uid}" style="width:14px;height:14px;cursor:pointer;accent-color:#e67e22;flex-shrink:0;"><span style="flex:1;line-height:1.2;">${u.grade}-${u.classNum}<br>${u.name}</span>${tag}</label></li>`;
+            });
+        });
+        sketchDb.ref('live').on('value', snap=>{
+            const lives=snap.val()||{};
+            const gallery=document.getElementById('sk-live-gallery');
+            gallery.innerHTML='';
+            const uids=Object.keys(lives); const count=uids.length;
+            let cols=Math.min(Math.max(count,1),4);
+            gallery.style.gridTemplateColumns='repeat('+cols+', 1fr)';
+            const imgH=count===1?'65vh':count===2?'45vh':count===3?'30vh':'220px';
+            uids.forEach(uid=>{
+                gallery.innerHTML+=`<div style="background:white;border-radius:10px;padding:10px;box-shadow:0 2px 8px rgba(0,0,0,0.1);cursor:pointer;text-align:center;" onclick="sk_openTeacherModal('${uid}','${lives[uid].img}')"><h4 style="margin:0 0 10px 0;font-size:14px;color:#333;">🟢 ${uid}</h4><img src="${lives[uid].img}" style="height:${imgH};width:100%;object-fit:contain;"></div>`;
+            });
+        });
+        sketchDb.ref('submissions').on('value', snap=>{
+            const subs=snap.val()||{};
+            const gallery=document.getElementById('sk-sub-gallery');
+            gallery.innerHTML='';
+            Object.keys(subs).forEach(uid=>{
+                const title=subs[uid].grade+'학년 '+subs[uid].classNum+'반 '+subs[uid].name;
+                gallery.innerHTML+=`<div style="background:white;border-radius:10px;padding:10px;box-shadow:0 2px 8px rgba(0,0,0,0.1);cursor:pointer;text-align:center;" onclick="sk_openSubmissionModal('${title}','${subs[uid].image}')"><h4 style="margin:0 0 10px 0;font-size:14px;color:#333;">📁 ${title}</h4><img src="${subs[uid].image}" style="width:100%;height:160px;object-fit:contain;background:#f9f9f9;border:1px solid #eee;border-radius:6px;"></div>`;
+            });
+        });
+    }
+
+    function sk_openSubmissionModal(title, imgSrc) {
+        document.getElementById('sk-submission-title').innerText='📄 '+title+'의 제출 작품';
+        document.getElementById('sk-submission-full-img').src=imgSrc;
+        document.getElementById('sk-submission-modal').style.display='flex';
+    }
+    function sk_closeSubmissionModal() { document.getElementById('sk-submission-modal').style.display='none'; }
+
+    function sk_sendBroadcastImage(e) {
+        const f=e.target.files[0]; if(!f) return;
+        const r=new FileReader(); r.onload=(ev)=>{sketchDb.ref('broadcast').set({img:ev.target.result,ts:Date.now()});alert("전송 완료!");}; r.readAsDataURL(f); e.target.value='';
+    }
+
+    function sk_clearSubmissions() {
+        if(confirm("제출함을 비울까요?")) {
+            sketchDb.ref('submissions').remove();
+            sketchDb.ref('users').once('value', snap=>{ snap.forEach(c=>c.ref.update({submitted:false})); });
+        }
+    }
+
+    function sk_openTeacherModal(uid, imgSrc) {
+        sk_editingUid=uid;
+        document.getElementById('sk-modal-student-name').innerText='✏️ '+uid+' 첨삭중';
+        const bgImg=document.getElementById('sk-teacher-bg-img');
+        bgImg.onload=function(){ sk_resizeTeacherModalCanvas(bgImg); bgImg.onload=null; };
+        bgImg.src=imgSrc;
+        document.getElementById('sk-teacher-modal').style.display='flex';
+        sk_teacherLiveRef=sketchDb.ref('live/'+uid);
+        sk_teacherLiveRef.on('value', snap=>{ const d=snap.val(); if(d&&d.img&&sk_editingUid===uid) bgImg.src=d.img; });
+    }
+
+    function sk_resizeTeacherModalCanvas(img) {
+        if(!sk_editingUid) return;
+        const modalBody=document.getElementById('sk-modal-body');
+        const wrapper=document.getElementById('sk-modal-canvas-wrapper');
+        const maxW=modalBody.clientWidth*0.95; const maxH=modalBody.clientHeight*0.95;
+        const ratio=img.naturalWidth/img.naturalHeight;
+        let targetW=maxW; let targetH=maxW/ratio;
+        if(targetH>maxH){targetH=maxH;targetW=maxH*ratio;}
+        wrapper.style.width=targetW+'px'; wrapper.style.height=targetH+'px';
+        sk_tCanvas.width=targetW; sk_tCanvas.height=targetH;
+        if(sk_tCtx) sk_tCtx.beginPath();
+    }
+
+    function sk_closeTeacherModal() {
+        if(sk_teacherLiveRef){sk_teacherLiveRef.off();sk_teacherLiveRef=null;}
+        document.getElementById('sk-teacher-modal').style.display='none';
+        sk_editingUid=null; sk_tCtx.clearRect(0,0,sk_tCanvas.width,sk_tCanvas.height);
+    }
+
+    function sk_initTeacherDrawing() {
+        sk_tCanvas=document.getElementById('sk-teacherLiveCanvas'); sk_tCtx=sk_tCanvas.getContext('2d');
+        window.addEventListener('resize', ()=>{
+            if(document.getElementById('sk-teacher-modal').style.display==='flex')
+                sk_resizeTeacherModalCanvas(document.getElementById('sk-teacher-bg-img'));
+        });
+        const start=(e)=>{sk_isTDrawing=true;const p=sk_getCoordinatesTeacher(e);sk_tLastX=p.x;sk_tLastY=p.y;sk_tDraw(e);};
+        const move=(e)=>{if(!sk_isTDrawing)return;e.preventDefault();sk_tDraw(e);};
+        const end=()=>{
+            if(sk_isTDrawing){
+                sk_isTDrawing=false; sk_tCtx.beginPath();
+                if(sk_editingUid) sketchDb.ref('live_edits/'+sk_editingUid).set({img:sk_tCanvas.toDataURL('image/png'),ts:Date.now()});
+            }
+        };
+        sk_tCanvas.addEventListener('mousedown',start); sk_tCanvas.addEventListener('mousemove',move);
+        sk_tCanvas.addEventListener('mouseup',end); sk_tCanvas.addEventListener('mouseout',end);
+        sk_tCanvas.addEventListener('touchstart',(e)=>{start(e.touches[0]);},{passive:false});
+        sk_tCanvas.addEventListener('touchmove',(e)=>{move(e.touches[0]);},{passive:false});
+        sk_tCanvas.addEventListener('touchend',end);
+    }
+
+    function sk_tDraw(e) {
+        const p=sk_getCoordinatesTeacher(e);
+        sk_tCtx.beginPath(); sk_tCtx.moveTo(sk_tLastX,sk_tLastY); sk_tCtx.lineTo(p.x,p.y);
+        sk_tCtx.lineCap='round'; sk_tCtx.lineJoin='round';
+        sk_tCtx.strokeStyle=document.getElementById('sk-t-color').value;
+        sk_tCtx.lineWidth=document.getElementById('sk-t-width').value;
+        sk_tCtx.stroke(); sk_tLastX=p.x; sk_tLastY=p.y;
+    }
+
+    function sk_getCoordinatesTeacher(e) {
+        const r=sk_tCanvas.getBoundingClientRect();
+        return { x:((e.clientX||e.touches[0].clientX)-r.left)*(sk_tCanvas.width/r.width), y:((e.clientY||e.touches[0].clientY)-r.top)*(sk_tCanvas.height/r.height) };
+    }
+
+    // ====== 저장하기 ======
+    async function sk_saveAndDownload() {
+        const target=document.getElementById('sk-canvas-wrapper');
+        const prev=sk_hideSelectionForCapture();
+        document.querySelectorAll('#sk-canvas-wrapper .drag-handle, #sk-canvas-wrapper .resize-handle').forEach(h=>h.style.visibility='hidden');
+        try {
+            const cap=await html2canvas(target,{useCORS:true,scale:2});
+            const pdf=new window.jspdf.jsPDF({orientation:target.offsetWidth>target.offsetHeight?'l':'p',unit:'px',format:[target.offsetWidth,target.offsetHeight]});
+            pdf.addImage(cap.toDataURL('image/jpeg',0.95),'JPEG',0,0,target.offsetWidth,target.offsetHeight);
+            pdf.save(sk_myInfo.grade+'학년_'+sk_myInfo.classNum+'반_'+sk_myInfo.name+'.pdf');
+            sk_hasUnsavedChanges = false;
+        } catch(e) { alert("저장 실패: "+e.message); }
+        finally {
+            document.querySelectorAll('#sk-canvas-wrapper .drag-handle, #sk-canvas-wrapper .resize-handle').forEach(h=>h.style.visibility='visible');
+            sk_restoreSelectionAfterCapture(prev);
+        }
+    }
+
+    // ====== 초대하기 / 공유 캔버스 ======
+    let sk_collabCanvas, sk_collabCtx;
+    let sk_myRoomId = null;
+    let sk_collabImgElements = {};
+    let sk_collabMemberNames = {};
+    let sk_hasUnsavedChanges = false;
+    let sk_pendingInviteData = null;
+    let sk_roomCanvasRef = null;
+    let sk_roomMembersRef = null;
+
+    function sk_showInviteModal() {
+        const modal=document.getElementById('sk-invite-modal');
+        const list=document.getElementById('sk-invite-list');
+        if(!modal||!list) return;
+        list.innerHTML='<li style="color:#999;font-size:12px;padding:8px 0;">불러오는 중...</li>';
+        modal.style.display='flex';
+        sketchDb.ref('users').once('value', snap=>{
+            const users=snap.val()||{};
+            list.innerHTML='';
+            const uids=Object.keys(users).filter(u=>u!==sk_myUid);
+            if(uids.length===0){ list.innerHTML='<li style="color:#999;font-size:12px;padding:8px 0;">접속 중인 친구가 없습니다</li>'; return; }
+            uids.forEach(uid=>{
+                const u=users[uid];
+                const inRoom=sk_myRoomId&&sk_collabMemberNames[uid];
+                const li=document.createElement('li');
+                li.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eee;';
+                li.innerHTML=`<span style="font-size:13px;">${u.grade}-${u.classNum} ${u.name}</span>
+                    <button onclick="sk_sendInvite('${uid}','${u.grade}-${u.classNum}-${u.name}');this.disabled=true;this.textContent='전송됨';"
+                        style="background:${inRoom?'#95a5a6':'#3498db'};color:white;border:none;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:12px;"
+                        ${inRoom?'disabled':''} >${inRoom?'공유중':'초대'}</button>`;
+                list.appendChild(li);
+            });
+        });
+    }
+    function sk_closeInviteModal() { document.getElementById('sk-invite-modal').style.display='none'; }
+
+    function sk_sendInvite(toUid, toName) {
+        if(!sk_myRoomId) {
+            const roomId='room_'+sk_myUid;
+            sk_joinRoom(roomId);
+        }
+        const fromName=sk_myInfo.grade+'-'+sk_myInfo.classNum+'-'+sk_myInfo.name;
+        const inviteId=Date.now().toString();
+        const ref=sketchDb.ref('sk_invites/'+toUid+'/'+inviteId);
+        ref.set({from:sk_myUid, fromName:fromName, roomId:sk_myRoomId, ts:Date.now()});
+        ref.onDisconnect().remove();
+        sk_closeInviteModal();
+        alert(toName+'님에게 초대를 보냈습니다!');
+    }
+
+    function sk_listenForInvites() {
+        if(!sketchDb||!sk_myUid) return;
+        sketchDb.ref('sk_invites/'+sk_myUid).on('child_added', snap=>{
+            const inv=snap.val(); if(!inv) return;
+            sk_pendingInviteData={id:snap.key, ...inv};
+            const notif=document.getElementById('sk-invite-notification');
+            const txt=document.getElementById('sk-invite-notify-text');
+            if(notif&&txt){ txt.textContent=inv.fromName+'님이 스케치북 공유를 초대했습니다!'; notif.style.display='block'; }
+            setTimeout(()=>{
+                if(notif) notif.style.display='none';
+                sketchDb.ref('sk_invites/'+sk_myUid+'/'+snap.key).remove();
+            }, 30000);
+        });
+    }
+
+    function sk_acceptInviteNotif() {
+        if(!sk_pendingInviteData) return;
+        const {id, roomId}=sk_pendingInviteData;
+        sketchDb.ref('sk_invites/'+sk_myUid+'/'+id).remove();
+        sk_joinRoom(roomId);
+        document.getElementById('sk-invite-notification').style.display='none';
+        sk_pendingInviteData=null;
+    }
+    function sk_declineInviteNotif() {
+        if(!sk_pendingInviteData) return;
+        sketchDb.ref('sk_invites/'+sk_myUid+'/'+sk_pendingInviteData.id).remove();
+        document.getElementById('sk-invite-notification').style.display='none';
+        sk_pendingInviteData=null;
+    }
+
+    function sk_joinRoom(roomId) {
+        sk_myRoomId=roomId;
+        const displayName=sk_myInfo.grade+'-'+sk_myInfo.classNum+'-'+sk_myInfo.name;
+        sketchDb.ref('sk_rooms/'+roomId+'/members/'+sk_myUid).set(displayName);
+        sketchDb.ref('sk_rooms/'+roomId+'/members/'+sk_myUid).onDisconnect().remove();
+        // listen to canvases of room members
+        if(sk_roomCanvasRef) sk_roomCanvasRef.off();
+        sk_roomCanvasRef=sketchDb.ref('sk_rooms/'+roomId+'/canvases');
+        sk_roomCanvasRef.on('value', snap=>{
+            const data=snap.val()||{};
+            Object.keys(sk_collabImgElements).forEach(uid=>{ if(!data[uid]) delete sk_collabImgElements[uid]; });
+            Object.entries(data).forEach(([uid,d])=>{
+                if(uid!==sk_myUid&&d&&d.img) {
+                    if(!sk_collabImgElements[uid]) sk_collabImgElements[uid]=new Image();
+                    sk_collabImgElements[uid].onload=()=>sk_redrawCollabCanvas();
+                    if(sk_collabImgElements[uid].src!==d.img) sk_collabImgElements[uid].src=d.img;
+                }
+            });
+            sk_redrawCollabCanvas();
+        });
+        // listen to members
+        if(sk_roomMembersRef) sk_roomMembersRef.off();
+        sk_roomMembersRef=sketchDb.ref('sk_rooms/'+roomId+'/members');
+        sk_roomMembersRef.on('value', snap=>{ sk_collabMemberNames=snap.val()||{}; sk_updateCollabPanel(); });
+        const panel=document.getElementById('sk-collab-panel');
+        if(panel) panel.style.display='flex';
+        sk_syncMyCanvasToLive();
+    }
+
+    function sk_leaveRoom() {
+        if(!sk_myRoomId) return;
+        sketchDb.ref('sk_rooms/'+sk_myRoomId+'/members/'+sk_myUid).remove();
+        if(sk_roomCanvasRef){sk_roomCanvasRef.off();sk_roomCanvasRef=null;}
+        if(sk_roomMembersRef){sk_roomMembersRef.off();sk_roomMembersRef=null;}
+        sk_myRoomId=null; sk_collabImgElements={}; sk_collabMemberNames={};
+        if(sk_collabCtx) sk_collabCtx.clearRect(0,0,sk_collabCanvas.width,sk_collabCanvas.height);
+        const panel=document.getElementById('sk-collab-panel');
+        if(panel) panel.style.display='none';
+    }
+
+    function sk_updateCollabPanel() {
+        const list=document.getElementById('sk-collab-list'); if(!list) return;
+        list.innerHTML='';
+        Object.entries(sk_collabMemberNames).forEach(([uid,name])=>{
+            const li=document.createElement('li');
+            li.style.cssText='background:#34495e;padding:6px 8px;margin-bottom:4px;border-radius:6px;font-size:11px;color:white;line-height:1.3;';
+            li.textContent=(uid===sk_myUid?'🟢 ':'🔵 ')+name;
+            list.appendChild(li);
+        });
+    }
+
+    function sk_redrawCollabCanvas() {
+        if(!sk_collabCtx) return;
+        sk_collabCtx.clearRect(0,0,sk_collabCanvas.width,sk_collabCanvas.height);
+        Object.values(sk_collabImgElements).forEach(img=>{
+            if(img.complete&&img.naturalWidth>0){
+                sk_collabCtx.globalAlpha=0.85;
+                sk_collabCtx.drawImage(img,0,0,sk_collabCanvas.width,sk_collabCanvas.height);
+            }
+        });
+        sk_collabCtx.globalAlpha=1;
+    }
+
 </script>
+
+<!-- 초대 모달 -->
+<div id="sk-invite-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:10000; align-items:center; justify-content:center;">
+    <div style="background:white; border-radius:12px; padding:20px; width:300px; max-height:80vh; overflow-y:auto; box-shadow:0 8px 30px rgba(0,0,0,0.3);">
+        <h3 style="margin:0 0 8px 0; font-size:16px; color:#2c3e50;">👥 친구 초대하기</h3>
+        <p style="font-size:12px; color:#888; margin:0 0 12px 0;">스케치북에 접속 중인 친구를 선택하세요</p>
+        <ul id="sk-invite-list" style="list-style:none; padding:0; margin:0 0 14px 0;"></ul>
+        <button onclick="sk_closeInviteModal()" style="width:100%; padding:10px; background:#95a5a6; color:white; border:none; border-radius:6px; cursor:pointer; font-size:13px;">닫기</button>
+    </div>
+</div>
+
+<!-- 초대 알림 -->
+<div id="sk-invite-notification" style="display:none; position:fixed; bottom:80px; left:50%; transform:translateX(-50%); background:#2c3e50; color:white; border-radius:12px; padding:16px 20px; z-index:10001; box-shadow:0 4px 20px rgba(0,0,0,0.4); min-width:280px; text-align:center;">
+    <div id="sk-invite-notify-text" style="font-size:14px; margin-bottom:12px; font-weight:bold;"></div>
+    <div style="display:flex; gap:8px; justify-content:center;">
+        <button onclick="sk_acceptInviteNotif()" style="background:#27ae60; color:white; border:none; border-radius:6px; padding:8px 22px; cursor:pointer; font-weight:bold; font-size:13px;">✅ 수락</button>
+        <button onclick="sk_declineInviteNotif()" style="background:#e74c3c; color:white; border:none; border-radius:6px; padding:8px 22px; cursor:pointer; font-size:13px;">❌ 거절</button>
+    </div>
+</div>
 </body>
 </html>
