@@ -188,6 +188,7 @@
         .sk-tab.sk-tab-active { color:#2980b9; border-bottom-color:#2980b9; }
         .sk-tab-content { flex-grow:1; overflow-y:auto; display:none; }
         .sk-tab-content.sk-tab-active { display:block; }
+        @keyframes sk-blink { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
     </style>
 </head>
 <body>
@@ -2880,6 +2881,8 @@
         document.getElementById('sk-tab-'+tabId).classList.add('sk-tab-active');
     }
 
+    let sk_teacherRecs = {}; // uid → {frames, isRecording, isPlaying, playIdx, playTimer, startTs, lastFrameTs, speed}
+
     function sk_initTeacherDashboard() {
         sketchDb.ref('users').on('value', snap=>{
             const users=snap.val()||{};
@@ -2895,13 +2898,40 @@
         sketchDb.ref('live').on('value', snap=>{
             const lives=snap.val()||{};
             const gallery=document.getElementById('sk-live-gallery');
-            gallery.innerHTML='';
-            const uids=Object.keys(lives); const count=uids.length;
-            let cols=Math.min(Math.max(count,1),4);
+            const uids=Object.keys(lives);
+            const count=uids.length;
+            const cols=Math.min(Math.max(count,1),4);
             gallery.style.gridTemplateColumns='repeat('+cols+', 1fr)';
             const imgH=count===1?'65vh':count===2?'45vh':count===3?'30vh':'220px';
+            // Capture frames for any recording students
             uids.forEach(uid=>{
-                gallery.innerHTML+=`<div style="background:white;border-radius:10px;padding:10px;box-shadow:0 2px 8px rgba(0,0,0,0.1);cursor:pointer;text-align:center;" onclick="sk_openTeacherModal('${uid}','${lives[uid].img}')"><h4 style="margin:0 0 10px 0;font-size:14px;color:#333;">🟢 ${uid}</h4><img src="${lives[uid].img}" style="height:${imgH};width:100%;object-fit:contain;"></div>`;
+                const rec=sk_teacherRecs[uid];
+                if(rec&&rec.isRecording&&lives[uid]&&lives[uid].img){
+                    const ts=Date.now()-rec.startTs;
+                    if(ts-(rec.lastFrameTs||-Infinity)>1500){
+                        rec.frames.push({img:lives[uid].img,ts});
+                        rec.lastFrameTs=ts;
+                        sk_updateRecUI(uid);
+                    }
+                }
+            });
+            // Remove cards for students who disconnected
+            Array.from(gallery.querySelectorAll('[data-ruid]')).forEach(card=>{
+                if(!lives[card.dataset.ruid]) card.remove();
+            });
+            // Add/update cards
+            uids.forEach(uid=>{
+                if(!lives[uid]||!lives[uid].img) return;
+                let card=Array.from(gallery.querySelectorAll('[data-ruid]')).find(c=>c.dataset.ruid===uid);
+                if(!card){
+                    card=sk_createTeacherCard(uid,lives[uid].img,imgH);
+                    gallery.appendChild(card);
+                    sk_updateRecUI(uid);
+                } else {
+                    const img=card.querySelector('.sk-live-img');
+                    const rec=sk_teacherRecs[uid];
+                    if(img&&(!rec||!rec.isPlaying)){ img.src=lives[uid].img; img.style.height=imgH; }
+                }
             });
         });
         sketchDb.ref('submissions').on('value', snap=>{
@@ -2913,6 +2943,168 @@
                 gallery.innerHTML+=`<div style="background:white;border-radius:10px;padding:10px;box-shadow:0 2px 8px rgba(0,0,0,0.1);cursor:pointer;text-align:center;" onclick="sk_openSubmissionModal('${title}','${subs[uid].image}')"><h4 style="margin:0 0 10px 0;font-size:14px;color:#333;">📁 ${title}</h4><img src="${subs[uid].image}" style="width:100%;height:160px;object-fit:contain;background:#f9f9f9;border:1px solid #eee;border-radius:6px;"></div>`;
             });
         });
+        // Clean up recording data when teacher leaves
+        sketchDb.ref('sk_rec').onDisconnect().remove();
+    }
+
+    function sk_createTeacherCard(uid, imgSrc, imgH) {
+        const card=document.createElement('div');
+        card.dataset.ruid=uid;
+        card.style.cssText='background:white;border-radius:10px;padding:8px;box-shadow:0 2px 8px rgba(0,0,0,0.1);display:flex;flex-direction:column;gap:6px;';
+        const esc=uid.replace(/'/g,"\\'");
+        card.innerHTML=`
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:4px;">
+                <h4 style="margin:0;font-size:13px;color:#333;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">🟢 ${uid}</h4>
+                <button data-recbtn onclick="sk_toggleRec('${esc}')"
+                    style="background:#e74c3c;color:white;border:none;border-radius:6px;padding:3px 9px;cursor:pointer;font-size:11px;white-space:nowrap;flex-shrink:0;">
+                    🔴 녹화
+                </button>
+            </div>
+            <img class="sk-live-img" src="${imgSrc}"
+                style="height:${imgH};width:100%;object-fit:contain;cursor:pointer;border-radius:4px;"
+                onclick="sk_openTeacherModal('${esc}', this.src)">
+            <div data-pctrl style="display:none;gap:3px;justify-content:center;align-items:center;flex-wrap:wrap;padding:5px;background:#f0f0f0;border-radius:6px;">
+                <button onclick="sk_rewindRec('${esc}')" title="처음으로"
+                    style="background:#2c3e50;color:white;border:none;border-radius:4px;padding:4px 8px;cursor:pointer;font-size:15px;">⏮</button>
+                <button data-playbtn onclick="sk_togglePlayRec('${esc}')"
+                    style="background:#27ae60;color:white;border:none;border-radius:4px;padding:4px 12px;cursor:pointer;font-size:15px;">▶</button>
+                <button onclick="sk_ffRec('${esc}')" title="끝으로"
+                    style="background:#2c3e50;color:white;border:none;border-radius:4px;padding:4px 8px;cursor:pointer;font-size:15px;">⏭</button>
+                <span data-rinfo style="font-size:10px;color:#666;min-width:36px;text-align:center;">0/0</span>
+                <button onclick="sk_downloadRec('${esc}')"
+                    style="background:#2ecc71;color:white;border:none;border-radius:4px;padding:4px 9px;cursor:pointer;font-size:11px;white-space:nowrap;">💾 다운</button>
+            </div>`;
+        return card;
+    }
+
+    function sk_getCard(uid){ return Array.from(document.querySelectorAll('[data-ruid]')).find(c=>c.dataset.ruid===uid); }
+
+    function sk_updateRecUI(uid) {
+        const card=sk_getCard(uid); if(!card) return;
+        const rec=sk_teacherRecs[uid];
+        const recBtn=card.querySelector('[data-recbtn]');
+        const pctrl=card.querySelector('[data-pctrl]');
+        const playBtn=card.querySelector('[data-playbtn]');
+        const rinfo=card.querySelector('[data-rinfo]');
+        if(!rec){
+            if(recBtn){recBtn.textContent='🔴 녹화';recBtn.style.background='#e74c3c';}
+            if(pctrl) pctrl.style.display='none';
+        } else if(rec.isRecording){
+            if(recBtn){recBtn.innerHTML='⏹ <b style="color:#ffdddd">'+rec.frames.length+'프</b>';recBtn.style.background='#922b21';recBtn.style.animation='sk-blink 1s step-start infinite';}
+            if(pctrl) pctrl.style.display='none';
+        } else {
+            if(recBtn){recBtn.textContent='🔴 재녹화';recBtn.style.background='#e67e22';recBtn.style.animation='';}
+            if(pctrl) pctrl.style.display='flex';
+            if(playBtn) playBtn.textContent=rec.isPlaying?'⏸':'▶';
+            if(rinfo) rinfo.textContent=(rec.playIdx+1)+'/'+rec.frames.length;
+        }
+    }
+
+    function sk_toggleRec(uid) {
+        if(!sk_teacherRecs[uid]) sk_teacherRecs[uid]={frames:[],isRecording:false,isPlaying:false,playIdx:0,playTimer:null,speed:1};
+        const rec=sk_teacherRecs[uid];
+        if(rec.isRecording){
+            rec.isRecording=false; rec.playIdx=0;
+            // Save to Firebase for persistence
+            if(rec.frames.length>0&&sketchDb){
+                const slim=rec.frames.filter((_,i)=>i%3===0).map(f=>({img:f.img,ts:f.ts}));
+                sketchDb.ref('sk_rec/'+uid).set({frames:slim,ts:Date.now()}).catch(()=>{});
+            }
+        } else {
+            if(rec.isPlaying) sk_pauseRec(uid);
+            rec.frames=[]; rec.isRecording=true; rec.isPlaying=false;
+            rec.playIdx=0; rec.startTs=Date.now(); rec.lastFrameTs=-Infinity;
+        }
+        sk_updateRecUI(uid);
+    }
+
+    function sk_togglePlayRec(uid) {
+        const rec=sk_teacherRecs[uid]; if(!rec||rec.frames.length===0) return;
+        if(rec.isPlaying) sk_pauseRec(uid); else sk_playRec(uid);
+    }
+
+    function sk_playRec(uid) {
+        const rec=sk_teacherRecs[uid]; if(!rec||rec.frames.length===0) return;
+        rec.isPlaying=true;
+        const card=sk_getCard(uid);
+        const img=card?card.querySelector('.sk-live-img'):null;
+        function nextFrame(){
+            if(!rec.isPlaying) return;
+            if(rec.playIdx>=rec.frames.length){rec.isPlaying=false;rec.playIdx=rec.frames.length-1;sk_updateRecUI(uid);return;}
+            if(img) img.src=rec.frames[rec.playIdx].img;
+            sk_updateRecUI(uid);
+            const cur=rec.frames[rec.playIdx], nxt=rec.frames[rec.playIdx+1];
+            const delay=nxt?Math.min(nxt.ts-cur.ts,8000):500;
+            rec.playIdx++;
+            rec.playTimer=setTimeout(nextFrame,Math.max(delay,200));
+        }
+        nextFrame();
+        sk_updateRecUI(uid);
+    }
+
+    function sk_pauseRec(uid) {
+        const rec=sk_teacherRecs[uid]; if(!rec) return;
+        rec.isPlaying=false;
+        if(rec.playTimer){clearTimeout(rec.playTimer);rec.playTimer=null;}
+        sk_updateRecUI(uid);
+    }
+
+    function sk_rewindRec(uid) {
+        const rec=sk_teacherRecs[uid]; if(!rec||rec.frames.length===0) return;
+        sk_pauseRec(uid); rec.playIdx=0;
+        const card=sk_getCard(uid); const img=card?card.querySelector('.sk-live-img'):null;
+        if(img&&rec.frames[0]) img.src=rec.frames[0].img;
+        sk_updateRecUI(uid);
+    }
+
+    function sk_ffRec(uid) {
+        const rec=sk_teacherRecs[uid]; if(!rec||rec.frames.length===0) return;
+        sk_pauseRec(uid); rec.playIdx=rec.frames.length-1;
+        const card=sk_getCard(uid); const img=card?card.querySelector('.sk-live-img'):null;
+        if(img&&rec.frames[rec.playIdx]) img.src=rec.frames[rec.playIdx].img;
+        sk_updateRecUI(uid);
+    }
+
+    function sk_loadImg(src){
+        return new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=src;});
+    }
+
+    async function sk_downloadRec(uid) {
+        const rec=sk_teacherRecs[uid];
+        if(!rec||rec.frames.length===0){alert('녹화된 내용이 없습니다.');return;}
+        const card=sk_getCard(uid);
+        const btn=card?card.querySelector('[onclick*="sk_downloadRec"]'):null;
+        if(btn){btn.textContent='변환중...';btn.disabled=true;}
+        try {
+            const first=await sk_loadImg(rec.frames[0].img);
+            const cvs=document.createElement('canvas');
+            cvs.width=first.naturalWidth||800; cvs.height=first.naturalHeight||600;
+            const ctx=cvs.getContext('2d');
+            const mimeType=MediaRecorder.isTypeSupported('video/webm;codecs=vp9')?'video/webm;codecs=vp9':'video/webm';
+            const stream=cvs.captureStream(24);
+            const recorder=new MediaRecorder(stream,{mimeType,videoBitsPerSecond:2000000});
+            const chunks=[];
+            recorder.ondataavailable=e=>{if(e.data.size>0)chunks.push(e.data);};
+            const done=new Promise(res=>{recorder.onstop=()=>{
+                const blob=new Blob(chunks,{type:'video/webm'});
+                const url=URL.createObjectURL(blob);
+                const a=document.createElement('a');
+                a.href=url; a.download=uid+'_스케치북녹화.webm';
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                setTimeout(()=>URL.revokeObjectURL(url),5000); res();
+            };});
+            recorder.start(100);
+            for(let i=0;i<rec.frames.length;i++){
+                const fimg=await sk_loadImg(rec.frames[i].img);
+                ctx.fillStyle='white'; ctx.fillRect(0,0,cvs.width,cvs.height);
+                ctx.drawImage(fimg,0,0,cvs.width,cvs.height);
+                const nxt=rec.frames[i+1];
+                const delay=nxt?Math.min(nxt.ts-rec.frames[i].ts,8000)/8:500;
+                await new Promise(r=>setTimeout(r,Math.max(delay,80)));
+            }
+            recorder.stop(); await done;
+        } catch(e){alert('다운로드 실패: '+e.message);}
+        finally{if(btn){btn.textContent='💾 다운';btn.disabled=false;}}
     }
 
     function sk_openSubmissionModal(title, imgSrc) {
