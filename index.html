@@ -113,6 +113,22 @@
         .draggable-student { cursor: grab; }
         .draggable-student:active { cursor: grabbing; }
 
+        /* ── 플로팅 채팅창 ── */
+        .fchat-win { position:fixed; z-index:9000; width:300px; min-width:220px; height:380px; min-height:200px; border-radius:12px; box-shadow:0 8px 32px rgba(0,0,0,.35); background:#fff; display:flex; flex-direction:column; overflow:hidden; border:1.5px solid rgba(0,0,0,.13); resize:both; }
+        .fchat-titlebar { display:flex; align-items:center; gap:6px; padding:8px 10px; cursor:grab; color:#fff; font-weight:700; font-size:13px; flex-shrink:0; user-select:none; }
+        .fchat-titlebar:active { cursor:grabbing; }
+        .fchat-titlebar .fchat-ctrl { background:rgba(255,255,255,.25); border:none; color:#fff; border-radius:50%; width:22px; height:22px; cursor:pointer; font-size:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; padding:0; }
+        .fchat-titlebar .fchat-ctrl:hover { background:rgba(255,255,255,.45); }
+        .fchat-msgs { flex:1; padding:8px; overflow-y:auto; background:#e5ddd5; font-size:12px; min-height:0; }
+        .fchat-input { display:grid; grid-template-columns:8fr 2fr; gap:6px; padding:8px 10px; border-top:1px solid rgba(0,0,0,.08); background:linear-gradient(to bottom,#f8f8f8,#f0f0f0); flex-shrink:0; align-items:center; }
+        .fchat-input input { border:1.5px solid #ddd; border-radius:20px; padding:7px 14px; font-size:12px; outline:none; min-width:0; height:34px; box-sizing:border-box; background:#fff; transition:border-color .15s; }
+        .fchat-input input:focus { border-color:#4CAF50; }
+        .fchat-input button { background:linear-gradient(135deg,#4CAF50,#2e7d32); color:#fff; border:none; border-radius:20px; font-size:12px; cursor:pointer; font-weight:700; height:34px; padding:0; box-shadow:0 2px 6px rgba(76,175,80,.35); transition:opacity .15s,transform .1s; letter-spacing:.02em; }
+        .fchat-input button:hover { opacity:.9; }
+        .fchat-input button:active { transform:scale(.96); }
+        .btn-float { background:rgba(255,255,255,.85) !important; color:#333 !important; border:1px solid #ccc !important; font-size:12px !important; padding:3px 7px !important; border-radius:4px !important; cursor:pointer; }
+        .btn-float:hover { background:#fff !important; }
+
         #remove-dropzone-hint { display: none; background: #ffcdd2; color: #c62828; padding: 15px; text-align: center; border-radius: 6px; margin-bottom: 15px; font-weight: bold; border: 2px dashed #ef5350; font-size: 14px; animation: pulse 1s infinite alternate; }
         @keyframes pulse { from { opacity: 0.7; transform: scale(0.98); } to { opacity: 1; transform: scale(1.02); } }
 
@@ -232,7 +248,7 @@ body{font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif
 
 /* ── 프로필 카드 (홈 상단 - 크게) ── */
 .profile-card{background:linear-gradient(140deg,#FFFBEB 0%,#FEF3C7 100%);padding:20px 18px 14px;border-bottom:1px solid #FDE68A;}
-.profile-top{display:flex;align-items:center;gap:16px;margin-bottom:14px;}
+.profile-top{display:flex;align-items:center;gap:16px;}
 .s-avatar{width:76px;height:76px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:44px;font-weight:700;color:#fff;flex-shrink:0;border:3px solid rgba(255,255,255,.35);box-shadow:0 4px 12px rgba(0,0,0,.3);overflow:hidden;background-size:cover;background-position:center;}
 .profile-info{flex:1;min-width:0;}
 .s-name{color:#78350F;font-size:20px;font-weight:800;display:block;margin-bottom:4px;}
@@ -305,7 +321,7 @@ body{font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif
 .book-status-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;}
 .bstatus-btn{padding:9px 6px;border-radius:var(--radius-sm);border:2px solid var(--border);background:transparent;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;text-align:center;color:var(--text);line-height:1.3;}
 .bstatus-btn.active{border-color:var(--primary);background:#EEF2FF;color:var(--primary);}
-.book-moods{display:flex;flex-wrap:wrap;gap:6px;}
+.book-moods{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
 .bmood-btn{padding:5px 11px;border-radius:999px;border:2px solid var(--border);background:transparent;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;color:var(--text);transition:all .13s;}
 .bmood-btn.sel{border-color:var(--primary);background:#EEF2FF;color:var(--primary);}
 .book-search-box{border:2px dashed var(--primary-light);border-radius:var(--radius-sm);padding:14px;text-align:center;cursor:pointer;margin-bottom:12px;color:var(--primary);font-weight:600;font-size:14px;background:#EEF2FF;}
@@ -759,6 +775,28 @@ textarea.finput{resize:vertical;}
             display: flex;
             flex-direction: column;
         }
+        /* Restore chat screen sidebar to light style */
+        #chat-screen .sidebar, #teacher-screen .sidebar {
+            background: #f9f9f9 !important;
+            color: #333 !important;
+            padding: 15px !important;
+            display: block !important;
+            width: 250px;
+            border-right: 1px solid #ddd;
+            overflow-y: auto;
+            box-sizing: border-box;
+            flex-shrink: 0;
+        }
+        #chat-screen .sidebar h3, #teacher-screen .sidebar h3 {
+            margin-top: 0;
+            font-size: 14px;
+            border-bottom: 2px solid #ddd;
+            padding-bottom: 10px;
+            color: #333 !important;
+        }
+        #chat-screen .sidebar .user-list li, #teacher-screen .sidebar .user-list li {
+            color: #333 !important;
+        }
         /* Ensure student top-nav uses its own styling (not chat header) */
         #pts-student-screen .top-nav {
             position: sticky;
@@ -882,25 +920,25 @@ textarea.finput{resize:vertical;}
 
     <!-- 프로필 헤더 -->
     <div class="profile-card" id="stu-profile-card">
-        <div class="profile-top" style="align-items:center">
+        <div class="profile-top" style="align-items:center;position:relative;min-height:72px">
             <!-- 아바타 (클릭하면 편집) -->
             <div style="position:relative;flex-shrink:0;cursor:pointer" onclick="stu_openProfileEdit()">
                 <div class="s-avatar" id="stu-s-avatar">?</div>
                 <div style="position:absolute;bottom:0;right:0;background:#F59E0B;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid white;cursor:pointer">✏️</div>
             </div>
-            <!-- 이름 + 계좌 (왼쪽 정렬) -->
-            <div class="profile-info" style="flex:1;min-width:0;text-align:left">
+            <!-- 이름 (왼쪽) -->
+            <div class="profile-info" style="flex-shrink:0;text-align:left">
                 <span class="s-name" id="stu-s-name">—</span>
                 <span class="mood-snippet" id="stu-mood-snippet" style="text-align:left;display:block"></span>
-                <button class="btn-acct" onclick="stu_openAccountModal()" style="width:auto;margin-top:4px;padding:4px 10px;font-size:11px;">📊 계좌</button>
             </div>
-            <!-- 토큰 오른쪽 -->
-            <div style="flex-shrink:0;text-align:right">
+            <!-- 좌우명 (가로·세로 정중앙 절대 배치) -->
+            <div id="stu-motto-display" onclick="stu_editMotto()" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);max-width:50%;cursor:pointer;color:rgba(120,53,15,.75);font-size:36px;font-style:italic;text-align:center;line-height:1.2;word-break:keep-all;overflow-wrap:break-word;white-space:nowrap;" title="클릭하여 좌우명 수정">✨ 좌우명을 입력하세요</div>
+            <!-- 토큰 + 계좌 버튼 (오른쪽) -->
+            <div style="margin-left:auto;flex-shrink:0;text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:6px">
                 <div class="token-big" id="stu-s-tokens">🪙 0</div>
+                <button class="btn-acct" onclick="stu_openAccountModal()" style="width:auto;padding:4px 10px;font-size:11px;">📊 계좌</button>
             </div>
         </div>
-        <!-- 좌우명 (가운데 정렬, 별도 행) -->
-        <div id="stu-motto-display" onclick="stu_editMotto()" style="cursor:pointer;color:rgba(120,53,15,.65);font-size:12px;margin-top:10px;font-style:italic;min-height:18px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="클릭하여 좌우명 수정">✨ 좌우명을 입력하세요</div>
     </div>
 
     <div class="app-content">
@@ -917,9 +955,7 @@ textarea.finput{resize:vertical;}
                     <div id="stu-home-role" style="flex:1;overflow-y:auto"></div>
                 </div>
                 <div class="section-card" style="margin:0;display:flex;flex-direction:column">
-                    <div class="section-head" style="flex-wrap:nowrap;white-space:nowrap;overflow:hidden">📚 독서카드
-                        <button onclick="stu_openBookModal()" style="flex-shrink:0;background:#6366F1;color:white;border:none;border-radius:6px;padding:2px 6px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;">✏️ 작성</button>
-                    </div>
+                    <div class="section-head" style="display:grid;grid-template-columns:4fr 1fr;gap:6px;align-items:center;padding:10px 12px"><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📚 독서카드</span><button onclick="stu_openBookModal()" style="background:#6366F1;color:white;border:none;border-radius:8px;padding:5px 0;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;width:100%;text-align:center">✏️ 작성</button></div>
                     <div id="stu-home-books" style="flex:1;overflow-y:auto"></div>
                 </div>
             </div>
@@ -1031,8 +1067,33 @@ textarea.finput{resize:vertical;}
 <!-- 계좌 보기 -->
 <div class="overlay" id="stu-modal-account" style="display:none">
     <div class="modal" style="max-width:520px">
-        <div class="modal-head"><div class="modal-title">📊 내 계좌</div><button class="modal-close" onclick="stu_closeModal('modal-account')">✕</button></div>
+        <div class="modal-head" style="display:grid;grid-template-columns:5fr 1fr;align-items:center;padding:14px 18px 12px">
+            <div class="modal-title">📊 내 계좌</div>
+            <button class="modal-close" style="justify-self:end" onclick="stu_closeModal('modal-account')">✕</button>
+        </div>
         <div class="modal-body" id="stu-account-body"></div>
+    </div>
+</div>
+
+<!-- 은행 상세 -->
+<div class="overlay" id="stu-modal-bank-detail" style="display:none">
+    <div class="modal" style="max-width:500px">
+        <div class="modal-head" style="display:grid;grid-template-columns:5fr 1fr;align-items:center;padding:14px 18px 12px">
+            <div class="modal-title">🏦 은행 상세</div>
+            <button class="modal-close" style="justify-self:end" onclick="stu_closeModal('modal-bank-detail')">✕</button>
+        </div>
+        <div class="modal-body" id="stu-bank-detail-body"></div>
+    </div>
+</div>
+
+<!-- 주식 상세 -->
+<div class="overlay" id="stu-modal-stock-detail" style="display:none">
+    <div class="modal" style="max-width:500px">
+        <div class="modal-head" style="display:grid;grid-template-columns:5fr 1fr;align-items:center;padding:14px 18px 12px">
+            <div class="modal-title">📈 주식 포트폴리오</div>
+            <button class="modal-close" style="justify-self:end" onclick="stu_closeModal('modal-stock-detail')">✕</button>
+        </div>
+        <div class="modal-body" id="stu-stock-detail-body"></div>
     </div>
 </div>
 
@@ -1144,7 +1205,11 @@ textarea.finput{resize:vertical;}
 
 <div class="overlay" id="stu-modal-book" style="display:none">
     <div class="modal" style="max-width:520px">
-        <div class="modal-head"><div class="modal-title">📖 독서카드 작성</div><button class="modal-close" onclick="stu_closeModal('modal-book')">✕</button></div>
+        <div class="modal-head" style="display:grid;grid-template-columns:repeat(5,1fr);align-items:center;gap:4px;padding:14px 18px 12px">
+            <div class="modal-title" style="grid-column:1/4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:16px;font-weight:700">📖 독서카드 작성</div>
+            <div style="grid-column:4/5"></div>
+            <button class="modal-close" style="grid-column:5/6;justify-self:end" onclick="stu_closeModal('modal-book')">✕</button>
+        </div>
         <div class="modal-body">
             <!-- 책 선택 -->
             <div class="fg">
@@ -1977,8 +2042,9 @@ textarea.finput{resize:vertical;}
                     <button id="sk-btn-shape-bubble4" onclick="sk_setTool('shape-bubble4')" class="sk-tool-btn" style="background:#6c3483;border:none;font-size:15px;padding:6px 0;" title="폭발풍선">💥</button>
                     <button id="sk-btn-shape-grid"    onclick="sk_setTool('shape-grid')"    class="sk-tool-btn" style="background:#6c3483;border:none;font-size:14px;padding:6px 0;" title="격자">⊞</button>
                 </div>
-                <button id="sk-btn-merge"   onclick="sk_mergeSelected()"   style="display:none;background:#e67e22;color:white;border:none;border-radius:6px;cursor:pointer;width:100%;font-size:10px;padding:5px 0;">🔗 병합</button>
-                <button id="sk-btn-unmerge" onclick="sk_unmergeSelected()" style="display:none;background:#e67e22;color:white;border:none;border-radius:6px;cursor:pointer;width:100%;font-size:10px;padding:5px 0;">🔓 풀기</button>
+                <button id="sk-btn-merge"   onclick="sk_mergeSelected()"         style="display:none;background:#e67e22;color:white;border:none;border-radius:6px;cursor:pointer;width:100%;font-size:10px;padding:5px 0;">🔗 병합</button>
+                <button id="sk-btn-unmerge" onclick="sk_unmergeSelected()"       style="display:none;background:#e67e22;color:white;border:none;border-radius:6px;cursor:pointer;width:100%;font-size:10px;padding:5px 0;">🔓 풀기</button>
+                <button id="sk-btn-delete"  onclick="sk_deleteSelectedShapes()"  style="display:none;background:#e74c3c;color:white;border:none;border-radius:6px;cursor:pointer;width:100%;font-size:10px;padding:5px 0;">🗑 삭제</button>
             </div>
             <hr style="border:0; border-top:1px solid #4a6278; margin:1px 0; width:100%;">
             <!-- 사진/PC -->
@@ -1994,10 +2060,12 @@ textarea.finput{resize:vertical;}
             </div>
             <hr style="border:0; border-top:1px solid #4a6278; margin:1px 0; width:100%;">
             <!-- 저장/제출/지우기 -->
-            <button onclick="sk_saveAndDownload()" class="sk-tool-btn" style="background:#2ecc71; border-color:#2ecc71; width:100%; font-size:10px; padding:6px 2px;">💾 저장하기</button>
-            <button onclick="sk_showInviteModal()" class="sk-tool-btn" style="background:#3498db; border-color:#3498db; width:100%; font-size:10px; padding:6px 2px;">👥 초대하기</button>
-            <button onclick="sk_submitToTeacher()" id="sk-submit-btn" class="sk-tool-btn" style="background:#9b59b6; border-color:#9b59b6; font-weight:bold; width:100%; font-size:10px; padding:6px 2px;">📤 제출</button>
             <button onclick="sk_clearCanvas()" class="sk-tool-btn" style="background:#e74c3c; width:100%; font-size:10px; padding:6px 2px; line-height:1.3;">🗑️전체지우기</button>
+            <button onclick="sk_showInviteModal()" class="sk-tool-btn" style="background:#3498db; border-color:#3498db; width:100%; font-size:10px; padding:6px 2px;">👥 초대하기</button>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;width:100%">
+                <button onclick="sk_saveAndDownload()" class="sk-tool-btn" style="background:#2ecc71; border-color:#2ecc71; font-size:10px; padding:6px 2px;">💾 저장</button>
+                <button onclick="sk_submitToTeacher()" id="sk-submit-btn" class="sk-tool-btn" style="background:#9b59b6; border-color:#9b59b6; font-weight:bold; font-size:10px; padding:6px 2px;">📤 제출</button>
+            </div>
         </div>
         <div id="sk-canvas-container" style="flex-grow:1; overflow:hidden; background:#888; position:relative; display:flex; align-items:center; justify-content:center;">
             <div id="sk-canvas-wrapper" style="position:relative; background:white; flex-shrink:0; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,0.3);">
@@ -2416,6 +2484,7 @@ textarea.finput{resize:vertical;}
     let localUsers = {};
     let localRooms = {};
     let localMessages = [];
+    let localMessageKeys = {};
     let localClassScores = {};
     let sessionStartTime = Date.now();
     let lastAlertTimestamps = {};
@@ -2676,10 +2745,27 @@ textarea.finput{resize:vertical;}
 
         window.addEventListener('unload', function() {
             if (!myInfo || !myInfo.name || isLoggingOut) return;
+            const grade = myInfo.grade, classNum = myInfo.classNum;
             if (myInfo.isTeacher) {
                 for (let roomId in localRooms) {
                     const room = localRooms[roomId];
-                    if (room.grade === myInfo.grade && room.classNum === myInfo.classNum && !room.isDefault) {
+                    if (room.grade === grade && room.classNum === classNum && !room.isDefault) {
+                        database.ref(`rooms/${roomId}`).remove();
+                    }
+                }
+            } else {
+                // 학생: 브라우저 종료 시 스쿨톡 메시지 및 방 초기화
+                const classRooms = Object.keys(localRooms).filter(rid => {
+                    const r = localRooms[rid]; return r.grade === grade && r.classNum === classNum;
+                });
+                const msgUpdates = {};
+                Object.entries(localMessageKeys).forEach(([key, roomId]) => {
+                    if (classRooms.includes(roomId)) msgUpdates[key] = null;
+                });
+                if (Object.keys(msgUpdates).length) database.ref('messages').update(msgUpdates);
+                for (let roomId in localRooms) {
+                    const room = localRooms[roomId];
+                    if (room.grade === grade && room.classNum === classNum && !room.isDefault) {
                         database.ref(`rooms/${roomId}`).remove();
                     }
                 }
@@ -2688,7 +2774,7 @@ textarea.finput{resize:vertical;}
 
         database.ref('users').on('value', snapshot => { localUsers = snapshot.val() || {}; updateViews(); });
         database.ref('rooms').on('value', snapshot => { localRooms = {}; snapshot.forEach(child => { localRooms[child.key] = child.val(); }); updateViews(); });
-        database.ref('messages').on('value', snapshot => { localMessages = []; snapshot.forEach(child => { localMessages.push(child.val()); }); updateViews(); });
+        database.ref('messages').on('value', snapshot => { localMessages = []; localMessageKeys = {}; snapshot.forEach(child => { localMessages.push(child.val()); localMessageKeys[child.key] = child.val().roomId; }); updateViews(); });
         database.ref(`classScores/${myInfo.grade}_${myInfo.classNum}`).on('value', snapshot => { localClassScores = snapshot.val() || {}; updateViews(); });
 
         database.ref('gameAlerts').on('value', snapshot => {
@@ -2780,6 +2866,7 @@ textarea.finput{resize:vertical;}
         renderUserList();
         if(myInfo.isTeacher) renderTeacherDashboard();
         else renderStudentMultiScreen();
+        if (typeof fchatUpdateAll === 'function') fchatUpdateAll();
 
         setTimeout(() => {
             for (let id in inputValues) {
@@ -3137,7 +3224,7 @@ textarea.finput{resize:vertical;}
             let actionBtn = !room.isDefault ? (isCreator ? `<button class="btn-danger" onclick="destroyRoom('${room.roomId}')">❌ 폭파</button>` : `<button class="btn-warning" onclick="leaveRoom('${room.roomId}')">🚪 나가기</button>`) : "";
             let gameBtn = room.isDefault ? `<button class="btn-game" onclick="openGame('${room.roomId}', '${room.title}', ${isCreator})">🎮 게임</button>` : `<button class="btn-game" onclick="openRoomGame('${room.roomId}', '${room.title}', ${isCreator})" style="background:#9c27b0 !important; color:white !important; border-color:#7b1fa2 !important;">🏆 게임</button>`;
 
-            header.innerHTML = `<div>${room.title}${room.paused ? ' <span style="background:#f44336; font-size:10px; padding:2px 6px; border-radius:10px;">⏸️일시정지</span>' : ''}</div><div class="btn-group">${gameBtn}${actionBtn}</div>`;
+            header.innerHTML = `<div>${room.title}${room.paused ? ' <span style="background:#f44336; font-size:10px; padding:2px 6px; border-radius:10px;">⏸️일시정지</span>' : ''}</div><div class="btn-group"><button class="btn-float" onclick="floatChat('${room.roomId}')" title="별도 창으로 분리">↗️</button>${gameBtn}${actionBtn}</div>`;
             card.appendChild(header);
 
             const body = document.createElement('div');
@@ -3187,6 +3274,131 @@ textarea.finput{resize:vertical;}
         input.value = "";
         const now = new Date(); const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
         database.ref('messages').push({ roomId: roomId, sender: myInfo.name, text: text, time: timeStr, grade: myInfo.grade, classNum: myInfo.classNum });
+    }
+
+    /* ── 플로팅 채팅창 ── */
+    const floatingChats = new Set();
+    let fchatZ = 9100;
+
+    function floatChat(roomId) {
+        const existing = document.getElementById('fchat-' + roomId);
+        if (existing) {
+            fchatZ++; existing.style.zIndex = fchatZ;
+            existing.style.display = 'flex';
+            existing.dataset.minimized = '0';
+            const msgs = document.getElementById('fchat-msgs-' + roomId);
+            const inp  = existing.querySelector('.fchat-input');
+            if (msgs) msgs.style.display = '';
+            if (inp)  inp.style.display = '';
+            return;
+        }
+        const room = localRooms[roomId];
+        if (!room) return;
+        floatingChats.add(roomId);
+        fchatZ++;
+        const offset = (floatingChats.size - 1) * 28;
+        const win = document.createElement('div');
+        win.className = 'fchat-win';
+        win.id = 'fchat-' + roomId;
+        win.style.cssText = `z-index:${fchatZ};top:${60+offset}px;right:${20+offset}px`;
+        const bg = room.isDefault ? '#4CAF50' : '#673AB7';
+        win.innerHTML = `
+            <div class="fchat-titlebar" id="fchat-bar-${roomId}" style="background:${bg}">
+                <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${room.title}</span>
+                <button class="fchat-ctrl" onclick="event.stopPropagation();fchatMinimize('${roomId}')" title="최소화">—</button>
+                <button class="fchat-ctrl" onclick="event.stopPropagation();fchatClose('${roomId}')" title="닫기">✕</button>
+            </div>
+            <div class="fchat-msgs" id="fchat-msgs-${roomId}"></div>
+            <div class="fchat-input">
+                <input type="text" id="fchat-input-${roomId}" placeholder="대화 입력..." onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();fchatSend('${roomId}')}">
+                <button onclick="fchatSend('${roomId}')">전송</button>
+            </div>`;
+        document.body.appendChild(win);
+        win.addEventListener('mousedown', function() { fchatZ++; this.style.zIndex = fchatZ; });
+        fchatMakeDraggable(win, document.getElementById('fchat-bar-' + roomId));
+        fchatRenderMsgs(roomId);
+    }
+
+    function fchatClose(roomId) {
+        floatingChats.delete(roomId);
+        const win = document.getElementById('fchat-' + roomId);
+        if (win) win.remove();
+    }
+
+    function fchatMinimize(roomId) {
+        const win = document.getElementById('fchat-' + roomId);
+        if (!win) return;
+        const isMin = win.dataset.minimized === '1';
+        const msgs = document.getElementById('fchat-msgs-' + roomId);
+        const inp  = win.querySelector('.fchat-input');
+        if (isMin) {
+            if (msgs) msgs.style.display = '';
+            if (inp)  inp.style.display = '';
+            win.dataset.minimized = '0';
+        } else {
+            if (msgs) msgs.style.display = 'none';
+            if (inp)  inp.style.display = 'none';
+            win.dataset.minimized = '1';
+        }
+    }
+
+    function fchatSend(roomId) {
+        const input = document.getElementById('fchat-input-' + roomId);
+        if (!input) return;
+        const text = input.value.trim();
+        if (!text) return;
+        input.value = '';
+        const now = new Date();
+        const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+        database.ref('messages').push({ roomId, sender: myInfo.name, text, time: timeStr, grade: myInfo.grade, classNum: myInfo.classNum });
+    }
+
+    function fchatRenderMsgs(roomId) {
+        const el = document.getElementById('fchat-msgs-' + roomId);
+        if (!el) return;
+        const atBottom = el.scrollHeight === 0 || (el.scrollHeight - el.scrollTop - el.clientHeight) <= 50;
+        el.innerHTML = '';
+        localMessages.forEach(m => {
+            if (m.roomId !== roomId) return;
+            const isMe = m.sender === myInfo.name;
+            const displaySender = isMe ? '나' : getRankString(m.sender) + m.sender;
+            el.innerHTML += `<div class="msg-line ${isMe?'me':'other'}"><div class="msg-sender" style="color:${isMe?'#4CAF50':'#d32f2f'}">${displaySender}</div><div class="msg-text">${linkify(m.text)}</div><div class="msg-time">${m.time}</div></div>`;
+        });
+        if (atBottom) el.scrollTop = el.scrollHeight;
+    }
+
+    function fchatUpdateAll() {
+        floatingChats.forEach(roomId => fchatRenderMsgs(roomId));
+    }
+
+    function fchatMakeDraggable(el, handle) {
+        let sx, sy, sl, st;
+        function startDrag(cx, cy) {
+            const r = el.getBoundingClientRect();
+            el.style.right = ''; el.style.left = r.left + 'px'; el.style.top = r.top + 'px';
+            sx = cx; sy = cy; sl = r.left; st = r.top;
+        }
+        function moveDrag(cx, cy) {
+            el.style.left = Math.max(0, Math.min(sl + cx - sx, window.innerWidth - el.offsetWidth)) + 'px';
+            el.style.top  = Math.max(0, Math.min(st + cy - sy, window.innerHeight - 40)) + 'px';
+        }
+        handle.addEventListener('mousedown', function(e) {
+            if (e.target.tagName === 'BUTTON') return;
+            e.preventDefault();
+            startDrag(e.clientX, e.clientY);
+            const onMove = e2 => moveDrag(e2.clientX, e2.clientY);
+            const onUp   = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+        });
+        handle.addEventListener('touchstart', function(e) {
+            if (e.target.tagName === 'BUTTON') return;
+            startDrag(e.touches[0].clientX, e.touches[0].clientY);
+            const onMove = e2 => { e2.preventDefault(); moveDrag(e2.touches[0].clientX, e2.touches[0].clientY); };
+            const onEnd  = () => { handle.removeEventListener('touchmove', onMove); handle.removeEventListener('touchend', onEnd); };
+            handle.addEventListener('touchmove', onMove, { passive: false });
+            handle.addEventListener('touchend', onEnd);
+        }, { passive: true });
     }
 
     function sendTeacherMessage() {
@@ -3890,6 +4102,7 @@ textarea.finput{resize:vertical;}
     let sk_isTDrawing = false, sk_tLastX = 0, sk_tLastY = 0;
     let sk_teacherLiveRef = null;
     let sk_lastEditTs = 0;
+    let sk_sessionStartTs = 0;
     let sk_studentInited = false, sk_teacherInited = false;
 
     function switchToSketchbook() {
@@ -3897,6 +4110,8 @@ textarea.finput{resize:vertical;}
         document.getElementById('persistent-top-nav').style.display = 'flex';
         sk_myUid = myInfo.grade + '-' + myInfo.classNum + '-' + myInfo.name;
         sk_myInfo = { grade: myInfo.grade, classNum: myInfo.classNum, name: myInfo.name, submitted: false };
+        sk_sessionStartTs = Date.now();
+        sk_lastEditTs = sk_sessionStartTs;
         const userRef = sketchDb.ref('users/' + sk_myUid);
         userRef.set(sk_myInfo);
         userRef.onDisconnect().remove();
@@ -3905,6 +4120,7 @@ textarea.finput{resize:vertical;}
         if (myInfo.isTeacher) {
             document.getElementById('pts-teacher-screen').style.display = 'none';
             document.getElementById('sk-teacher-screen').style.display = 'flex';
+            sketchDb.ref('broadcast').onDisconnect().remove();
             sketchDb.ref('teacherMode').set({ active: true, ts: Date.now() });
             if (!sk_teacherInited) {
                 sk_teacherInited = true;
@@ -3939,7 +4155,10 @@ textarea.finput{resize:vertical;}
     function switchToChatTeacher() {
         document.getElementById('sk-teacher-screen').style.display = 'none';
         switchMainTab('chat');
-        if (sketchDb) sketchDb.ref('teacherMode').remove();
+        if (sketchDb) {
+            sketchDb.ref('teacherMode').remove();
+            sketchDb.ref('broadcast').remove();
+        }
     }
 
     // ====== 선생님 스케치북 모드 브로드캐스트 ======
@@ -4423,12 +4642,27 @@ textarea.finput{resize:vertical;}
         gids.forEach(gid=>sk_shapes.forEach(s=>{if(s.mergeGroupId===gid)s.mergeGroupId=null;}));
         sk_renderShapes(); sk_updateMergeButtons(); sk_saveState();
     }
+    function sk_deleteSelectedShapes() {
+        if(!sk_selectedIds.length) return;
+        sk_shapes = sk_shapes.filter(s => !sk_selectedIds.includes(s.id));
+        sk_selectedIds = [];
+        sk_renderShapes(); sk_updateMergeButtons(); sk_saveState();
+    }
     function sk_updateMergeButtons() {
         const sel=sk_selectedIds.map(id=>sk_shapes.find(s=>s.id===id)).filter(Boolean);
-        const mb=document.getElementById('sk-btn-merge'), ub=document.getElementById('sk-btn-unmerge');
+        const mb=document.getElementById('sk-btn-merge'), ub=document.getElementById('sk-btn-unmerge'), db=document.getElementById('sk-btn-delete');
         if(mb) mb.style.display=sel.length>=2?'block':'none';
         if(ub) ub.style.display=sel.some(s=>s.mergeGroupId!=null)?'block':'none';
+        if(db) db.style.display=sel.length>=1?'block':'none';
     }
+    document.addEventListener('keydown', function(e) {
+        if((e.key==='Delete'||e.key==='Backspace') && sk_selectedIds.length && sk_currentTool==='shape-select') {
+            const active=document.activeElement;
+            if(active && (active.tagName==='INPUT'||active.tagName==='TEXTAREA'||active.isContentEditable)) return;
+            e.preventDefault();
+            sk_deleteSelectedShapes();
+        }
+    });
 
     function sk_floodFillAt(x, y) {
         const imgData = sk_ctx.getImageData(0, 0, sk_canvas.width, sk_canvas.height);
@@ -4668,7 +4902,10 @@ textarea.finput{resize:vertical;}
     }
 
     function sk_listenToTeacherBroadcast() {
-        sketchDb.ref('broadcast').on('value', snap=>{ const d=snap.val(); if(d&&d.img) sk_createFloatingImage(d.img); });
+        sketchDb.ref('broadcast').on('value', snap=>{
+            const d=snap.val();
+            if(d&&d.img&&d.ts>sk_sessionStartTs) sk_createFloatingImage(d.img);
+        });
     }
 
     function sk_listenToTeacherEdits() {
@@ -6125,18 +6362,36 @@ function stu_openBookModal(){
     document.querySelectorAll('.bmood-btn').forEach(b=>b.classList.remove('sel'));
     stu_openModal('modal-book');
 }
+let _bookSearchTimer = null;
 function stu_searchBooks(){
-    const q=document.getElementById('stu-book-search-input').value.trim().toLowerCase();
+    const q=document.getElementById('stu-book-search-input').value.trim();
     const res=document.getElementById('stu-book-search-results');
     if(!q){res.style.display='none';return;}
-    const matches=stu_BOOK_LIST.filter(b=>b.toLowerCase().includes(q)).slice(0,8);
-    // Also allow custom entry
-    const allItems=matches.length?matches:[];
-    if(!matches.find(b=>b.toLowerCase()===q))allItems.push(q); // allow custom
-    res.style.display=allItems.length?'block':'none';
-    res.innerHTML=allItems.map(b=>`<div class="bsearch-item" onclick="stu_selectBook('${b.replace(/'/g,"\\'")}')">📖 ${b}</div>`).join('');
+    // Show local matches immediately
+    const localMatches=stu_BOOK_LIST.filter(b=>b.toLowerCase().includes(q.toLowerCase())).slice(0,5);
+    const render=items=>{
+        const all=[...items];
+        if(!all.find(b=>b.toLowerCase()===q.toLowerCase()))all.push(q);
+        res.style.display='block';
+        res.innerHTML=all.map(b=>`<div class="bsearch-item" onclick="stu_selectBook('${b.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">📖 ${b}</div>`).join('');
+    };
+    render(localMatches);
+    // Debounce API call
+    clearTimeout(_bookSearchTimer);
+    _bookSearchTimer=setTimeout(async()=>{
+        try{
+            const url=`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=8&printType=books`;
+            const r=await fetch(url);const data=await r.json();
+            const apiBooks=(data.items||[]).map(it=>{
+                const v=it.volumeInfo;
+                return v.title+(v.authors?(' - '+v.authors[0]):'');
+            }).filter(Boolean);
+            const merged=[...new Set([...localMatches,...apiBooks])].slice(0,12);
+            render(merged);
+        }catch(e){/* keep local results */}
+    },400);
 }
-function selectBook(title){
+function stu_selectBook(title){
     stu_selBookTitle=title;
     document.getElementById('stu-book-search-input').value='';
     document.getElementById('stu-book-search-results').style.display='none';
@@ -6168,28 +6423,12 @@ function stu_openAccountModal(){
     const mySv=stu_savings.filter(s=>s.studentId===stu_currentStudentId);
     const myH=stu_stockPortfolio.filter(p=>p.studentId===stu_currentStudentId&&p.shares>0);
     let freeVal=0;myDeps.forEach(d=>freeVal+=d.amount+stu_calcFreeInterest(d));
-    const freePrincipal=myDeps.reduce((a,d)=>a+d.amount,0);
-    const freeInterest=freeVal-freePrincipal;
     const fixedVal=mySv.reduce((a,s)=>a+s.amount,0);
     let stockVal=0,stockCost=0;
     myH.forEach(h=>{stockVal+=stu_getStockPrice(h.code)*h.shares;stockCost+=h.avgBuyPrice*h.shares;});
     const stockGain=stockVal-stockCost;
-    const stockPct=stockCost>0?(stockGain/stockCost*100).toFixed(1):'0.0';
     const bankTotal=freeVal+fixedVal;
     const total=(stu.tokens||0)+bankTotal+Math.round(stockVal);
-
-    // 최근 거래 내역 (합산)
-    const txList=[];
-    myDeps.forEach(d=>txList.push({icon:'🏦',title:'자유예금 입금',sub:'🪙'+d.amount,at:d.depositedAt,type:'in'}));
-    mySv.forEach(s=>txList.push({icon:'📅',title:(s.type==='1month'?'1개월':'3개월')+' 적금',sub:'🪙'+s.amount,at:s.depositedAt,type:'out'}));
-    stu_stockTxLog.filter(t=>t.studentId===stu_currentStudentId).forEach(t=>{
-        const sname=(stu_STOCKS.find(x=>x.code===t.code)||{name:t.code}).name;
-        if(t.type==='buy')     txList.push({icon:'📈',title:'매수 '+sname,sub:'-🪙'+(t.price*t.shares+t.tax).toFixed(0),at:t.at,type:'out'});
-        else if(t.type==='sell')txList.push({icon:'💸',title:'매도 '+sname,sub:'+🪙'+(t.price*t.shares-t.tax).toFixed(0),at:t.at,type:'in'});
-        else if(t.type==='dividend')txList.push({icon:'💵',title:'배당 '+sname,sub:'+🪙'+(t.price*t.shares-t.tax).toFixed(0),at:t.at,type:'in'});
-    });
-    txList.sort((a,b)=>b.at.localeCompare(a.at));
-    const recentTx=txList.slice(0,15);
 
     const body=document.getElementById('stu-account-body');
     body.innerHTML=`
@@ -6202,64 +6441,110 @@ function stu_openAccountModal(){
                 <div style="font-size:10px;color:rgba(255,255,255,.55);margin-bottom:3px">보유 토큰</div>
                 <div style="font-size:14px;font-weight:800;color:#FDE68A">🪙${(stu.tokens||0).toLocaleString()}</div>
             </div>
-            <div style="background:rgba(255,255,255,.1);border-radius:8px;padding:8px 4px;text-align:center">
-                <div style="font-size:10px;color:rgba(255,255,255,.55);margin-bottom:3px">은행 잔액</div>
+            <div onclick="stu_openBankDetail()" style="background:rgba(255,255,255,.1);border-radius:8px;padding:8px 4px;text-align:center;cursor:pointer;transition:background .15s" onmouseover="this.style.background='rgba(255,255,255,.2)'" onmouseout="this.style.background='rgba(255,255,255,.1)'">
+                <div style="font-size:10px;color:rgba(255,255,255,.55);margin-bottom:3px">은행 잔액 🔍</div>
                 <div style="font-size:14px;font-weight:800;color:#6EE7B7">🪙${bankTotal.toLocaleString()}</div>
             </div>
-            <div style="background:rgba(255,255,255,.1);border-radius:8px;padding:8px 4px;text-align:center">
-                <div style="font-size:10px;color:rgba(255,255,255,.55);margin-bottom:3px">주식 평가</div>
+            <div onclick="stu_openStockDetail()" style="background:rgba(255,255,255,.1);border-radius:8px;padding:8px 4px;text-align:center;cursor:pointer;transition:background .15s" onmouseover="this.style.background='rgba(255,255,255,.2)'" onmouseout="this.style.background='rgba(255,255,255,.1)'">
+                <div style="font-size:10px;color:rgba(255,255,255,.55);margin-bottom:3px">주식 평가 🔍</div>
                 <div style="font-size:14px;font-weight:800;color:${stockGain>=0?'#FCA5A5':'#93C5FD'}">🪙${Math.round(stockVal).toLocaleString()}</div>
             </div>
         </div>
-    </div>
-
-    <!-- 은행 상세 -->
-    <div style="background:var(--bg);border-radius:var(--radius-sm);padding:12px;margin-bottom:10px">
-        <div style="font-size:11px;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">🏦 은행 상세</div>
-        <div style="font-size:13px;display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--border)">
-            <div><div style="font-weight:600">자유예금</div><div style="font-size:11px;color:var(--text-light)">원금 🪙${freePrincipal} + 이자 🪙${freeInterest}</div></div>
-            <span style="font-weight:800;color:var(--primary)">🪙${freeVal}</span>
-        </div>
-        ${mySv.map(sv=>{
-            const days=Math.floor((new Date(sv.maturityDate)-new Date(sv.depositedAt))/86400000);
-            const interest=Math.floor(sv.amount*(Math.pow(1+sv.rate/100/365,days)-1));
-            const matured=Date.now()>=new Date(sv.maturityDate).getTime();
-            return `<div style="font-size:13px;display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-                <div><div style="font-weight:600">${sv.type==='1month'?'1개월':'3개월'} 적금 (연${sv.rate}%)</div>
-                <div style="font-size:11px;color:var(--text-light)">만기 ${new Date(sv.maturityDate).toLocaleDateString('ko-KR')} ${matured?'✅ 만기':'⏳'}</div></div>
-                <div style="text-align:right"><div style="font-weight:700">🪙${sv.amount}</div><div style="font-size:11px;color:var(--success)">+🪙${interest} 예상</div></div>
-            </div>`;
-        }).join('')}
-        ${!myDeps.length&&!mySv.length?'<div style="font-size:13px;color:var(--text-light);text-align:center;padding:8px">예금 내역이 없습니다</div>':''}
-    </div>
-
-    <!-- 주식 상세 -->
-    ${myH.length?`<div style="background:var(--bg);border-radius:var(--radius-sm);padding:12px;margin-bottom:10px">
-        <div style="font-size:11px;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">📈 주식 포트폴리오
-            <span class="${stockGain>=0?'gain-pos':'gain-neg'}" style="margin-left:8px;font-size:12px">${stockGain>=0?'+':''}${stockGain.toFixed(0)}🪙 (${stockPct}%)</span>
-        </div>
-        ${myH.map(h=>{const s=stu_STOCKS.find(x=>x.code===h.code)||{name:h.code};
-            const cur=stu_getStockPrice(h.code),val=cur*h.shares,cst=h.avgBuyPrice*h.shares,g=val-cst,gp=cst?(g/cst*100).toFixed(1):'0.0';
-            return `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border);font-size:13px">
-                <div><div style="font-weight:600">${s.name}</div>
-                <div style="font-size:11px;color:var(--text-light)">${h.shares.toFixed(4)}주 · 평균🪙${h.avgBuyPrice}</div></div>
-                <div style="text-align:right"><div style="font-weight:700">🪙${val.toFixed(0)}</div>
-                <div class="${g>=0?'gain-pos':'gain-neg'}" style="font-size:11px">${g>=0?'+':''}${g.toFixed(0)}🪙 (${gp}%)</div></div>
-            </div>`; }).join('')}
-    </div>`:''}
-
-    <!-- 최근 거래 내역 -->
-    <div style="background:var(--bg);border-radius:var(--radius-sm);padding:12px">
-        <div style="font-size:11px;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">📋 최근 거래 내역</div>
-        ${recentTx.length?recentTx.map(t=>`
-        <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px">
-            <span style="font-size:18px;flex-shrink:0">${t.icon}</span>
-            <div style="flex:1"><div style="font-weight:600">${t.title}</div>
-            <div style="color:var(--text-light);font-size:11px">${stu_fmtDate(t.at)}</div></div>
-            <span style="font-weight:700;color:${t.type==='in'?'var(--success)':'var(--danger)'}">${t.sub}</span>
-        </div>`).join(''):'<div style="font-size:13px;color:var(--text-light);text-align:center;padding:8px">거래 내역이 없습니다</div>'}
     </div>`;
     stu_openModal('modal-account');
+}
+
+function stu_openBankDetail(){
+    stu_loadAll();
+    const myDeps=stu_bankDeposits.filter(d=>d.studentId===stu_currentStudentId);
+    const mySv=stu_savings.filter(s=>s.studentId===stu_currentStudentId);
+    let freeVal=0;myDeps.forEach(d=>freeVal+=d.amount+stu_calcFreeInterest(d));
+    const freePrincipal=myDeps.reduce((a,d)=>a+d.amount,0);
+    const freeInterest=Math.round(freeVal-freePrincipal);
+    const fixedVal=mySv.reduce((a,s)=>a+s.amount,0);
+    const bankTotal=freeVal+fixedVal;
+    const body=document.getElementById('stu-bank-detail-body');
+    body.innerHTML=`
+    <div style="background:linear-gradient(140deg,#064E3B,#065F46);border-radius:var(--radius-sm);padding:14px;margin-bottom:14px;text-align:center">
+        <div style="font-size:11px;color:rgba(255,255,255,.6);font-weight:700;letter-spacing:.06em;margin-bottom:4px">은행 총 잔액</div>
+        <div style="font-size:26px;font-weight:900;color:#fff">🪙${Math.round(bankTotal).toLocaleString()}</div>
+    </div>
+    <!-- 자유예금 -->
+    <div style="background:var(--bg);border-radius:var(--radius-sm);padding:12px;margin-bottom:10px">
+        <div style="font-size:11px;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">🏦 자유예금</div>
+        ${myDeps.length?`
+        <div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px solid var(--border)">
+            <span style="color:var(--text-light)">원금</span><span style="font-weight:700">🪙${freePrincipal.toLocaleString()}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px solid var(--border)">
+            <span style="color:var(--text-light)">누적 이자</span><span style="font-weight:700;color:var(--success)">+🪙${freeInterest.toLocaleString()}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:14px;padding:8px 0;font-weight:800">
+            <span>합계</span><span style="color:var(--primary)">🪙${Math.round(freeVal).toLocaleString()}</span>
+        </div>`:'<div style="font-size:13px;color:var(--text-light);text-align:center;padding:8px">자유예금 내역이 없습니다</div>'}
+    </div>
+    <!-- 적금 -->
+    ${mySv.length?`<div style="background:var(--bg);border-radius:var(--radius-sm);padding:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">📅 적금</div>
+        ${mySv.map(sv=>{
+            const days=Math.floor((Date.now()-new Date(sv.depositedAt).getTime())/86400000);
+            const totalDays=Math.floor((new Date(sv.maturityDate)-new Date(sv.depositedAt))/86400000);
+            const interest=Math.floor(sv.amount*(Math.pow(1+sv.rate/100/365,days)-1));
+            const matured=Date.now()>=new Date(sv.maturityDate).getTime();
+            return `<div style="background:var(--card-bg);border-radius:8px;padding:10px;margin-bottom:8px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                    <div style="font-weight:700;font-size:13px">${sv.type==='1month'?'1개월':'3개월'} 적금 (연${sv.rate}%)</div>
+                    <span style="font-size:11px;background:${matured?'#10B981':'#6366F1'};color:#fff;padding:2px 7px;border-radius:10px">${matured?'✅ 만기':'⏳ 진행중'}</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-light);margin-bottom:3px">
+                    <span>원금</span><span style="font-weight:600;color:var(--text)">🪙${sv.amount.toLocaleString()}</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-light);margin-bottom:3px">
+                    <span>현재 이자 (${days}일 경과)</span><span style="font-weight:600;color:var(--success)">+🪙${interest.toLocaleString()}</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-light)">
+                    <span>만기일</span><span>${new Date(sv.maturityDate).toLocaleDateString('ko-KR')}</span>
+                </div>
+            </div>`;
+        }).join('')}
+    </div>`:''}`;
+    stu_openModal('modal-bank-detail');
+}
+
+function stu_openStockDetail(){
+    stu_loadAll();
+    const myH=stu_stockPortfolio.filter(p=>p.studentId===stu_currentStudentId&&p.shares>0);
+    let stockVal=0,stockCost=0;
+    myH.forEach(h=>{stockVal+=stu_getStockPrice(h.code)*h.shares;stockCost+=h.avgBuyPrice*h.shares;});
+    const stockGain=stockVal-stockCost;
+    const stockPct=stockCost>0?(stockGain/stockCost*100).toFixed(1):'0.0';
+    const body=document.getElementById('stu-stock-detail-body');
+    body.innerHTML=`
+    <div style="background:linear-gradient(140deg,#1E3A5F,#1E40AF);border-radius:var(--radius-sm);padding:14px;margin-bottom:14px;text-align:center">
+        <div style="font-size:11px;color:rgba(255,255,255,.6);font-weight:700;letter-spacing:.06em;margin-bottom:4px">주식 평가금액</div>
+        <div style="font-size:26px;font-weight:900;color:#fff;margin-bottom:4px">🪙${Math.round(stockVal).toLocaleString()}</div>
+        <div style="font-size:13px;font-weight:700;color:${stockGain>=0?'#FCA5A5':'#93C5FD'}">${stockGain>=0?'+':''}${stockGain.toFixed(0)}🪙 (${stockGain>=0?'+':''}${stockPct}%)</div>
+    </div>
+    ${myH.length?`<div style="background:var(--bg);border-radius:var(--radius-sm);padding:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">📋 보유 종목</div>
+        ${myH.map(h=>{
+            const s=stu_STOCKS.find(x=>x.code===h.code)||{name:h.code};
+            const cur=stu_getStockPrice(h.code),val=cur*h.shares,cst=h.avgBuyPrice*h.shares,g=val-cst,gp=cst?(g/cst*100).toFixed(1):'0.0';
+            return `<div style="background:var(--card-bg);border-radius:8px;padding:10px;margin-bottom:8px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                    <div style="font-weight:700;font-size:14px">${s.name}</div>
+                    <div style="font-size:14px;font-weight:800">🪙${val.toFixed(0)}</div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:12px">
+                    <div style="color:var(--text-light)">보유 수량</div><div style="text-align:right;font-weight:600">${h.shares.toFixed(4)}주</div>
+                    <div style="color:var(--text-light)">평균 매수가</div><div style="text-align:right;font-weight:600">🪙${h.avgBuyPrice}</div>
+                    <div style="color:var(--text-light)">현재가</div><div style="text-align:right;font-weight:600">🪙${cur}</div>
+                    <div style="color:var(--text-light)">손익</div><div style="text-align:right;font-weight:700;color:${g>=0?'var(--success)':'var(--danger)'}">${g>=0?'+':''}${g.toFixed(0)}🪙 (${g>=0?'+':''}${gp}%)</div>
+                </div>
+            </div>`;
+        }).join('')}
+    </div>`:'<div style="text-align:center;color:var(--text-light);font-size:13px;padding:20px">보유 종목이 없습니다</div>'}`;
+    stu_openModal('modal-stock-detail');
 }
 
 /* ── 모달 헬퍼 ── */
@@ -6354,17 +6639,20 @@ function stu_initStudentApp(studentName) {
     }
     // Sync from Firebase first, then show code modal
     stu_syncFromFirebase(function() {
-        // Try to restore session from saved code
+        // Try to restore session from saved code — only if name also matches
         var savedCode = localStorage.getItem('sch_saved_code');
         if (savedCode) {
             var foundByCode = stu_students.find(function(s){ return s.code === savedCode; });
-            if (foundByCode) {
+            if (foundByCode && foundByCode.name === studentName) {
                 stu_currentStudentId = foundByCode.id;
                 stu_currentStudentName = foundByCode.name;
                 localStorage.setItem(KEY_SESS, foundByCode.id);
                 stu_renderAll();
                 stu_showView(stu_hasDiaryToday() ? 'home' : 'diary');
                 return;
+            } else {
+                // Saved code belongs to a different account — discard it
+                localStorage.removeItem('sch_saved_code');
             }
         }
         // Try by name (fallback, no code yet)
