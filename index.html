@@ -516,8 +516,8 @@ textarea.finput{resize:vertical;}
 
         /* ─── STUDENT TABLE ─── */
         .stbl { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; }
-        .stbl-head { display:grid; grid-template-columns:56px 1fr 130px 110px 100px; padding:11px 18px; background:var(--bg); border-bottom:1px solid var(--border); font-size:11px; font-weight:700; color:var(--text-light); text-transform:uppercase; letter-spacing:.05em; }
-        .stbl-row { display:grid; grid-template-columns:56px 1fr 130px 110px 100px; padding:12px 18px; border-bottom:1px solid var(--border); align-items:center; transition:background .1s; }
+        .stbl-head { display:grid; grid-template-columns:52px 1fr 110px 90px 80px 130px; padding:11px 18px; background:var(--bg); border-bottom:1px solid var(--border); font-size:11px; font-weight:700; color:var(--text-light); text-transform:uppercase; letter-spacing:.05em; }
+        .stbl-row { display:grid; grid-template-columns:52px 1fr 110px 90px 80px 130px; padding:12px 18px; border-bottom:1px solid var(--border); align-items:center; transition:background .1s; }
         .stbl-row:last-child { border-bottom:none; }
         .stbl-row:hover { background:#F8FAFC; }
         .stbl-row .rname { display:flex; align-items:center; gap:9px; font-weight:600; }
@@ -705,15 +705,18 @@ textarea.finput{resize:vertical;}
             flex-direction: row;
             align-items: center;
             justify-content: center;
-            gap: 7px;
-            padding: 8px 4px;
+            gap: 4px;
+            padding: 6px 4px;
             color: #C7D2FE;
             cursor: pointer;
             border: none;
             background: transparent;
             font-family: 'Malgun Gothic', sans-serif;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 700;
+            white-space: nowrap;
+            overflow: hidden;
+            min-width: 0;
             transition: color 0.15s, background 0.15s;
             border-bottom: 3px solid transparent;
             letter-spacing: 0.01em;
@@ -828,9 +831,17 @@ textarea.finput{resize:vertical;}
         </button>
         <button class="main-tab-btn" id="tab-chat" onclick="switchMainTab('chat')">
             <span class="main-tab-icon">💬</span>스쿨톡
+            <span id="allow-btn-chat" onclick="event.stopPropagation();toggleAllowTab('chat')"
+                style="display:none;margin-left:5px;font-size:9px;font-weight:800;padding:2px 6px;border-radius:8px;background:#EF4444;color:#fff;cursor:pointer;line-height:1.4;white-space:nowrap;letter-spacing:0">차단</span>
+            <span id="sched-btn-chat" onclick="event.stopPropagation();openScheduleModal('chat')"
+                style="display:none;margin-left:3px;font-size:13px;cursor:pointer;line-height:1;opacity:0.6" title="허용 시간 설정">⚙️</span>
         </button>
         <button class="main-tab-btn" id="tab-sketch" onclick="switchMainTab('sketch')">
             <span class="main-tab-icon">🎨</span>스케치북
+            <span id="allow-btn-sketch" onclick="event.stopPropagation();toggleAllowTab('sketch')"
+                style="display:none;margin-left:5px;font-size:9px;font-weight:800;padding:2px 6px;border-radius:8px;background:#EF4444;color:#fff;cursor:pointer;line-height:1.4;white-space:nowrap;letter-spacing:0">차단</span>
+            <span id="sched-btn-sketch" onclick="event.stopPropagation();openScheduleModal('sketch')"
+                style="display:none;margin-left:3px;font-size:13px;cursor:pointer;line-height:1;opacity:0.6" title="허용 시간 설정">⚙️</span>
         </button>
     </div>
 
@@ -932,6 +943,9 @@ textarea.finput{resize:vertical;}
         <!-- ─── 감정일기 ─── -->
         <div class="view" id="stu-view-diary">
             <div class="view-head">💭 감정일기</div>
+            <div id="stu-diary-lock-notice" style="display:none;background:#FEF9C3;border:1.5px solid #F59E0B;border-radius:10px;padding:11px 14px;margin-bottom:12px;font-size:13px;color:#92400E;font-weight:600;text-align:center">
+                ✍️ 오늘의 감정일기를 작성해야 다른 메뉴를 이용할 수 있어요!
+            </div>
             <div class="section-card">
                 <div class="section-head">오늘의 마음 <span id="stu-diary-today-label" style="font-size:11px;color:var(--primary);font-weight:700"></span></div>
                 <div style="padding:14px">
@@ -1108,6 +1122,26 @@ textarea.finput{resize:vertical;}
 </div>
 
 <!-- 독서 카드 작성 -->
+<!-- 학생 코드 입력 모달 (비닫힘 전용) -->
+<div id="stu-modal-code-login" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9990;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;">
+    <div class="modal" style="max-width:360px;width:100%" onclick="event.stopPropagation()">
+        <div class="modal-head"><div class="modal-title">🔑 학생 코드 입력</div></div>
+        <div class="modal-body">
+            <p style="font-size:13px;color:#64748B;margin-bottom:14px;text-align:center">선생님에게 받은 5자리 코드를 입력하세요</p>
+            <input type="text" id="stu-code-input" class="finput" maxlength="5" inputmode="numeric" placeholder="00000"
+                style="text-align:center;font-size:28px;letter-spacing:8px;font-weight:800;font-family:monospace"
+                onkeydown="if(event.key==='Enter')stu_confirmCodeLogin()">
+            <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13px;cursor:pointer">
+                <input type="checkbox" id="stu-code-save" checked> 코드 저장하기 (다음에 자동으로 연결)
+            </label>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-primary" onclick="stu_confirmCodeLogin()" style="width:100%;justify-content:center">✅ 확인</button>
+        </div>
+    </div>
+</div>
+
+
 <div class="overlay" id="stu-modal-book" style="display:none">
     <div class="modal" style="max-width:520px">
         <div class="modal-head"><div class="modal-title">📖 독서카드 작성</div><button class="modal-close" onclick="stu_closeModal('modal-book')">✕</button></div>
@@ -1253,7 +1287,7 @@ textarea.finput{resize:vertical;}
             <button class="btn btn-primary" onclick="tch_openAddStudentModal()">➕ 학생 추가</button>
         </div>
         <div class="stbl">
-            <div class="stbl-head"><div>아바타</div><div>이름</div><div>보유 토큰</div><div>미션 완료</div><div>관리</div></div>
+            <div class="stbl-head"><div>아바타</div><div>이름</div><div>코드 번호</div><div>보유 토큰</div><div>미션 완료</div><div style="text-align:right">관리</div></div>
             <div id="tch-stu-tbody"></div>
         </div>
     </div>
@@ -1288,8 +1322,11 @@ textarea.finput{resize:vertical;}
                     </div>
                     <div class="m-info">
                         <div class="m-info-top">
-                            <div><div class="m-detail-title" id="tch-d-title"></div><div class="m-detail-desc" id="tch-d-desc"></div></div>
-                            <button class="btn btn-sm btn-danger" onclick="tch_deleteMission()">🗑️ 삭제</button>
+                            <div style="flex:1;min-width:0"><div class="m-detail-title" id="tch-d-title"></div><div class="m-detail-desc" id="tch-d-desc"></div></div>
+                            <div style="display:flex;gap:6px;flex-shrink:0;align-items:center;margin-left:12px">
+                                <button class="btn btn-sm btn-outline" onclick="tch_openEditMissionModal()">✏️ 수정</button>
+                                <button class="btn btn-sm btn-danger" onclick="tch_deleteMission()">🗑️ 삭제</button>
+                            </div>
                         </div>
                         <div class="m-meta">
                             <div class="meta-block">
@@ -1613,6 +1650,28 @@ textarea.finput{resize:vertical;}
     </div>
 </div>
 
+<!-- 학생 수정 -->
+<div class="overlay" id="tch-modal-edit-stu" style="display:none">
+    <div class="modal">
+        <div class="modal-head"><div class="modal-title">✏️ 학생 정보 수정</div><button class="modal-close" onclick="tch_closeModal('modal-edit-stu')">✕</button></div>
+        <div class="modal-body">
+            <div class="fg"><label>학생 이름 *</label><input type="text" id="tch-edit-stu-name" class="finput" placeholder="이름을 입력하세요" onkeydown="if(event.key==='Enter')tch_saveEditStudent()"></div>
+            <div class="fg"><label>아바타 이모지 선택 (선택 안 하면 이름 첫 글자 사용)</label><div class="emoji-grid" id="tch-edit-emoji-grid"></div></div>
+            <div class="fg">
+                <label>코드 번호</label>
+                <div style="display:flex;align-items:center;gap:10px">
+                    <span id="tch-edit-stu-code" style="font-family:monospace;font-size:22px;font-weight:800;letter-spacing:4px;color:#1E293B"></span>
+                    <button class="btn btn-sm btn-outline" onclick="tch_regenCode()">🔄 코드 재발급</button>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="tch_closeModal('modal-edit-stu')">취소</button>
+            <button class="btn btn-primary" onclick="tch_saveEditStudent()">💾 저장</button>
+        </div>
+    </div>
+</div>
+
 <!-- 새 미션 -->
 <div class="overlay" id="tch-modal-new-mission" style="display:none">
     <div class="modal">
@@ -1660,6 +1719,62 @@ textarea.finput{resize:vertical;}
             <button class="btn btn-outline" onclick="tch_closeModal('modal-new-role')">취소</button>
             <button class="btn btn-primary" onclick="tch_createRoles()">완료</button>
         </div>
+    </div>
+</div>
+
+<!-- 미션 수정 -->
+<div class="overlay" id="tch-modal-edit-mission" style="display:none">
+    <div class="modal">
+        <div class="modal-head"><div class="modal-title">✏️ 미션 수정</div><button class="modal-close" onclick="tch_closeModal('modal-edit-mission')">✕</button></div>
+        <div class="modal-body">
+            <div class="fg"><label>미션 제목 *</label><input type="text" id="tch-edit-m-title" class="finput" placeholder="예) 수학 과제 제출하기"></div>
+            <div class="fg"><label>미션 설명 (선택)</label><textarea id="tch-edit-m-desc" class="finput" placeholder="미션에 대한 자세한 안내를 입력하세요"></textarea></div>
+            <div class="fg">
+                <label>보상 토큰 🪙</label>
+                <div class="token-row"><input type="range" id="tch-edit-m-range" min="1" max="1000" value="100" oninput="tch_syncEditMToken(this.value)"><div class="token-display" id="tch-edit-m-display">100</div></div>
+                <div style="display:flex;align-items:center;gap:8px;margin-top:4px"><input type="number" id="tch-edit-m-num" class="finput" style="width:110px" min="1" max="1000" value="100" oninput="tch_syncEditMToken(this.value)"><span style="font-size:12px;color:var(--text-light)">토큰 (1 ~ 1,000)</span></div>
+            </div>
+        </div>
+        <div class="modal-footer"><button class="btn btn-outline" onclick="tch_closeModal('modal-edit-mission')">취소</button><button class="btn btn-primary" onclick="tch_saveEditMission()">저장</button></div>
+    </div>
+</div>
+
+<!-- 역할 수정 -->
+<div class="overlay" id="tch-modal-edit-role" style="display:none">
+    <div class="modal">
+        <div class="modal-head"><div class="modal-title">✏️ 역할 수정</div><button class="modal-close" onclick="tch_closeModal('modal-edit-role')">✕</button></div>
+        <div class="modal-body">
+            <div class="fg"><label>역할 이름 *</label><input type="text" id="tch-edit-role-name" class="finput" placeholder="역할 이름"></div>
+            <div class="fg"><label>설명 (선택)</label><input type="text" id="tch-edit-role-desc" class="finput" placeholder="역할 설명"></div>
+            <div class="fg">
+                <label>보상 토큰 🪙</label>
+                <div class="token-row"><input type="range" id="tch-edit-role-range" min="1" max="1000" value="50" oninput="tch_syncEditRoleToken(this.value)"><div class="token-display" id="tch-edit-role-display">50</div></div>
+                <div style="display:flex;align-items:center;gap:8px;margin-top:4px"><input type="number" id="tch-edit-role-num" class="finput" style="width:110px" min="1" max="1000" value="50" oninput="tch_syncEditRoleToken(this.value)"><span style="font-size:12px;color:var(--text-light)">토큰 (1 ~ 1,000)</span></div>
+            </div>
+        </div>
+        <div class="modal-footer"><button class="btn btn-outline" onclick="tch_closeModal('modal-edit-role')">취소</button><button class="btn btn-primary" onclick="tch_saveEditRole()">저장</button></div>
+    </div>
+</div>
+
+<!-- 상품 수정 -->
+<div class="overlay" id="tch-modal-edit-store" style="display:none">
+    <div class="modal" style="width:500px">
+        <div class="modal-head"><div class="modal-title">✏️ 상품 수정</div><button class="modal-close" onclick="tch_closeModal('modal-edit-store')">✕</button></div>
+        <div class="modal-body">
+            <div class="fg">
+                <label>아이콘 선택 *</label>
+                <div class="store-icon-grid" id="tch-edit-store-icon-grid"></div>
+                <div style="margin-top:6px;font-size:12px;color:var(--text-light)">선택한 아이콘: <span id="tch-edit-store-icon-preview" style="font-size:20px;vertical-align:middle">—</span></div>
+            </div>
+            <div class="fg"><label>상품 이름 *</label><input type="text" id="tch-edit-store-name" class="finput" placeholder="예) 자리 선택권, 숙제 면제권"></div>
+            <div class="fg"><label>설명 (선택)</label><textarea id="tch-edit-store-desc" class="finput" placeholder="상품에 대한 설명을 입력하세요" style="min-height:58px"></textarea></div>
+            <div class="fg">
+                <label>교환 토큰 🪙</label>
+                <div class="token-row"><input type="range" id="tch-edit-store-range" min="1" max="1000" value="50" oninput="tch_syncEditStoreToken(this.value)"><div class="token-display" id="tch-edit-store-display">50</div></div>
+                <div style="display:flex;align-items:center;gap:8px;margin-top:4px"><input type="number" id="tch-edit-store-num" class="finput" style="width:110px" min="1" max="1000" value="50" oninput="tch_syncEditStoreToken(this.value)"><span style="font-size:12px;color:var(--text-light)">토큰 (1 ~ 1,000)</span></div>
+            </div>
+        </div>
+        <div class="modal-footer"><button class="btn btn-outline" onclick="tch_closeModal('modal-edit-store')">취소</button><button class="btn btn-primary" onclick="tch_saveEditStoreItem()">저장</button></div>
     </div>
 </div>
 
@@ -1910,6 +2025,7 @@ textarea.finput{resize:vertical;}
                 <button onclick="document.getElementById('sk-broadcast-file').click()" style="width:100%; padding:12px; background:#e67e22; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">📤 전체 자료 전송</button>
                 <input type="file" id="sk-broadcast-file" accept="image/*" style="display:none" onchange="sk_sendBroadcastImage(event)">
                 <button onclick="sk_clearSubmissions()" style="width:100%; margin-top:10px; padding:10px; background:#c0392b; color:white; border:none; border-radius:6px; cursor:pointer;">🗑️ 제출함 비우기</button>
+                <button onclick="sk_clearUserList()" style="width:100%; margin-top:8px; padding:10px; background:#7f8c8d; color:white; border:none; border-radius:6px; cursor:pointer;">🔄 접속 명단 초기화</button>
                 <div style="margin-top:12px; border-top:1px solid #3d5165; padding-top:10px;">
                     <div style="font-size:11px; color:#aaa; margin-bottom:6px; text-align:center;">🎨 학생 스케치북 초기화</div>
                     <button onclick="sk_clearAllStudentsCanvas()" style="width:100%; padding:9px; background:#922b21; color:white; border:none; border-radius:6px; cursor:pointer; font-size:12px; font-weight:bold; margin-bottom:5px;">🗑️ 전체 지우기</button>
@@ -2096,6 +2212,201 @@ textarea.finput{resize:vertical;}
         database = firebase.database();
     } catch (e) { console.error("Firebase 초기화 에러:", e); }
 
+    /* ── 포인트 Firebase 헬퍼 ── */
+    function pts_fbPath() {
+        if (!window.currentUser || !window.currentUser.grade || !window.currentUser.classNum) return null;
+        return 'points/' + window.currentUser.grade + '-' + window.currentUser.classNum;
+    }
+    function pts_fbSave(key, data) {
+        const path = pts_fbPath();
+        if (!database || !path) return;
+        database.ref(path + '/' + key).set(data).catch(function(e){ console.warn('Firebase 저장 오류:', e); });
+    }
+    function pts_fbLoad(callback) {
+        const path = pts_fbPath();
+        if (!database || !path) { callback(null); return; }
+        database.ref(path).once('value', function(snap){ callback(snap.val()); }, function(e){ console.warn('Firebase 읽기 오류:', e); callback(null); });
+    }
+
+    /* ── 탭 허용 권한 + 시간 스케줄 ── */
+    var _tabPerms     = { chat: false, sketch: false };
+    var _tabSchedules = { chat: [],    sketch: []    };
+    var _scheduleTab  = null;
+    var _scheduleSlots = [];
+
+    function _permPath() {
+        if (!window.currentUser) return null;
+        return 'permissions/' + window.currentUser.grade + '-' + window.currentUser.classNum;
+    }
+
+    /* 현재 시각이 스케줄 안에 있는지 확인 */
+    function isInScheduledTime(tab) {
+        var schedules = _tabSchedules[tab] || [];
+        if (!schedules.length) return false;
+        var now   = new Date();
+        var today = now.toISOString().split('T')[0];
+        var cur   = now.getHours() * 60 + now.getMinutes();
+        return schedules.some(function(s) {
+            var ss    = s.start.split(':'), es = s.end.split(':');
+            var start = parseInt(ss[0]) * 60 + parseInt(ss[1]);
+            var end   = parseInt(es[0]) * 60 + parseInt(es[1]);
+            if (cur < start || cur >= end) return false;
+            if (s.repeat === 'once') return s.date === today;
+            return true; // daily
+        });
+    }
+
+    /* 학생이 해당 탭에 접근 가능한지 (수동 허용 OR 시간 스케줄) */
+    function canStudentAccess(tab) {
+        return _tabPerms[tab] || isInScheduledTime(tab);
+    }
+
+    function initPermissionListeners() {
+        const path = _permPath();
+        if (!database || !path) return;
+        database.ref(path).on('value', function(snap) {
+            const p = snap.val() || {};
+            _tabPerms.chat     = !!p.chat;
+            _tabPerms.sketch   = !!p.sketch;
+            const sc = p.schedules || {};
+            _tabSchedules.chat   = Array.isArray(sc.chat)   ? sc.chat   : [];
+            _tabSchedules.sketch = Array.isArray(sc.sketch) ? sc.sketch : [];
+            _updateAllowUI();
+        });
+        /* 1분마다 시간 스케줄 재평가 + 학생 만료 감지 */
+        setInterval(_checkExpiry, 60000);
+    }
+
+    function _updateAllowUI() {
+        const isTeacher = window.currentUser && window.currentUser.role === 'teacher';
+        ['chat', 'sketch'].forEach(function(tab) {
+            const badge    = document.getElementById('allow-btn-' + tab);
+            const schedBtn = document.getElementById('sched-btn-' + tab);
+            if (!badge) return;
+            if (isTeacher) {
+                badge.style.display = 'inline';
+                const ok = _tabPerms[tab];
+                badge.style.background = ok ? '#16A34A' : '#EF4444';
+                badge.textContent = ok ? '허용' : '차단';
+                /* 스케줄 아이콘 */
+                if (schedBtn) {
+                    schedBtn.style.display = 'inline';
+                    schedBtn.style.opacity = _tabSchedules[tab].length ? '1' : '0.5';
+                    schedBtn.title = _tabSchedules[tab].length
+                        ? '시간 스케줄 ' + _tabSchedules[tab].length + '개 설정됨'
+                        : '허용 시간 설정';
+                }
+            } else {
+                badge.style.display = 'none';
+                if (schedBtn) schedBtn.style.display = 'none';
+                const tabEl = document.getElementById('tab-' + tab);
+                if (tabEl) tabEl.style.opacity = canStudentAccess(tab) ? '' : '0.45';
+            }
+        });
+    }
+
+    function toggleAllowTab(tab) {
+        const path = _permPath();
+        if (!database || !path) return;
+        database.ref(path + '/' + tab).set(!_tabPerms[tab]);
+    }
+
+    /* ── 시간 스케줄 모달 ── */
+    var _schedRepeat = 'daily'; // 'daily' | 'once'
+
+    function openScheduleModal(tab) {
+        _scheduleTab   = tab;
+        _scheduleSlots = JSON.parse(JSON.stringify(_tabSchedules[tab] || []));
+        _schedRepeat   = 'daily';
+        const label    = tab === 'chat' ? '스쿨톡' : '스케치북';
+        document.getElementById('sched-modal-title').textContent = '⏰ ' + label + ' 허용 시간 설정';
+        document.getElementById('sched-start').value = '';
+        document.getElementById('sched-end').value   = '';
+        document.getElementById('sched-date').value  = new Date().toISOString().split('T')[0];
+        _setSchedRepeatUI('daily');
+        _renderSchedList();
+        document.getElementById('modal-schedule').style.display = 'flex';
+    }
+    function closeScheduleModal() {
+        document.getElementById('modal-schedule').style.display = 'none';
+        _scheduleTab = null; _scheduleSlots = [];
+    }
+    function _setSchedRepeatUI(type) {
+        _schedRepeat = type;
+        document.getElementById('sched-repeat-daily').style.background = type === 'daily' ? '#4F46E5' : '#E2E8F0';
+        document.getElementById('sched-repeat-daily').style.color      = type === 'daily' ? '#fff'    : '#64748B';
+        document.getElementById('sched-repeat-once').style.background  = type === 'once'  ? '#4F46E5' : '#E2E8F0';
+        document.getElementById('sched-repeat-once').style.color       = type === 'once'  ? '#fff'    : '#64748B';
+        document.getElementById('sched-date-row').style.display        = type === 'once'  ? 'flex'    : 'none';
+    }
+    function _renderSchedList() {
+        const el = document.getElementById('sched-list');
+        if (!_scheduleSlots.length) {
+            el.innerHTML = '<div style="font-size:12px;color:#94A3B8;text-align:center;padding:10px 0">설정된 시간대가 없습니다</div>';
+            return;
+        }
+        el.innerHTML = _scheduleSlots.map(function(s, i) {
+            const tag    = s.repeat === 'once'
+                ? '<span style="font-size:10px;background:#F59E0B;color:white;border-radius:5px;padding:1px 5px;margin-right:4px">1회</span>' + (s.date||'')
+                : '<span style="font-size:10px;background:#6366F1;color:white;border-radius:5px;padding:1px 5px;margin-right:4px">매일</span>';
+            return '<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:#F1F5F9;border-radius:7px;margin-bottom:5px">' +
+                '<div style="flex:1;min-width:0;font-size:12px;color:#1E293B;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + tag + ' ' + s.start + ' ~ ' + s.end + '</div>' +
+                '<button onclick="removeSchedSlot(' + i + ')" style="flex-shrink:0;width:22px;height:22px;background:#EF4444;color:white;border:none;border-radius:50%;font-size:12px;font-weight:700;cursor:pointer;line-height:1;padding:0">✕</button>' +
+            '</div>';
+        }).join('');
+    }
+    function addSchedSlot() {
+        const start = document.getElementById('sched-start').value;
+        const end   = document.getElementById('sched-end').value;
+        if (!start || !end) { alert('시작·종료 시간을 모두 입력해주세요'); return; }
+        if (start >= end)   { alert('종료 시간이 시작보다 늦어야 합니다'); return; }
+        const slot = { start: start, end: end, repeat: _schedRepeat };
+        if (_schedRepeat === 'once') {
+            const d = document.getElementById('sched-date').value;
+            if (!d) { alert('날짜를 선택해주세요'); return; }
+            slot.date = d;
+        }
+        _scheduleSlots.push(slot);
+        _scheduleSlots.sort(function(a,b){ return (a.date||'9999')+a.start > (b.date||'9999')+b.start ? 1 : -1; });
+        _renderSchedList();
+        document.getElementById('sched-start').value = '';
+        document.getElementById('sched-end').value   = '';
+    }
+    function removeSchedSlot(idx) {
+        _scheduleSlots.splice(idx, 1);
+        _renderSchedList();
+    }
+    function saveSchedule() {
+        const path = _permPath();
+        if (!database || !path || !_scheduleTab) return;
+        const data = _scheduleSlots.length ? _scheduleSlots : null;
+        database.ref(path + '/schedules/' + _scheduleTab).set(data);
+        _tabSchedules[_scheduleTab] = _scheduleSlots;
+        closeScheduleModal();
+        _updateAllowUI();
+        alert('✅ 시간 스케줄이 저장되었습니다.');
+    }
+
+    /* ── 만료 감지 (학생) ── */
+    var _activeStuTab = 'points';
+    var _expiryShown  = false;
+    function _checkExpiry() {
+        _updateAllowUI();
+        if (!window.currentUser || window.currentUser.role !== 'student') return;
+        if (_activeStuTab !== 'chat' && _activeStuTab !== 'sketch') return;
+        if (!canStudentAccess(_activeStuTab) && !_expiryShown) {
+            _expiryShown = true;
+            const label = _activeStuTab === 'chat' ? '스쿨톡' : '스케치북';
+            document.getElementById('expiry-label').textContent = label;
+            document.getElementById('modal-expiry').style.display = 'flex';
+        }
+    }
+    function dismissExpiry() {
+        document.getElementById('modal-expiry').style.display = 'none';
+        _expiryShown = false;
+        switchMainTab('points');
+    }
+
     let myInfo = {};
     let myUserRef = null;
 
@@ -2255,6 +2566,7 @@ textarea.finput{resize:vertical;}
             });
 
             startRealtimeListening();
+            initPermissionListeners();
         } catch (error) { alert("로그인 에러: " + error.message); }
     }
 
@@ -4623,6 +4935,12 @@ textarea.finput{resize:vertical;}
         }
     }
 
+    function sk_clearUserList() {
+        if(!confirm('접속 명단을 초기화할까요?\n현재 접속 중이더라도 목록에서 모두 제거됩니다.')) return;
+        sketchDb.ref('users').remove();
+        sketchDb.ref('live').remove();
+    }
+
     function sk_openTeacherModal(uid, imgSrc) {
         sk_editingUid=uid;
         document.getElementById('sk-modal-student-name').innerText='✏️ '+uid+' 첨삭중';
@@ -5117,13 +5435,28 @@ function stu_loadAll(){
     stu_diary       =JSON.parse(localStorage.getItem(KEY_DIARY) ||'[]');
     stu_books       =JSON.parse(localStorage.getItem(KEY_BOOKS) ||'[]');
 }
-function stu_saveBank()    {localStorage.setItem(KEY_BANK,   JSON.stringify({deposits:stu_bankDeposits,rate:stu_bankRate}));}
-function stu_saveSavings() {localStorage.setItem(KEY_SAVINGS,JSON.stringify(stu_savings));}
-function stu_saveInvest()  {localStorage.setItem(KEY_INVEST, JSON.stringify({portfolio:stu_stockPortfolio,txLog:stu_stockTxLog}));}
-function stu_saveDiaryData(){localStorage.setItem(KEY_DIARY,  JSON.stringify(stu_diary));}
-function stu_saveStore()   {localStorage.setItem(KEY_STORE,  JSON.stringify(stu_storeItems));}
-function stu_saveStudents(){localStorage.setItem(KEY_STU,    JSON.stringify(stu_students));}
-function stu_saveBooks()   {localStorage.setItem(KEY_BOOKS,  JSON.stringify(stu_books));}
+function stu_syncFromFirebase(callback) {
+    pts_fbLoad(function(data) {
+        if (!data) { if(callback)callback(); return; }
+        if(data.students)  {stu_students=data.students;    localStorage.setItem(KEY_STU,    JSON.stringify(data.students));}
+        if(data.missions)  {stu_missions=data.missions;    localStorage.setItem(KEY_MIS,    JSON.stringify(data.missions));}
+        if(data.roles)     {stu_roles   =data.roles;       localStorage.setItem(KEY_ROLES,  JSON.stringify(data.roles));}
+        if(data.store)     {stu_storeItems=data.store;     localStorage.setItem(KEY_STORE,  JSON.stringify(data.store));}
+        if(data.bank)      {stu_bankDeposits=data.bank.deposits||[];stu_bankRate=data.bank.rate||3.5; localStorage.setItem(KEY_BANK,JSON.stringify(data.bank));}
+        if(data.savings)   {stu_savings=data.savings;      localStorage.setItem(KEY_SAVINGS,JSON.stringify(data.savings));}
+        if(data.invest)    {stu_stockPortfolio=data.invest.portfolio||[];stu_stockTxLog=data.invest.txLog||[]; localStorage.setItem(KEY_INVEST,JSON.stringify(data.invest));}
+        if(data.diary)     {stu_diary  =data.diary;        localStorage.setItem(KEY_DIARY,  JSON.stringify(data.diary));}
+        if(data.books)     {stu_books  =data.books;        localStorage.setItem(KEY_BOOKS,  JSON.stringify(data.books));}
+        if(callback)callback();
+    });
+}
+function stu_saveBank()    {const d={deposits:stu_bankDeposits,rate:stu_bankRate};     localStorage.setItem(KEY_BANK,   JSON.stringify(d));        pts_fbSave('bank',    d);}
+function stu_saveSavings() {localStorage.setItem(KEY_SAVINGS,JSON.stringify(stu_savings));                                                                         pts_fbSave('savings', stu_savings);}
+function stu_saveInvest()  {const d={portfolio:stu_stockPortfolio,txLog:stu_stockTxLog}; localStorage.setItem(KEY_INVEST, JSON.stringify(d));                       pts_fbSave('invest',  d);}
+function stu_saveDiaryData(){localStorage.setItem(KEY_DIARY,  JSON.stringify(stu_diary));                                                                           pts_fbSave('diary',   stu_diary);}
+function stu_saveStore()   {localStorage.setItem(KEY_STORE,  JSON.stringify(stu_storeItems));                                                                       pts_fbSave('store',   stu_storeItems);}
+function stu_saveStudents(){localStorage.setItem(KEY_STU,    JSON.stringify(stu_students));                                                                         pts_fbSave('students',stu_students);}
+function stu_saveBooks()   {localStorage.setItem(KEY_BOOKS,  JSON.stringify(stu_books));                                                                            pts_fbSave('books',   stu_books);}
 
 /* ── 화면 이동 ── */
 function stu_showRoleScreen(){
@@ -5156,21 +5489,48 @@ function stu_enterApp(){
     document.getElementById('stu-screen-role').style.display='none';
     document.getElementById('stu-screen-students').style.display='none';
     document.getElementById('stu-app').style.display='block';
-    stu_loadAll();stu_renderAll();stu_showView('home');
+    stu_loadAll();stu_renderAll();
+    stu_showView(stu_hasDiaryToday()?'home':'diary');
 }
 function stu_renderAll(){stu_renderProfile();stu_renderHome();stu_renderRecords();stu_renderDiaryView();stu_renderStoreView();stu_renderBank();stu_renderStockList();stu_renderStockHoldings();}
 
 /* ── 뷰 전환 ── */
+function stu_hasDiaryToday(){
+    const today=new Date().toISOString().split('T')[0];
+    return stu_diary.some(d=>d.studentId===stu_currentStudentId&&d.date===today);
+}
+function stu_showDiaryLockedToast(){
+    const t=document.createElement('div');
+    t.textContent='✍️ 오늘의 감정일기를 먼저 작성해주세요!';
+    t.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1E293B;color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:600;z-index:9999;white-space:nowrap;pointer-events:none';
+    document.body.appendChild(t);
+    setTimeout(()=>t.remove(),2200);
+}
+function stu_updateNavLock(){
+    const locked=!stu_hasDiaryToday();
+    ['home','records','store','invest'].forEach(id=>{
+        const el=document.getElementById('stu-nav-'+id);
+        if(!el)return;
+        el.style.opacity=locked?'0.35':'';
+        el.style.pointerEvents=locked?'none':'';
+    });
+    const notice=document.getElementById('stu-diary-lock-notice');
+    if(notice)notice.style.display=locked?'block':'none';
+}
 function stu_showView(v){
+    stu_loadAll();
+    const locked=!stu_hasDiaryToday();
+    if(locked&&v!=='diary'){stu_showDiaryLockedToast();v='diary';}
     ['home','records','diary','store','invest'].forEach(id=>{
         document.getElementById('stu-view-'+id).classList.toggle('active',id===v);
         document.getElementById('stu-nav-'+id).classList.toggle('active',id===v);
     });
-    if(v==='home')  {stu_loadAll();stu_renderProfile();stu_renderHome();}
-    if(v==='records'){stu_loadAll();stu_renderRecords();}
-    if(v==='diary') {stu_loadAll();stu_renderDiaryView();}
-    if(v==='store') {stu_loadAll();stu_renderStoreView();}
-    if(v==='invest'){stu_loadAll();stu_renderBank();stu_renderStockList();stu_renderStockHoldings();}
+    stu_updateNavLock();
+    if(v==='home')  {stu_renderProfile();stu_renderHome();}
+    if(v==='records'){stu_renderRecords();}
+    if(v==='diary') {stu_renderDiaryView();}
+    if(v==='store') {stu_renderStoreView();}
+    if(v==='invest'){stu_renderBank();stu_renderStockList();stu_renderStockHoldings();}
 }
 
 /* ── 유틸 ── */
@@ -5224,14 +5584,16 @@ function stu_renderMissions(){
     const el=document.getElementById('stu-home-missions');
     const active=stu_missions.filter(m=>m.status==='active');
     if(!active.length){el.innerHTML='<div class="empty-state"><div class="ei">🎯</div><p>진행 중인 미션이 없습니다</p></div>';return;}
+    const todayStr=new Date().toISOString().slice(0,10);
+    function _mCntToday(m){const c=m.completions&&m.completions[stu_currentStudentId];if(!c)return 0;if(c.at&&!c.date)return c.at.slice(0,10)===todayStr?1:0;return c.date===todayStr?(c.count||0):0;}
     el.innerHTML=active.map(m=>{
-        const done=m.completions&&m.completions[stu_currentStudentId];
+        const cnt=_mCntToday(m);
         const req=m.requests&&m.requests[stu_currentStudentId];
         const isPending=req&&req.status==='pending';
         let extra='',btn='';
-        if(done)extra='<span class="badge badge-ok">✅ 완료</span>';
-        else if(isPending)extra='<span class="badge badge-req">⏳ 승인 대기</span>';
-        else btn=`<button class="btn btn-sm btn-primary" onclick="stu_submitMissionReq('${m.id}')">수행 요청 →</button>`;
+        if(cnt>0)extra=`<span class="badge badge-ok">✅ 오늘 ${cnt}회</span>`;
+        if(isPending)extra+='<span class="badge badge-req">⏳ 승인 대기</span>';
+        if(!isPending)btn=`<button class="btn btn-sm btn-primary" onclick="stu_submitMissionReq('${m.id}')">수행 요청 →</button>`;
         return `<div class="home-item fade"><div class="hi-icon">🎯</div>
             <div class="hi-body"><div class="hi-title">${m.title}</div>
             <div class="hi-sub"><span class="token-badge">🪙${m.tokens}</span>${m.description?' · '+m.description:''}</div>${extra}</div>
@@ -5301,7 +5663,6 @@ function stu_bookCardHtml(b){
 function stu_submitMissionReq(mId){
     const m=stu_missions.find(x=>x.id===mId);if(!m)return;
     if(m.requests&&m.requests[stu_currentStudentId]?.status==='pending'){alert('이미 수행 요청을 보냈습니다');return;}
-    if(m.completions&&m.completions[stu_currentStudentId]){alert('이미 완료한 미션입니다');return;}
     if(!m.requests)m.requests={};
     m.requests[stu_currentStudentId]={status:'pending',requestedAt:new Date().toISOString()};
     localStorage.setItem(KEY_MIS,JSON.stringify(stu_missions));stu_renderHome();
@@ -5319,8 +5680,8 @@ let stu_allRecords=[];
 function stu_renderRecords(){
     stu_allRecords=[];
     stu_missions.forEach(m=>{
-        if(m.completions&&m.completions[stu_currentStudentId])
-            stu_allRecords.push({cat:'mission',icon:'🎯',title:'미션 완료: '+m.title,sub:'+🪙'+m.tokens,at:m.completions[stu_currentStudentId].at});
+        const c=m.completions&&m.completions[stu_currentStudentId];
+        if(c){const cnt=c.count||1;const at=c.lastAt||c.at||'';stu_allRecords.push({cat:'mission',icon:'🎯',title:'미션: '+m.title+(cnt>1?' ×'+cnt+'회':''),sub:'+🪙'+(m.tokens*cnt),at});}
         const req=m.requests&&m.requests[stu_currentStudentId];
         if(req&&req.status==='pending')
             stu_allRecords.push({cat:'mission',icon:'⏳',title:'수행 요청: '+m.title,sub:'승인 대기 중',at:req.requestedAt});
@@ -5405,7 +5766,11 @@ function stu_saveDiary(){
     const idx=stu_diary.findIndex(d=>d.studentId===stu_currentStudentId&&d.date===today);
     const entry={id:'diary_'+Date.now(),studentId:stu_currentStudentId,date:today,mood:stu_pickedMood,content,createdAt:new Date().toISOString()};
     if(idx>=0)stu_diary[idx]=entry;else stu_diary.push(entry);
-    stu_saveDiaryData();stu_renderProfile();stu_renderDiaryView();stu_renderRecords();alert('일기가 저장되었습니다 '+stu_pickedMood);
+    stu_saveDiaryData();
+    stu_renderProfile();stu_renderDiaryView();stu_renderRecords();
+    stu_updateNavLock();
+    alert('일기가 저장되었습니다 '+stu_pickedMood+'\n\n이제 다른 메뉴를 자유롭게 이용할 수 있어요! 🎉');
+    stu_showView('home');
 }
 
 /* ── 학급 상점 ── */
@@ -5902,28 +6267,124 @@ function stu_openModal(id){const el=document.getElementById('stu-'+id)||document
 function stu_closeModal(id){const el=document.getElementById('stu-'+id)||document.getElementById(id);if(el)el.style.display='none';}
 document.querySelectorAll('#pts-student-screen .overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.style.display='none';}));
 
+/* ── 학생 코드 로그인 ── */
+function stu_showCodeLoginModal() {
+    document.getElementById('stu-code-input').value = '';
+    document.getElementById('stu-code-save').checked = true;
+    document.getElementById('stu-modal-code-login').style.display = 'flex';
+    setTimeout(function(){ document.getElementById('stu-code-input').focus(); }, 80);
+    // Escape 키로 닫히는 것 차단
+    document._codeModalKeyGuard = function(e){ if(e.key==='Escape')e.stopImmediatePropagation(); };
+    document.addEventListener('keydown', document._codeModalKeyGuard, true);
+}
+function stu_confirmCodeLogin() {
+    const code = document.getElementById('stu-code-input').value.trim();
+    if (code.length !== 5) { alert('5자리 코드를 입력해주세요'); return; }
+    const found = stu_students.find(function(s){ return s.code === code; });
+    if (!found) { alert('❌ 코드를 찾을 수 없습니다.\n선생님에게 코드를 다시 확인해주세요.'); return; }
+    stu_currentStudentId = found.id;
+    stu_currentStudentName = found.name;
+    localStorage.setItem(KEY_SESS, found.id);
+    if (document.getElementById('stu-code-save').checked) {
+        localStorage.setItem('sch_saved_code', code);
+    } else {
+        localStorage.removeItem('sch_saved_code');
+    }
+    document.getElementById('stu-modal-code-login').style.display = 'none';
+    if(document._codeModalKeyGuard){ document.removeEventListener('keydown',document._codeModalKeyGuard,true); delete document._codeModalKeyGuard; }
+    stu_renderAll();
+    // 오늘 일기 작성 여부에 따라 첫 화면 결정
+    stu_showView(stu_hasDiaryToday() ? 'home' : 'diary');
+}
+
+/* ── 감정일기 팝업 ── */
+let stu_popupPickedMood = null;
+function stu_showDiaryPopup() {
+    if (!stu_currentStudentId) return;
+    const today = new Date().toISOString().split('T')[0];
+    const skipKey = 'sch_diary_skip_' + stu_currentStudentId + '_' + today;
+    if (localStorage.getItem(skipKey)) return;
+    stu_loadAll();
+    const todayEntry = stu_diary.find(function(d){ return d.studentId === stu_currentStudentId && d.date === today; });
+    if (todayEntry) return;
+    stu_popupPickedMood = null;
+    document.getElementById('stu-popup-mood-grid').innerHTML = stu_MOODS.map(function(x){
+        return '<div class="mood-opt" onclick="stu_pickPopupMood(\''+x.m+'\',this)">'+x.m+'<span class="mood-label">'+x.l+'</span></div>';
+    }).join('');
+    document.getElementById('stu-popup-diary-text').value = '';
+    document.getElementById('stu-diary-popup').style.display = 'flex';
+}
+function stu_pickPopupMood(m, el) {
+    stu_popupPickedMood = m;
+    document.querySelectorAll('#stu-popup-mood-grid .mood-opt').forEach(function(x){ x.classList.remove('sel'); });
+    el.classList.add('sel');
+}
+function stu_skipDiaryPopup() {
+    const today = new Date().toISOString().split('T')[0];
+    const skipKey = 'sch_diary_skip_' + (stu_currentStudentId || 'unknown') + '_' + today;
+    localStorage.setItem(skipKey, '1');
+    document.getElementById('stu-diary-popup').style.display = 'none';
+}
+function stu_saveDiaryPopup() {
+    if (!stu_popupPickedMood) { alert('오늘의 기분을 선택해주세요'); return; }
+    const today = new Date().toISOString().split('T')[0];
+    const content = document.getElementById('stu-popup-diary-text').value.trim();
+    stu_loadAll();
+    const idx = stu_diary.findIndex(function(d){ return d.studentId === stu_currentStudentId && d.date === today; });
+    const entry = { id:'diary_'+Date.now(), studentId:stu_currentStudentId, date:today, mood:stu_popupPickedMood, content:content, createdAt:new Date().toISOString() };
+    if (idx >= 0) stu_diary[idx] = entry; else stu_diary.push(entry);
+    stu_saveDiaryData();
+    document.getElementById('stu-diary-popup').style.display = 'none';
+    stu_renderProfile();
+    stu_renderDiaryView();
+    alert('일기가 저장되었습니다 ' + stu_popupPickedMood);
+}
+
 /* ── Student App Entry Point (called after main login) ── */
 function stu_initStudentApp(studentName) {
     stu_currentStudentName = studentName || '';
-    stu_loadAll();
-    var found = stu_students.find(function(s) { return s.name === studentName; });
-    if (found) {
-        stu_currentStudentId = found.id;
-        localStorage.setItem(KEY_SESS, found.id);
-    }
-    // Show app
+    // Show app frame immediately
     var appEl = document.getElementById('stu-app');
     if (appEl) {
         appEl.style.display = 'block';
-        // Hide role/student screens (not needed in merged app)
         var roleEl = document.getElementById('stu-screen-role');
         var studEl = document.getElementById('stu-screen-students');
         if (roleEl) roleEl.style.display = 'none';
         if (studEl) studEl.style.display = 'none';
-        stu_loadAll();
-        stu_renderAll();
-        stu_showView('home');
     }
+    // Sync from Firebase first, then show code modal
+    stu_syncFromFirebase(function() {
+        // Try to restore session from saved code
+        var savedCode = localStorage.getItem('sch_saved_code');
+        if (savedCode) {
+            var foundByCode = stu_students.find(function(s){ return s.code === savedCode; });
+            if (foundByCode) {
+                stu_currentStudentId = foundByCode.id;
+                stu_currentStudentName = foundByCode.name;
+                localStorage.setItem(KEY_SESS, foundByCode.id);
+                stu_renderAll();
+                stu_showView(stu_hasDiaryToday() ? 'home' : 'diary');
+                return;
+            }
+        }
+        // Try by name (fallback, no code yet)
+        var foundByName = stu_students.find(function(s){ return s.name === studentName; });
+        if (foundByName && foundByName.code) {
+            // Has a code assigned — must enter it
+            stu_renderAll();
+            stu_showCodeLoginModal();
+        } else if (foundByName) {
+            // Legacy: student exists but no code yet
+            stu_currentStudentId = foundByName.id;
+            localStorage.setItem(KEY_SESS, foundByName.id);
+            stu_renderAll();
+            stu_showView(stu_hasDiaryToday() ? 'home' : 'diary');
+        } else {
+            // No match — show code modal
+            stu_renderAll();
+            stu_showCodeLoginModal();
+        }
+    });
 }
 </script>
 
@@ -5992,6 +6453,7 @@ const tch_COLORS  = ['#EF4444','#F97316','#EAB308','#22C55E','#06B6D4','#3B82F6'
    STORAGE
 =================================================== */
 function tch_load() {
+    // 로컬 캐시로 즉시 렌더
     tch_students      = JSON.parse(localStorage.getItem('sch_students') || '[]');
     tch_missions      = JSON.parse(localStorage.getItem('sch_missions') || '[]');
     tch_roles         = JSON.parse(localStorage.getItem('sch_roles')    || '[]');
@@ -6003,13 +6465,25 @@ function tch_load() {
     tch_stockPortfolio = investData.portfolio || [];
     tch_stockTxLog     = investData.txLog     || [];
     tch_renderAll();
+    // Firebase에서 최신 데이터 동기화
+    pts_fbLoad(function(data) {
+        if (!data) return;
+        let changed = false;
+        if (data.students)  { tch_students = data.students;  localStorage.setItem('sch_students', JSON.stringify(data.students));  changed = true; }
+        if (data.missions)  { tch_missions = data.missions;  localStorage.setItem('sch_missions', JSON.stringify(data.missions));  changed = true; }
+        if (data.roles)     { tch_roles    = data.roles;     localStorage.setItem('sch_roles',    JSON.stringify(data.roles));     changed = true; }
+        if (data.store)     { tch_storeItems = data.store;   localStorage.setItem('sch_store',    JSON.stringify(data.store));     changed = true; }
+        if (data.bank)      { tch_bankDeposits = data.bank.deposits||[]; tch_bankRate = data.bank.rate||3.5; localStorage.setItem('sch_bank', JSON.stringify(data.bank)); changed = true; }
+        if (data.invest)    { tch_stockPortfolio = data.invest.portfolio||[]; tch_stockTxLog = data.invest.txLog||[]; localStorage.setItem('sch_invest', JSON.stringify(data.invest)); changed = true; }
+        if (changed) tch_renderAll();
+    });
 }
-function tch_saveStudents()   { localStorage.setItem('sch_students', JSON.stringify(tch_students));   }
-function tch_saveMissions()   { localStorage.setItem('sch_missions', JSON.stringify(tch_missions));  }
-function tch_saveRoles()      { localStorage.setItem('sch_roles',    JSON.stringify(tch_roles));     }
-function tch_saveStoreItems() { localStorage.setItem('sch_store',    JSON.stringify(tch_storeItems));}
-function tch_saveBankDeposits() { localStorage.setItem('sch_bank',   JSON.stringify({ deposits: tch_bankDeposits, rate: tch_bankRate })); }
-function tch_saveInvest()     { localStorage.setItem('sch_invest',   JSON.stringify({ portfolio: tch_stockPortfolio, txLog: tch_stockTxLog })); }
+function tch_saveStudents()   { const d=tch_students;   localStorage.setItem('sch_students', JSON.stringify(d));   pts_fbSave('students', d); }
+function tch_saveMissions()   { const d=tch_missions;   localStorage.setItem('sch_missions', JSON.stringify(d));   pts_fbSave('missions', d); }
+function tch_saveRoles()      { const d=tch_roles;       localStorage.setItem('sch_roles',    JSON.stringify(d));   pts_fbSave('roles', d); }
+function tch_saveStoreItems() { const d=tch_storeItems;  localStorage.setItem('sch_store',    JSON.stringify(d));   pts_fbSave('store', d); }
+function tch_saveBankDeposits() { const d={deposits:tch_bankDeposits,rate:tch_bankRate}; localStorage.setItem('sch_bank', JSON.stringify(d)); pts_fbSave('bank', d); }
+function tch_saveInvest()     { const d={portfolio:tch_stockPortfolio,txLog:tch_stockTxLog}; localStorage.setItem('sch_invest', JSON.stringify(d)); pts_fbSave('invest', d); }
 
 function tch_renderAll() {
     tch_renderDashboard();
@@ -6119,9 +6593,16 @@ function tch_renderStudentTable() {
             ${s.name}
             ${myRole ? `<span class="badge badge-pri" style="margin-left:4px">🏷️ ${myRole.name}</span>` : ''}
           </div>
+          <div>
+            <div style="font-size:10px;color:var(--text-light);font-weight:600;margin-bottom:2px">코드 번호</div>
+            <span style="font-family:monospace;font-size:14px;font-weight:800;color:#1E293B;letter-spacing:3px">${s.code||'—'}</span>
+          </div>
           <div><span class="token-badge">🪙 ${s.tokens || 0}</span></div>
           <div><span class="badge badge-ok">✅ ${done}개</span></div>
-          <div><button class="btn btn-sm btn-danger" onclick="tch_deleteStudent('${s.id}')">🗑️ 삭제</button></div>
+          <div style="display:flex;gap:6px;justify-content:flex-end">
+            <button class="btn btn-sm btn-outline" onclick="tch_openEditStudentModal('${s.id}')">✏️ 수정</button>
+            <button class="btn btn-sm btn-danger"  onclick="tch_deleteStudent('${s.id}')">🗑️ 삭제</button>
+          </div>
         </div>`;
     }).join('');
 }
@@ -6166,14 +6647,22 @@ function tch_pickEmoji(e, el) {
     document.querySelectorAll('.emoji-opt').forEach(x => x.classList.remove('sel'));
     el.classList.add('sel');
 }
+function tch_generateCode() {
+    let code;
+    do { code = String(Math.floor(10000 + Math.random() * 90000)); }
+    while (tch_students.some(s => s.code === code));
+    return code;
+}
 function tch_addStudent() {
     const name = document.getElementById('tch-in-stu-name').value.trim();
     if (!name) { alert('이름을 입력해주세요'); return; }
-    tch_students.push({ id:'stu_'+Date.now(), name, avatar:tch_pickedEmoji||null, tokens:0, createdAt:new Date().toISOString() });
+    const code = tch_generateCode();
+    tch_students.push({ id:'stu_'+Date.now(), name, avatar:tch_pickedEmoji||null, tokens:0, code, createdAt:new Date().toISOString() });
     tch_saveStudents();
     tch_closeModal('modal-add-stu');
     tch_renderAll();
     if (tch_curMission) tch_renderMissionDetail();
+    alert('✅ ' + name + ' 학생이 추가되었습니다!\n\n🔑 학생 코드: ' + code + '\n\n이 코드를 학생에게 알려주세요.');
 }
 function tch_deleteStudent(id) {
     if (!confirm('이 학생을 삭제하시겠습니까?')) return;
@@ -6181,6 +6670,47 @@ function tch_deleteStudent(id) {
     tch_missions.forEach(m => { if (m.completions) delete m.completions[id]; if (m.requests) delete m.requests[id]; });
     tch_roles.forEach(r => { if (r.assignments) delete r.assignments[id]; });
     tch_saveStudents(); tch_saveMissions(); tch_saveRoles();
+    tch_renderAll();
+    if (tch_curMission) tch_renderMissionDetail();
+}
+
+let tch_editStuId = null;
+let tch_editPickedEmoji = null;
+function tch_openEditStudentModal(id) {
+    const s = tch_students.find(x => x.id === id);
+    if (!s) return;
+    tch_editStuId = id;
+    tch_editPickedEmoji = s.avatar || null;
+    document.getElementById('tch-edit-stu-name').value = s.name;
+    document.getElementById('tch-edit-stu-code').textContent = s.code || '—';
+    const grid = document.getElementById('tch-edit-emoji-grid');
+    grid.innerHTML = tch_EMOJIS.map(e =>
+        `<div class="emoji-opt${tch_editPickedEmoji===e?' sel':''}" onclick="tch_pickEditEmoji('${e}',this)">${e}</div>`
+    ).join('');
+    tch_openModal('modal-edit-stu');
+    setTimeout(() => document.getElementById('tch-edit-stu-name').select(), 80);
+}
+function tch_pickEditEmoji(e, el) {
+    tch_editPickedEmoji = e;
+    document.querySelectorAll('#tch-edit-emoji-grid .emoji-opt').forEach(x => x.classList.remove('sel'));
+    el.classList.add('sel');
+}
+function tch_regenCode() {
+    if (!confirm('코드를 재발급하면 학생이 기존 코드로 로그인할 수 없어요. 계속할까요?')) return;
+    const s = tch_students.find(x => x.id === tch_editStuId);
+    if (!s) return;
+    s.code = tch_generateCode();
+    document.getElementById('tch-edit-stu-code').textContent = s.code;
+}
+function tch_saveEditStudent() {
+    const name = document.getElementById('tch-edit-stu-name').value.trim();
+    if (!name) { alert('이름을 입력해주세요'); return; }
+    const s = tch_students.find(x => x.id === tch_editStuId);
+    if (!s) return;
+    s.name = name;
+    s.avatar = tch_editPickedEmoji || null;
+    tch_saveStudents();
+    tch_closeModal('modal-edit-stu');
     tch_renderAll();
     if (tch_curMission) tch_renderMissionDetail();
 }
@@ -6196,7 +6726,7 @@ function tch_renderMissionList() {
         return;
     }
     el.innerHTML = tch_missions.map(m => {
-        const done   = m.completions ? Object.keys(m.completions).length : 0;
+        const done   = tch_students.filter(s => tch_missionCountToday(m, s.id) > 0).length;
         const total  = tch_students.length;
         const pct    = total ? (done / total * 100).toFixed(0) : 0;
         const reqCnt = m.requests ? Object.values(m.requests).filter(r => r.status === 'pending').length : 0;
@@ -6233,7 +6763,7 @@ function tch_renderMissionDetail() {
     document.getElementById('tch-d-title').textContent = tch_curMission.title;
     document.getElementById('tch-d-desc').textContent  = tch_curMission.description || '';
     document.getElementById('tch-d-token').value        = tch_curMission.tokens;
-    const done  = tch_curMission.completions ? Object.keys(tch_curMission.completions).length : 0;
+    const done  = tch_students.filter(s => tch_missionCountToday(tch_curMission, s.id) > 0).length;
     const total = tch_students.length;
     const pct   = total ? (done / total * 100).toFixed(0) : 0;
     document.getElementById('tch-d-prog-txt').textContent  = `${done} / ${total} 명`;
@@ -6255,13 +6785,14 @@ function tch_renderStuGrid() {
     const el = document.getElementById('tch-m-stu-grid');
     if (!tch_students.length) { el.innerHTML = '<div style="color:var(--text-light);font-size:13px;grid-column:1/-1">등록된 학생이 없습니다</div>'; return; }
     el.innerHTML = tch_students.map(s => {
-        const done = tch_curMission.completions && tch_curMission.completions[s.id];
+        const cnt  = tch_missionCountToday(tch_curMission, s.id);
         const sel  = tch_selStu === s.id;
-        return `<div class="m-stu-card${done?' done':''}${sel?' sel':''}" onclick="tch_pickStu('${s.id}')">
-          ${done ? '<span class="done-badge">✅</span>' : ''}
+        const badge = cnt > 0 ? `<span style="position:absolute;top:4px;right:4px;background:#10B981;color:#fff;border-radius:10px;font-size:10px;font-weight:700;padding:1px 6px;min-width:18px;text-align:center;line-height:16px">${cnt}</span>` : '';
+        return `<div class="m-stu-card${sel?' sel':''}" onclick="tch_pickStu('${s.id}')" style="position:relative">
+          ${badge}
           ${tch_avatarHtml(s, 'sm')}
           <div class="m-stu-name">${s.name}</div>
-          ${!done ? `<button class="btn btn-xs btn-success" style="margin-top:5px;width:100%;justify-content:center;font-size:10px" onclick="event.stopPropagation();tch_quickMarkSuccess('${s.id}')">✅ 지급</button>` : `<div style="font-size:10px;color:#10B981;margin-top:4px;font-weight:700">완료</div>`}
+          <button class="btn btn-xs btn-success" style="margin-top:5px;width:100%;justify-content:center;font-size:10px" onclick="event.stopPropagation();tch_quickMarkSuccess('${s.id}')">✅ 지급</button>
         </div>`;
     }).join('');
 }
@@ -6269,26 +6800,17 @@ function tch_pickStu(id) { tch_selStu = tch_selStu === id ? null : id; tch_rende
 function tch_markAllSuccess() {
     if (!tch_curMission) return;
     const m = tch_curMission;
-    const pending = tch_students.filter(s => !(m.completions && m.completions[s.id]));
-    if (!pending.length) { alert('모든 학생이 이미 완료한 미션입니다'); return; }
-    if (!confirm(`'${m.title}' 미션을\n미완료 ${pending.length}명에게 성공 처리할까요?\n(각 🪙${m.tokens} 지급)`)) return;
-    const now = new Date().toISOString();
-    pending.forEach(s => {
-        if (!m.completions) m.completions = {};
-        m.completions[s.id] = { at: now };
-        s.tokens = (s.tokens || 0) + m.tokens;
-    });
+    const pending = tch_students.filter(s => tch_missionCountToday(m, s.id) === 0);
+    if (!pending.length) { alert('오늘 모든 학생에게 이미 지급되었습니다'); return; }
+    if (!confirm(`'${m.title}' 미션을\n오늘 미지급 ${pending.length}명에게 지급할까요?\n(각 🪙${m.tokens})`)) return;
+    pending.forEach(s => { tch_grantMission(m, s); });
     tch_saveMissions(); tch_saveStudents(); tch_renderAll(); tch_renderMissionDetail();
 }
 function tch_quickMarkSuccess(stuId) {
     if (!tch_curMission) return;
-    const m = tch_curMission;
-    if (m.completions && m.completions[stuId]) return;
     const s = tch_students.find(x => x.id === stuId);
     if (!s) return;
-    if (!m.completions) m.completions = {};
-    m.completions[stuId] = { at: new Date().toISOString() };
-    s.tokens = (s.tokens || 0) + m.tokens;
+    tch_grantMission(tch_curMission, s);
     tch_saveMissions(); tch_saveStudents(); tch_renderAll(); tch_renderMissionDetail();
 }
 function tch_assignAllStudents(roleId) {
@@ -6322,17 +6844,15 @@ function tch_updateActionBar() {
     const btnRev = document.getElementById('tch-btn-revoke');
     if (!tch_selStu) { hint.textContent = '학생을 선택하세요'; btnOk.style.display = btnRev.style.display = 'none'; return; }
     const s = tch_students.find(x => x.id === tch_selStu); if (!s) return;
-    hint.textContent = `선택됨: ${s.name}`;
-    const done = tch_curMission.completions && tch_curMission.completions[s.id];
-    btnOk.style.display  = done ? 'none' : 'inline-flex';
-    btnRev.style.display = done ? 'inline-flex' : 'none';
+    const cnt = tch_missionCountToday(tch_curMission, s.id);
+    hint.textContent = `선택됨: ${s.name}${cnt > 0 ? ' (오늘 '+cnt+'회)' : ''}`;
+    btnOk.style.display  = 'inline-flex';
+    btnRev.style.display = cnt > 0 ? 'inline-flex' : 'none';
 }
 function tch_markSuccess() {
     if (!tch_selStu || !tch_curMission) return;
     const s = tch_students.find(x => x.id === tch_selStu); if (!s) return;
-    if (!tch_curMission.completions) tch_curMission.completions = {};
-    tch_curMission.completions[s.id] = { at: new Date().toISOString() };
-    s.tokens = (s.tokens || 0) + tch_curMission.tokens;
+    tch_grantMission(tch_curMission, s);
     if (tch_curMission.requests) delete tch_curMission.requests[s.id];
     tch_selStu = null;
     tch_saveMissions(); tch_saveStudents(); tch_renderAll(); tch_renderMissionDetail();
@@ -6340,8 +6860,12 @@ function tch_markSuccess() {
 function tch_revokeToken() {
     if (!tch_selStu || !tch_curMission) return;
     const s = tch_students.find(x => x.id === tch_selStu); if (!s) return;
-    if (!confirm(`${s.name} 학생의 미션 완료를 취소하고 토큰 ${tch_curMission.tokens}개를 회수할까요?`)) return;
-    if (tch_curMission.completions) delete tch_curMission.completions[s.id];
+    const cnt = tch_missionCountToday(tch_curMission, s.id);
+    if (cnt <= 0) { alert('오늘 지급된 내역이 없습니다'); return; }
+    if (!confirm(`${s.name} 학생의 토큰 🪙${tch_curMission.tokens}을 1회 회수할까요? (현재 ${cnt}회 지급)`)) return;
+    const c = tch_curMission.completions[s.id];
+    if ((c.count || 1) > 1) { c.count--; c.lastAt = new Date().toISOString(); }
+    else delete tch_curMission.completions[s.id];
     s.tokens = Math.max(0, (s.tokens || 0) - tch_curMission.tokens);
     tch_selStu = null;
     tch_saveMissions(); tch_saveStudents(); tch_renderAll(); tch_renderMissionDetail();
@@ -6376,8 +6900,7 @@ function tch_approveReqs() {
     if (!tch_selReqs.size) { alert('승인할 학생을 선택해주세요'); return; }
     tch_selReqs.forEach(id => {
         const s = tch_students.find(x => x.id === id); if (!s) return;
-        if (!tch_curMission.completions) tch_curMission.completions = {};
-        if (!tch_curMission.completions[id]) { tch_curMission.completions[id] = { at: new Date().toISOString() }; s.tokens = (s.tokens || 0) + tch_curMission.tokens; }
+        tch_grantMission(tch_curMission, s);
         if (tch_curMission.requests) delete tch_curMission.requests[id];
     });
     tch_selReqs.clear(); tch_saveMissions(); tch_saveStudents(); tch_renderAll(); tch_renderMissionDetail();
@@ -6386,6 +6909,25 @@ function tch_rejectReqs() {
     if (!tch_selReqs.size) { alert('거부할 학생을 선택해주세요'); return; }
     tch_selReqs.forEach(id => { if (tch_curMission.requests && tch_curMission.requests[id]) tch_curMission.requests[id].status = 'rejected'; });
     tch_selReqs.clear(); tch_saveMissions(); tch_renderMissionDetail();
+}
+function tch_todayStr() { return new Date().toISOString().slice(0, 10); }
+function tch_missionCountToday(m, stuId) {
+    const c = m.completions && m.completions[stuId];
+    if (!c) return 0;
+    if (c.at && !c.date) return c.at.slice(0, 10) === tch_todayStr() ? 1 : 0;
+    return c.date === tch_todayStr() ? (c.count || 0) : 0;
+}
+function tch_grantMission(m, s) {
+    const today = tch_todayStr();
+    if (!m.completions) m.completions = {};
+    const c = m.completions[s.id];
+    if (c && c.date === today) {
+        m.completions[s.id].count = (c.count || 1) + 1;
+        m.completions[s.id].lastAt = new Date().toISOString();
+    } else {
+        m.completions[s.id] = { date: today, count: 1, lastAt: new Date().toISOString() };
+    }
+    s.tokens = (s.tokens || 0) + m.tokens;
 }
 function tch_syncToken(v) {
     const n = Math.max(1, Math.min(1000, parseInt(v) || 1));
@@ -6406,6 +6948,30 @@ function tch_createMission() {
     const tokens = Math.max(1, Math.min(1000, parseInt(document.getElementById('tch-in-m-num').value) || 100));
     const m = { id:'mis_'+Date.now(), title, description:document.getElementById('tch-in-m-desc').value.trim(), tokens, status:'active', completions:{}, requests:{}, createdAt:new Date().toISOString() };
     tch_missions.push(m); tch_saveMissions(); tch_closeModal('modal-new-mission'); tch_renderAll(); tch_showView('missions'); tch_selectMission(m.id);
+}
+function tch_syncEditMToken(v) {
+    const n = Math.max(1, Math.min(1000, parseInt(v) || 1));
+    document.getElementById('tch-edit-m-range').value = n;
+    document.getElementById('tch-edit-m-num').value   = n;
+    document.getElementById('tch-edit-m-display').textContent = n;
+}
+function tch_openEditMissionModal() {
+    if (!tch_curMission) return;
+    document.getElementById('tch-edit-m-title').value = tch_curMission.title;
+    document.getElementById('tch-edit-m-desc').value  = tch_curMission.description || '';
+    tch_syncEditMToken(tch_curMission.tokens);
+    tch_openModal('modal-edit-mission');
+}
+function tch_saveEditMission() {
+    const title = document.getElementById('tch-edit-m-title').value.trim();
+    if (!title) { alert('미션 제목을 입력해주세요'); return; }
+    tch_curMission.title       = title;
+    tch_curMission.description = document.getElementById('tch-edit-m-desc').value.trim();
+    tch_curMission.tokens      = Math.max(1, Math.min(1000, parseInt(document.getElementById('tch-edit-m-num').value) || 100));
+    tch_saveMissions();
+    tch_closeModal('modal-edit-mission');
+    tch_renderMissionList();
+    tch_renderMissionDetail();
 }
 
 /* ===================================================
@@ -6461,6 +7027,7 @@ function tch_renderRoleCard(r) {
             </div>
             <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;margin-left:10px;">
                 <span class="token-badge">🪙 ${r.tokens}</span>
+                <button class="btn btn-xs btn-outline" onclick="tch_openEditRoleModal('${r.id}')">✏️ 수정</button>
                 <button class="btn btn-xs btn-danger" onclick="tch_deleteRole('${r.id}')">🗑️ 삭제</button>
             </div>
         </div>
@@ -6542,6 +7109,34 @@ function tch_deleteRole(roleId) {
     if (!confirm('이 역할을 삭제하시겠습니까?')) return;
     tch_roles = tch_roles.filter(r => r.id !== roleId);
     tch_saveRoles(); tch_renderAll();
+}
+let tch_editRoleId = null;
+function tch_syncEditRoleToken(v) {
+    const n = Math.max(1, Math.min(1000, parseInt(v) || 1));
+    document.getElementById('tch-edit-role-range').value = n;
+    document.getElementById('tch-edit-role-num').value   = n;
+    document.getElementById('tch-edit-role-display').textContent = n;
+}
+function tch_openEditRoleModal(id) {
+    const r = tch_roles.find(x => x.id === id);
+    if (!r) return;
+    tch_editRoleId = id;
+    document.getElementById('tch-edit-role-name').value = r.name;
+    document.getElementById('tch-edit-role-desc').value = r.description || '';
+    tch_syncEditRoleToken(r.tokens);
+    tch_openModal('modal-edit-role');
+}
+function tch_saveEditRole() {
+    const r = tch_roles.find(x => x.id === tch_editRoleId);
+    if (!r) return;
+    const name = document.getElementById('tch-edit-role-name').value.trim();
+    if (!name) { alert('역할 이름을 입력해주세요'); return; }
+    r.name        = name;
+    r.description = document.getElementById('tch-edit-role-desc').value.trim();
+    r.tokens      = Math.max(1, Math.min(1000, parseInt(document.getElementById('tch-edit-role-num').value) || 50));
+    tch_saveRoles();
+    tch_closeModal('modal-edit-role');
+    tch_renderRoles();
 }
 
 /* ── 학생 배정 ── */
@@ -7200,6 +7795,7 @@ function tch_renderStore() {
                 <span class="token-badge">🪙 ${it.tokens}</span>
                 <div style="display:flex;align-items:center;gap:6px">
                     ${reqCnt > 0 ? `<span class="store-req-badge">🛍️ ${reqCnt}건</span>` : ''}
+                    <button class="btn btn-xs btn-outline" onclick="tch_openEditStoreModal('${it.id}')">✏️</button>
                     <button class="btn btn-xs btn-danger" onclick="tch_deleteStoreItem('${it.id}')">🗑️</button>
                 </div>
             </div>
@@ -7300,6 +7896,49 @@ function tch_deleteStoreItem(itemId) {
     if (!confirm('이 상품을 삭제하시겠습니까?')) return;
     tch_storeItems = tch_storeItems.filter(it => it.id !== itemId);
     tch_saveStoreItems(); tch_renderAll();
+}
+let tch_editStoreId = null;
+let tch_editPickedStoreIcon = null;
+function tch_pickEditStoreIcon(e, el) {
+    tch_editPickedStoreIcon = e;
+    document.querySelectorAll('#tch-edit-store-icon-grid .store-icon-opt').forEach(x => x.classList.remove('sel'));
+    el.classList.add('sel');
+    document.getElementById('tch-edit-store-icon-preview').textContent = e;
+}
+function tch_syncEditStoreToken(v) {
+    const n = Math.max(1, Math.min(1000, parseInt(v) || 1));
+    document.getElementById('tch-edit-store-range').value = n;
+    document.getElementById('tch-edit-store-num').value   = n;
+    document.getElementById('tch-edit-store-display').textContent = n;
+}
+function tch_openEditStoreModal(id) {
+    const it = tch_storeItems.find(x => x.id === id);
+    if (!it) return;
+    tch_editStoreId = id;
+    tch_editPickedStoreIcon = it.icon;
+    document.getElementById('tch-edit-store-name').value = it.name;
+    document.getElementById('tch-edit-store-desc').value = it.description || '';
+    document.getElementById('tch-edit-store-icon-preview').textContent = it.icon;
+    tch_syncEditStoreToken(it.tokens);
+    const grid = document.getElementById('tch-edit-store-icon-grid');
+    grid.innerHTML = tch_STORE_ICONS.map(e =>
+        `<div class="store-icon-opt${e === it.icon ? ' sel' : ''}" onclick="tch_pickEditStoreIcon('${e}',this)">${e}</div>`
+    ).join('');
+    tch_openModal('modal-edit-store');
+}
+function tch_saveEditStoreItem() {
+    if (!tch_editPickedStoreIcon) { alert('아이콘을 선택해주세요'); return; }
+    const name = document.getElementById('tch-edit-store-name').value.trim();
+    if (!name) { alert('상품 이름을 입력해주세요'); return; }
+    const it = tch_storeItems.find(x => x.id === tch_editStoreId);
+    if (!it) return;
+    it.icon        = tch_editPickedStoreIcon;
+    it.name        = name;
+    it.description = document.getElementById('tch-edit-store-desc').value.trim();
+    it.tokens      = Math.max(1, Math.min(1000, parseInt(document.getElementById('tch-edit-store-num').value) || 50));
+    tch_saveStoreItems();
+    tch_closeModal('modal-edit-store');
+    tch_renderAll();
 }
 
 function tch_toggleStoreReqSel(itemId, stuId, pfx) {
@@ -7548,6 +8187,18 @@ function stu_saveProfileEdit(){
 var currentUser = null;
 
 function switchMainTab(tab) {
+    // 학생 권한 확인 (교사가 허용하지 않은 탭 차단)
+    if (currentUser && currentUser.role === 'student') {
+        if (tab === 'chat' && !canStudentAccess('chat')) {
+            alert('선생님이 아직 스쿨톡을 허용하지 않았습니다.');
+            return;
+        }
+        if (tab === 'sketch' && !canStudentAccess('sketch')) {
+            alert('선생님이 아직 스케치북을 허용하지 않았습니다.');
+            return;
+        }
+        _activeStuTab = tab;
+    }
     // Hide all screens
     document.getElementById('pts-student-screen').style.display = 'none';
     document.getElementById('pts-teacher-screen').style.display = 'none';
@@ -7555,7 +8206,7 @@ function switchMainTab(tab) {
     document.getElementById('teacher-screen').style.display = 'none';
     document.getElementById('sk-teacher-screen').style.display = 'none';
     document.getElementById('sk-student-screen').style.display = 'none';
-    
+
     if (tab === 'points') {
         if (currentUser && currentUser.role === 'student') {
             document.getElementById('pts-student-screen').style.display = 'block';
@@ -7583,6 +8234,67 @@ function switchMainTab(tab) {
 </script>
 
 <!-- 토큰 지급 모달 (교사 채팅) -->
+<!-- 탭 허용 시간 스케줄 설정 모달 -->
+<div id="modal-schedule" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10000;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;">
+    <div style="background:white;border-radius:14px;width:360px;max-width:100%;max-height:90vh;box-shadow:0 10px 40px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+        <!-- 헤더 -->
+        <div style="padding:13px 16px;background:#1E1B4B;color:white;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;gap:8px">
+            <div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="sched-modal-title">⏰ 허용 시간 설정</div>
+            <button onclick="closeScheduleModal()" style="flex-shrink:0;background:none;border:none;color:rgba(255,255,255,0.7);font-size:18px;cursor:pointer;line-height:1;padding:0">✕</button>
+        </div>
+        <!-- 바디 -->
+        <div style="padding:14px 16px;overflow-y:auto;flex:1">
+            <p style="font-size:11px;color:#64748B;margin:0 0 12px;line-height:1.5">설정 시간대에는 교사 허용 없이 학생이 자동 접속할 수 있습니다.</p>
+            <!-- 기존 스케줄 목록 -->
+            <div id="sched-list" style="margin-bottom:12px"></div>
+            <!-- 추가 폼 -->
+            <div style="background:#F8FAFC;border-radius:10px;padding:12px;border:1px solid #E2E8F0">
+                <div style="font-size:10px;font-weight:700;color:#94A3B8;letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px">시간대 추가</div>
+                <!-- 반복 선택 -->
+                <div style="display:flex;gap:6px;margin-bottom:10px">
+                    <button id="sched-repeat-daily" onclick="_setSchedRepeatUI('daily')"
+                        style="flex:1;padding:6px 0;background:#4F46E5;color:white;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">🔁 매일</button>
+                    <button id="sched-repeat-once" onclick="_setSchedRepeatUI('once')"
+                        style="flex:1;padding:6px 0;background:#E2E8F0;color:#64748B;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">📅 1회</button>
+                </div>
+                <!-- 날짜 선택 (1회만 표시) -->
+                <div id="sched-date-row" style="display:none;align-items:center;gap:6px;margin-bottom:8px">
+                    <span style="font-size:11px;color:#64748B;white-space:nowrap;flex-shrink:0">날짜</span>
+                    <input type="date" id="sched-date" style="flex:1;padding:6px 8px;border:1px solid #D1D5DB;border-radius:7px;font-size:12px;box-sizing:border-box;min-width:0">
+                </div>
+                <!-- 시간 입력 -->
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                    <input type="time" id="sched-start" style="flex:1;padding:8px 6px;border:1px solid #D1D5DB;border-radius:7px;font-size:14px;font-weight:600;box-sizing:border-box">
+                    <span style="color:#94A3B8;font-size:14px;font-weight:700;flex-shrink:0">~</span>
+                    <input type="time" id="sched-end" style="flex:1;padding:8px 6px;border:1px solid #D1D5DB;border-radius:7px;font-size:14px;font-weight:600;box-sizing:border-box">
+                </div>
+                <button onclick="addSchedSlot()" style="width:100%;padding:9px;background:#4F46E5;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">+ 추가</button>
+            </div>
+        </div>
+        <!-- 푸터 -->
+        <div style="padding:10px 16px;border-top:1px solid #E2E8F0;display:flex;justify-content:flex-end;gap:8px;flex-shrink:0">
+            <button onclick="closeScheduleModal()" style="padding:8px 16px;border:1px solid #D1D5DB;border-radius:8px;background:white;font-size:12px;cursor:pointer;font-weight:600">취소</button>
+            <button onclick="saveSchedule()" style="padding:8px 16px;background:#4F46E5;color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">💾 저장</button>
+        </div>
+    </div>
+</div>
+
+<!-- 학생 사용 시간 만료 알림 -->
+<div id="modal-expiry" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:11000;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;">
+    <div style="background:white;border-radius:16px;width:300px;max-width:100%;text-align:center;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,0.4)">
+        <div style="background:linear-gradient(135deg,#EF4444,#DC2626);padding:24px 20px 18px">
+            <div style="font-size:44px;margin-bottom:8px">⏰</div>
+            <div style="color:white;font-size:17px;font-weight:800">사용 시간이 종료되었습니다</div>
+        </div>
+        <div style="padding:20px">
+            <p style="font-size:14px;color:#475569;margin:0 0 20px;line-height:1.6">
+                <strong id="expiry-label">스쿨톡</strong> 허용 시간이 끝났습니다.<br>포인트 화면으로 이동합니다.
+            </p>
+            <button onclick="dismissExpiry()" style="width:100%;padding:12px;background:#EF4444;color:white;border:none;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer">확인</button>
+        </div>
+    </div>
+</div>
+
 <div id="tch-give-token-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">
     <div style="background:white;border-radius:12px;padding:20px;width:320px;box-shadow:0 8px 30px rgba(0,0,0,0.3);">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
