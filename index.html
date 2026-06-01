@@ -113,19 +113,7 @@
         .draggable-student { cursor: grab; }
         .draggable-student:active { cursor: grabbing; }
 
-        /* ── 플로팅 채팅창 ── */
-        .fchat-win { position:fixed; z-index:9000; width:300px; min-width:220px; height:380px; min-height:200px; border-radius:12px; box-shadow:0 8px 32px rgba(0,0,0,.35); background:#fff; display:flex; flex-direction:column; overflow:hidden; border:1.5px solid rgba(0,0,0,.13); resize:both; }
-        .fchat-titlebar { display:flex; align-items:center; gap:6px; padding:8px 10px; cursor:grab; color:#fff; font-weight:700; font-size:13px; flex-shrink:0; user-select:none; }
-        .fchat-titlebar:active { cursor:grabbing; }
-        .fchat-titlebar .fchat-ctrl { background:rgba(255,255,255,.25); border:none; color:#fff; border-radius:50%; width:22px; height:22px; cursor:pointer; font-size:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; padding:0; }
-        .fchat-titlebar .fchat-ctrl:hover { background:rgba(255,255,255,.45); }
-        .fchat-msgs { flex:1; padding:8px; overflow-y:auto; background:#e5ddd5; font-size:12px; min-height:0; }
-        .fchat-input { display:grid; grid-template-columns:8fr 2fr; gap:6px; padding:8px 10px; border-top:1px solid rgba(0,0,0,.08); background:linear-gradient(to bottom,#f8f8f8,#f0f0f0); flex-shrink:0; align-items:center; }
-        .fchat-input input { border:1.5px solid #ddd; border-radius:20px; padding:7px 14px; font-size:12px; outline:none; min-width:0; height:34px; box-sizing:border-box; background:#fff; transition:border-color .15s; }
-        .fchat-input input:focus { border-color:#4CAF50; }
-        .fchat-input button { background:linear-gradient(135deg,#4CAF50,#2e7d32); color:#fff; border:none; border-radius:20px; font-size:12px; cursor:pointer; font-weight:700; height:34px; padding:0; box-shadow:0 2px 6px rgba(76,175,80,.35); transition:opacity .15s,transform .1s; letter-spacing:.02em; }
-        .fchat-input button:hover { opacity:.9; }
-        .fchat-input button:active { transform:scale(.96); }
+        /* ── 팝업 채팅창 분리 버튼 ── */
         .btn-float { background:rgba(255,255,255,.85) !important; color:#333 !important; border:1px solid #ccc !important; font-size:12px !important; padding:3px 7px !important; border-radius:4px !important; cursor:pointer; }
         .btn-float:hover { background:#fff !important; }
 
@@ -3276,129 +3264,124 @@ textarea.finput{resize:vertical;}
         database.ref('messages').push({ roomId: roomId, sender: myInfo.name, text: text, time: timeStr, grade: myInfo.grade, classNum: myInfo.classNum });
     }
 
-    /* ── 플로팅 채팅창 ── */
-    const floatingChats = new Set();
-    let fchatZ = 9100;
+    /* ── 팝업 채팅창 (별도 브라우저 창) ── */
+    window._fchatPopups = {};
 
     function floatChat(roomId) {
-        const existing = document.getElementById('fchat-' + roomId);
-        if (existing) {
-            fchatZ++; existing.style.zIndex = fchatZ;
-            existing.style.display = 'flex';
-            existing.dataset.minimized = '0';
-            const msgs = document.getElementById('fchat-msgs-' + roomId);
-            const inp  = existing.querySelector('.fchat-input');
-            if (msgs) msgs.style.display = '';
-            if (inp)  inp.style.display = '';
-            return;
-        }
+        const existing = window._fchatPopups[roomId];
+        if (existing && !existing.closed) { existing.focus(); return; }
+
         const room = localRooms[roomId];
         if (!room) return;
-        floatingChats.add(roomId);
-        fchatZ++;
-        const offset = (floatingChats.size - 1) * 28;
-        const win = document.createElement('div');
-        win.className = 'fchat-win';
-        win.id = 'fchat-' + roomId;
-        win.style.cssText = `z-index:${fchatZ};top:${60+offset}px;right:${20+offset}px`;
-        const bg = room.isDefault ? '#4CAF50' : '#673AB7';
-        win.innerHTML = `
-            <div class="fchat-titlebar" id="fchat-bar-${roomId}" style="background:${bg}">
-                <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${room.title}</span>
-                <button class="fchat-ctrl" onclick="event.stopPropagation();fchatMinimize('${roomId}')" title="최소화">—</button>
-                <button class="fchat-ctrl" onclick="event.stopPropagation();fchatClose('${roomId}')" title="닫기">✕</button>
-            </div>
-            <div class="fchat-msgs" id="fchat-msgs-${roomId}"></div>
-            <div class="fchat-input">
-                <input type="text" id="fchat-input-${roomId}" placeholder="대화 입력..." onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();fchatSend('${roomId}')}">
-                <button onclick="fchatSend('${roomId}')">전송</button>
-            </div>`;
-        document.body.appendChild(win);
-        win.addEventListener('mousedown', function() { fchatZ++; this.style.zIndex = fchatZ; });
-        fchatMakeDraggable(win, document.getElementById('fchat-bar-' + roomId));
-        fchatRenderMsgs(roomId);
-    }
 
-    function fchatClose(roomId) {
-        floatingChats.delete(roomId);
-        const win = document.getElementById('fchat-' + roomId);
-        if (win) win.remove();
-    }
+        const bg    = room.isDefault ? '#4CAF50' : '#673AB7';
+        const popup = window.open('', 'fchat_' + roomId,
+            'width=340,height=460,resizable=yes,scrollbars=no,toolbar=no,menubar=no,location=no,status=no');
 
-    function fchatMinimize(roomId) {
-        const win = document.getElementById('fchat-' + roomId);
-        if (!win) return;
-        const isMin = win.dataset.minimized === '1';
-        const msgs = document.getElementById('fchat-msgs-' + roomId);
-        const inp  = win.querySelector('.fchat-input');
-        if (isMin) {
-            if (msgs) msgs.style.display = '';
-            if (inp)  inp.style.display = '';
-            win.dataset.minimized = '0';
-        } else {
-            if (msgs) msgs.style.display = 'none';
-            if (inp)  inp.style.display = 'none';
-            win.dataset.minimized = '1';
+        if (!popup) {
+            alert('팝업이 차단되어 있습니다.\n브라우저 주소창 옆의 팝업 차단 아이콘을 클릭하여 허용해 주세요.');
+            return;
         }
+        window._fchatPopups[roomId] = popup;
+
+        const html = `<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${room.title.replace(/</g,'&lt;')}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;display:flex;flex-direction:column;height:100vh;overflow:hidden;background:#f0f0f0}
+#titlebar{background:${bg};color:#fff;padding:10px 14px;font-weight:700;font-size:14px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#msgs{flex:1;overflow-y:auto;padding:10px 12px;background:#e5ddd5;font-size:13px}
+.ml{margin-bottom:10px;display:flex;flex-direction:column}
+.ml.me{align-items:flex-end}
+.ml.other{align-items:flex-start}
+.ms{font-size:11px;font-weight:700;margin-bottom:3px}
+.ml.me .ms{color:#2e7d32}
+.ml.other .ms{color:#c62828}
+.mb{border-radius:14px;padding:8px 13px;max-width:80%;font-size:13px;word-break:break-word;line-height:1.45;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.ml.me .mb{background:#d4edda;border-bottom-right-radius:4px}
+.ml.other .mb{background:#fff;border-bottom-left-radius:4px}
+.mt{font-size:10px;color:#999;margin-top:3px}
+#bar{display:grid;grid-template-columns:8fr 2fr;gap:6px;padding:8px 10px;background:linear-gradient(to bottom,#f8f8f8,#efefef);border-top:1px solid rgba(0,0,0,.1);flex-shrink:0}
+#bar input{border:1.5px solid #ddd;border-radius:20px;padding:0 14px;font-size:13px;outline:none;height:36px;background:#fff;transition:border-color .15s}
+#bar input:focus{border-color:${bg}}
+#bar button{background:linear-gradient(135deg,${bg},${room.isDefault?'#2e7d32':'#4527a0'});color:#fff;border:none;border-radius:20px;font-size:13px;font-weight:700;height:36px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.2);transition:opacity .15s,transform .1s}
+#bar button:hover{opacity:.88}
+#bar button:active{transform:scale(.95)}
+</style>
+</head>
+<body>
+<div id="titlebar">${room.title.replace(/</g,'&lt;')}</div>
+<div id="msgs"></div>
+<div id="bar">
+  <input type="text" id="mi" placeholder="대화 입력..." autofocus>
+  <button id="sb">전송</button>
+</div>
+<script>
+var _roomId = '${roomId}';
+function _esc(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function send(){
+  var v=document.getElementById('mi').value.trim();
+  if(!v)return;
+  document.getElementById('mi').value='';
+  try{window.opener.fchatPopupSend(_roomId,v);}catch(e){}
+}
+document.getElementById('sb').onclick=send;
+document.getElementById('mi').onkeydown=function(e){if(e.key==='Enter'&&!e.isComposing){e.preventDefault();send();}};
+window.fchatReceive=function(msgs){
+  var el=document.getElementById('msgs');
+  var bot=el.scrollHeight===0||(el.scrollHeight-el.scrollTop-el.clientHeight)<=60;
+  el.innerHTML=msgs.map(function(m){
+    return '<div class="ml '+(m.me?'me':'other')+'">'
+      +'<div class="ms">'+_esc(m.me?'나':m.sender)+'</div>'
+      +'<div class="mb">'+_esc(m.text)+'</div>'
+      +'<div class="mt">'+_esc(m.time)+'</div>'
+      +'</div>';
+  }).join('');
+  if(bot)el.scrollTop=el.scrollHeight;
+};
+window.addEventListener('beforeunload',function(){
+  try{window.opener.fchatPopupClosed(_roomId);}catch(e){}
+});
+<\/script>
+</body>
+</html>`;
+
+        popup.document.open();
+        popup.document.write(html);
+        popup.document.close();
+
+        setTimeout(() => fchatPush(roomId), 150);
     }
 
-    function fchatSend(roomId) {
-        const input = document.getElementById('fchat-input-' + roomId);
-        if (!input) return;
-        const text = input.value.trim();
-        if (!text) return;
-        input.value = '';
+    function fchatPopupSend(roomId, text) {
         const now = new Date();
-        const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-        database.ref('messages').push({ roomId, sender: myInfo.name, text, time: timeStr, grade: myInfo.grade, classNum: myInfo.classNum });
+        const t = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+        database.ref('messages').push({ roomId, sender: myInfo.name, text, time: t, grade: myInfo.grade, classNum: myInfo.classNum });
     }
 
-    function fchatRenderMsgs(roomId) {
-        const el = document.getElementById('fchat-msgs-' + roomId);
-        if (!el) return;
-        const atBottom = el.scrollHeight === 0 || (el.scrollHeight - el.scrollTop - el.clientHeight) <= 50;
-        el.innerHTML = '';
-        localMessages.forEach(m => {
-            if (m.roomId !== roomId) return;
-            const isMe = m.sender === myInfo.name;
-            const displaySender = isMe ? '나' : getRankString(m.sender) + m.sender;
-            el.innerHTML += `<div class="msg-line ${isMe?'me':'other'}"><div class="msg-sender" style="color:${isMe?'#4CAF50':'#d32f2f'}">${displaySender}</div><div class="msg-text">${linkify(m.text)}</div><div class="msg-time">${m.time}</div></div>`;
-        });
-        if (atBottom) el.scrollTop = el.scrollHeight;
+    function fchatPopupClosed(roomId) {
+        delete window._fchatPopups[roomId];
+    }
+
+    function fchatPush(roomId) {
+        const popup = window._fchatPopups[roomId];
+        if (!popup || popup.closed || !popup.fchatReceive) return;
+        const msgs = localMessages
+            .filter(m => m.roomId === roomId)
+            .map(m => ({ me: m.sender === myInfo.name, sender: m.sender, text: m.text, time: m.time }));
+        popup.fchatReceive(msgs);
     }
 
     function fchatUpdateAll() {
-        floatingChats.forEach(roomId => fchatRenderMsgs(roomId));
-    }
-
-    function fchatMakeDraggable(el, handle) {
-        let sx, sy, sl, st;
-        function startDrag(cx, cy) {
-            const r = el.getBoundingClientRect();
-            el.style.right = ''; el.style.left = r.left + 'px'; el.style.top = r.top + 'px';
-            sx = cx; sy = cy; sl = r.left; st = r.top;
-        }
-        function moveDrag(cx, cy) {
-            el.style.left = Math.max(0, Math.min(sl + cx - sx, window.innerWidth - el.offsetWidth)) + 'px';
-            el.style.top  = Math.max(0, Math.min(st + cy - sy, window.innerHeight - 40)) + 'px';
-        }
-        handle.addEventListener('mousedown', function(e) {
-            if (e.target.tagName === 'BUTTON') return;
-            e.preventDefault();
-            startDrag(e.clientX, e.clientY);
-            const onMove = e2 => moveDrag(e2.clientX, e2.clientY);
-            const onUp   = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
-            document.addEventListener('mousemove', onMove);
-            document.addEventListener('mouseup', onUp);
+        Object.keys(window._fchatPopups).forEach(roomId => {
+            const p = window._fchatPopups[roomId];
+            if (p && p.closed) { delete window._fchatPopups[roomId]; return; }
+            fchatPush(roomId);
         });
-        handle.addEventListener('touchstart', function(e) {
-            if (e.target.tagName === 'BUTTON') return;
-            startDrag(e.touches[0].clientX, e.touches[0].clientY);
-            const onMove = e2 => { e2.preventDefault(); moveDrag(e2.touches[0].clientX, e2.touches[0].clientY); };
-            const onEnd  = () => { handle.removeEventListener('touchmove', onMove); handle.removeEventListener('touchend', onEnd); };
-            handle.addEventListener('touchmove', onMove, { passive: false });
-            handle.addEventListener('touchend', onEnd);
-        }, { passive: true });
     }
 
     function sendTeacherMessage() {
@@ -4117,6 +4100,7 @@ textarea.finput{resize:vertical;}
         userRef.onDisconnect().remove();
         sketchDb.ref('live/' + sk_myUid).onDisconnect().remove();
         sketchDb.ref('live_edits/' + sk_myUid).onDisconnect().remove();
+        sketchDb.ref('direct_broadcast/' + sk_myUid).onDisconnect().remove();
         if (myInfo.isTeacher) {
             document.getElementById('pts-teacher-screen').style.display = 'none';
             document.getElementById('sk-teacher-screen').style.display = 'flex';
@@ -4906,6 +4890,11 @@ textarea.finput{resize:vertical;}
             const d=snap.val();
             if(d&&d.img&&d.ts>sk_sessionStartTs) sk_createFloatingImage(d.img);
         });
+        // 개인 전송 수신 (교사가 드래그로 이 학생에게만 보낸 자료)
+        sketchDb.ref('direct_broadcast/'+sk_myUid).on('value', snap=>{
+            const d=snap.val();
+            if(d&&d.img&&d.ts>sk_sessionStartTs) sk_createFloatingImage(d.img);
+        });
     }
 
     function sk_listenToTeacherEdits() {
@@ -4996,16 +4985,24 @@ textarea.finput{resize:vertical;}
     function sk_createTeacherCard(uid, imgSrc, imgH) {
         const card=document.createElement('div');
         card.dataset.ruid=uid;
-        card.style.cssText='background:white;border-radius:10px;padding:8px;box-shadow:0 2px 8px rgba(0,0,0,0.1);display:flex;flex-direction:column;gap:6px;';
+        card.style.cssText='background:white;border-radius:10px;padding:8px;box-shadow:0 2px 8px rgba(0,0,0,0.1);display:flex;flex-direction:column;gap:6px;position:relative;transition:outline .1s;';
         const esc=uid.replace(/'/g,"\\'");
+        // uid = "{grade}-{classNum}-{name}" 형식에서 이름 추출
+        const uidParts=uid.split('-');
+        const displayName=uidParts.length>=3?uidParts.slice(2).join('-'):uid;
+        const displayClass=uidParts.length>=2?uidParts[0]+'학년 '+uidParts[1]+'반':'';
         card.innerHTML=`
             <div style="display:flex;align-items:center;justify-content:space-between;gap:4px;">
-                <h4 style="margin:0;font-size:13px;color:#333;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">🟢 ${uid}</h4>
+                <div style="flex:1;min-width:0;overflow:hidden">
+                    <div style="font-size:14px;font-weight:700;color:#222;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">🟢 ${displayName}</div>
+                    <div style="font-size:10px;color:#888;margin-top:1px">${displayClass}</div>
+                </div>
                 <button data-recbtn onclick="sk_toggleRec('${esc}')"
                     style="background:#e74c3c;color:white;border:none;border-radius:6px;padding:3px 9px;cursor:pointer;font-size:11px;white-space:nowrap;flex-shrink:0;">
                     🔴 녹화
                 </button>
             </div>
+            <div style="font-size:10px;color:#b45309;text-align:center;background:#fffbeb;border:1px dashed #fbbf24;border-radius:5px;padding:2px 0;pointer-events:none">📂 이미지 드래그하여 개인 전송</div>
             <img class="sk-live-img" src="${imgSrc}"
                 style="height:${imgH};width:100%;object-fit:contain;cursor:pointer;border-radius:4px;"
                 onclick="sk_openTeacherModal('${esc}', this.src)">
@@ -5020,6 +5017,25 @@ textarea.finput{resize:vertical;}
                 <button onclick="sk_downloadRec('${esc}')"
                     style="background:#2ecc71;color:white;border:none;border-radius:4px;padding:4px 9px;cursor:pointer;font-size:11px;white-space:nowrap;">💾 다운</button>
             </div>`;
+        // 드래그앤드롭으로 개별 자료 전송
+        card.addEventListener('dragover', function(e){ e.preventDefault(); e.stopPropagation(); this.style.outline='3px dashed #e67e22'; this.style.background='#fff8f0'; });
+        card.addEventListener('dragleave', function(e){ this.style.outline=''; this.style.background='white'; });
+        card.addEventListener('drop', function(e){
+            e.preventDefault(); e.stopPropagation();
+            this.style.outline=''; this.style.background='white';
+            const file=e.dataTransfer.files[0];
+            if(!file||!file.type.startsWith('image/')) return alert('이미지 파일만 전송 가능합니다.');
+            const reader=new FileReader();
+            reader.onload=ev=>{
+                sketchDb.ref('direct_broadcast/'+uid).set({img:ev.target.result,ts:Date.now()});
+                const fb=document.createElement('div');
+                fb.textContent='✅ '+displayName+'에게 전송 완료!';
+                fb.style.cssText='position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(39,174,96,.92);color:white;padding:8px 16px;border-radius:8px;font-weight:bold;font-size:13px;pointer-events:none;z-index:10;white-space:nowrap;';
+                card.appendChild(fb);
+                setTimeout(()=>fb.remove(),2200);
+            };
+            reader.readAsDataURL(file);
+        });
         return card;
     }
 
@@ -5180,7 +5196,8 @@ textarea.finput{resize:vertical;}
 
     function sk_openTeacherModal(uid, imgSrc) {
         sk_editingUid=uid;
-        document.getElementById('sk-modal-student-name').innerText='✏️ '+uid+' 첨삭중';
+        const _p=uid.split('-'); const _n=_p.length>=3?_p.slice(2).join('-'):uid;
+        document.getElementById('sk-modal-student-name').innerText='✏️ '+_n+' 첨삭중';
         const bgImg=document.getElementById('sk-teacher-bg-img');
         bgImg.onload=function(){ sk_resizeTeacherModalCanvas(bgImg); bgImg.onload=null; };
         bgImg.src=imgSrc;
@@ -8297,6 +8314,12 @@ document.addEventListener('DOMContentLoaded', () => {
 /* ── Teacher App Entry Point (called after main login) ── */
 function tch_initTeacherApp() {
     tch_load();
+    // 매 세션 시작 시 스쿨톡·스케치북 권한을 비허용으로 초기화
+    const permPath = (typeof _permPath === 'function') ? _permPath() : null;
+    if (permPath && typeof database !== 'undefined' && database) {
+        database.ref(permPath + '/chat').set(false);
+        database.ref(permPath + '/sketch').set(false);
+    }
 }
 </script>
 
@@ -8441,16 +8464,26 @@ function stu_profileKey(){return 'stu_av_'+(stu_currentStudentId||stu_currentStu
 function stu_mottoKey(){return 'stu_motto_'+(stu_currentStudentId||stu_currentStudentName);}
 function stu_renderMotto(){
     const el=document.getElementById('stu-motto-display');if(!el)return;
-    const m=localStorage.getItem(stu_mottoKey());
+    // Firebase(students 배열)에서 우선 읽고, 없으면 localStorage 폴백
+    const stu=stu_students.find(s=>s.id===stu_currentStudentId);
+    const m=(stu&&stu.motto)||localStorage.getItem(stu_mottoKey())||'';
     el.textContent=m?'✨ '+m:'✨ 좌우명을 입력하세요';
     el.style.opacity=m?'1':'0.55';
 }
 function stu_editMotto(){
-    const cur=localStorage.getItem(stu_mottoKey())||'';
+    const stu=stu_students.find(s=>s.id===stu_currentStudentId);
+    const cur=(stu&&stu.motto)||localStorage.getItem(stu_mottoKey())||'';
     const v=prompt('나의 좌우명을 입력하세요 ✨', cur);
     if(v===null)return;
-    if(v.trim())localStorage.setItem(stu_mottoKey(),v.trim());
-    else localStorage.removeItem(stu_mottoKey());
+    const val=v.trim();
+    // localStorage에도 백업
+    if(val) localStorage.setItem(stu_mottoKey(),val);
+    else    localStorage.removeItem(stu_mottoKey());
+    // 학생 객체에 저장 → stu_saveStudents()로 Firebase까지 반영
+    if(stu){
+        stu.motto=val||'';
+        stu_saveStudents();
+    }
     stu_renderMotto();
 }
 
