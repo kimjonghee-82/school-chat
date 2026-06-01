@@ -2092,7 +2092,7 @@ textarea.finput{resize:vertical;}
         <div id="sk-teacher-main" style="flex-grow:1; display:flex; flex-direction:column; overflow:hidden;">
             <div style="display:flex; background:white; border-bottom:2px solid #ddd; padding:0 20px; flex-shrink:0;">
                 <div class="sk-tab sk-tab-active" onclick="sk_switchTab(event,'live')">👀 실시간 캔버스 보기</div>
-                <div class="sk-tab" onclick="sk_switchTab(event,'sub')">📁 제출된 최종 작품</div>
+                <div class="sk-tab" onclick="sk_switchTab(event,'sub')">📁 제출된 작품 (최대 2개)</div>
             </div>
             <div id="sk-tab-live" class="sk-tab-content sk-tab-active">
                 <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:15px; padding:20px;" id="sk-live-gallery"></div>
@@ -4874,9 +4874,20 @@ window.addEventListener('beforeunload',function(){
         try {
             const cap=await html2canvas(target,{scale:1.5});
             const imgData=cap.toDataURL('image/jpeg',0.9);
-            await sketchDb.ref('submissions/'+sk_myUid).set(Object.assign({},sk_myInfo,{image:imgData,timestamp:Date.now()}));
+            const subRef=sketchDb.ref('submissions/'+sk_myUid);
+            const snap=await subRef.once('value');
+            const existing=snap.val()||{};
+            // 현재 쓸 슬롯 결정 (0 또는 1, 순환)
+            const nextSlot=(existing.nextSlot||0)%2;
+            const slotKey='slot'+nextSlot;
+            const update={
+                grade:sk_myInfo.grade, classNum:sk_myInfo.classNum, name:sk_myInfo.name,
+                nextSlot:(nextSlot+1)%2
+            };
+            update[slotKey]={image:imgData,timestamp:Date.now()};
+            await subRef.update(update);
             await sketchDb.ref('users/'+sk_myUid).update({submitted:true});
-            alert("제출 완료! 🎉");
+            alert('제출 완료! 🎉  ('+(nextSlot+1)+'번째 작품)');
         } catch(e) { alert("제출 오류"); }
         finally {
             document.querySelectorAll('#sk-canvas-wrapper .drag-handle, #sk-canvas-wrapper .resize-handle').forEach(h=>h.style.display='');
@@ -4973,9 +4984,25 @@ window.addEventListener('beforeunload',function(){
             const subs=snap.val()||{};
             const gallery=document.getElementById('sk-sub-gallery');
             gallery.innerHTML='';
+            window._skSubImgs=window._skSubImgs||{};
             Object.keys(subs).forEach(uid=>{
-                const title=subs[uid].grade+'학년 '+subs[uid].classNum+'반 '+subs[uid].name;
-                gallery.innerHTML+=`<div style="background:white;border-radius:10px;padding:10px;box-shadow:0 2px 8px rgba(0,0,0,0.1);cursor:pointer;text-align:center;" onclick="sk_openSubmissionModal('${title}','${subs[uid].image}')"><h4 style="margin:0 0 10px 0;font-size:14px;color:#333;">📁 ${title}</h4><img src="${subs[uid].image}" style="width:100%;height:160px;object-fit:contain;background:#f9f9f9;border:1px solid #eee;border-radius:6px;"></div>`;
+                const s=subs[uid];
+                const title=s.grade+'학년 '+s.classNum+'반 '+s.name;
+                const esc=uid.replace(/'/g,"\\'");
+                // 구형 포맷(단일 image 필드) 호환 처리
+                const slots=[];
+                if(s.slot0&&s.slot0.image){ window._skSubImgs[uid+'_0']=s.slot0.image; slots.push({key:uid+'_0',label:'1번째 작품',color:'#6366f1'}); }
+                else if(s.image&&!s.slot0){ window._skSubImgs[uid+'_0']=s.image; slots.push({key:uid+'_0',label:'작품',color:'#6366f1'}); }
+                if(s.slot1&&s.slot1.image){ window._skSubImgs[uid+'_1']=s.slot1.image; slots.push({key:uid+'_1',label:'2번째 작품',color:'#e67e22'}); }
+                const slotsHtml=slots.map(sl=>`
+                    <div style="flex:1;cursor:pointer;text-align:center;min-width:0" onclick="sk_openSubmissionModal('${title.replace(/'/g,"\\'")} (${sl.label})',window._skSubImgs['${sl.key}'])">
+                        <div style="font-size:10px;font-weight:700;color:${sl.color};margin-bottom:4px">${sl.label}</div>
+                        <img src="${window._skSubImgs[sl.key]}" style="width:100%;height:130px;object-fit:contain;background:#f9f9f9;border:1px solid #eee;border-radius:6px">
+                    </div>`).join('<div style="width:1px;background:#eee;flex-shrink:0"></div>');
+                gallery.innerHTML+=`<div style="background:white;border-radius:10px;padding:10px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+                    <h4 style="margin:0 0 8px 0;font-size:14px;color:#333;">📁 ${title}</h4>
+                    <div style="display:flex;gap:8px;align-items:flex-start">${slotsHtml}</div>
+                </div>`;
             });
         });
         // Clean up recording data when teacher leaves
