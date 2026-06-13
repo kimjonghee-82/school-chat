@@ -1719,7 +1719,7 @@ function applyTranslationToImage() {
   const tmpC = document.createElement('canvas');
   tmpC.width = page.width; tmpC.height = page.height;
   const tmpX = tmpC.getContext('2d');
-  tmpX.putImageData(page.processed, 0, 0);
+  tmpX.putImageData(page.original, 0, 0);
   const strip = tmpX.getImageData(cx, cy, cw, Math.min(4, ch));
   let r=0, g=0, b=0, n=strip.data.length/4;
   for(let i=0;i<strip.data.length;i+=4){r+=strip.data[i];g+=strip.data[i+1];b+=strip.data[i+2];}
