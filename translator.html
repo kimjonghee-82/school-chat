@@ -585,10 +585,9 @@ function renderCurrentPage(fitToView) {
 
   if (fitToView) {
     const ww = window.innerWidth, wh = window.innerHeight - 52;
-    zoom = Math.min(ww / page.width, wh / page.height, 1);
+    zoom = Math.min(ww / page.width, wh / page.height);
     panX = (ww - page.width * zoom) / 2;
     panY = (wh - page.height * zoom) / 2;
-    clampPan();
   }
   applyTransform();
 }
@@ -650,7 +649,9 @@ function initViewer() {
     if (viewMode==='pan') { isPanning=false; }
     else if (viewMode==='select'&&isSelecting) {
       isSelecting=false; selEnd=imgPos(e); drawSel();
-      const r=selRect(); if(r.w>20&&r.h>20) translateSel(r, e.clientX, e.clientY);
+      const r=selRect();
+      if(r.w>20&&r.h>20) translateSel(r, e.clientX, e.clientY);
+      else selCtx.clearRect(0,0,selCanvas.width,selCanvas.height);
     }
   });
 
@@ -676,7 +677,9 @@ function initViewer() {
       if(viewMode==='select'&&isSelecting){
         isSelecting=false;drawSel();
         const r=selRect();
-        if(r.w>20&&r.h>20) translateSel(r, selEnd.x*zoom+panX, selEnd.y*zoom+panY+52);
+        const px=selEnd.x*zoom+panX, py=selEnd.y*zoom+panY+52;
+        if(r.w>20&&r.h>20) translateSel(r, px, py);
+        else selCtx.clearRect(0,0,selCanvas.width,selCanvas.height);
       }
       isPanning=false;
     }
@@ -729,9 +732,11 @@ async function translateSel(rect, popClientX, popClientY) {
 
   const popup=document.getElementById('transPopup');
   // Position popup
-  const pw=300, ph=160;
-  let px=Math.min(popClientX+10, window.innerWidth-pw-10);
-  let py=Math.min(popClientY+10, window.innerHeight-ph-10);
+  const pw=300, ph=180;
+  let px=popClientX+14;
+  let py=popClientY+14;
+  if(px+pw > window.innerWidth-8) px=popClientX-pw-14;
+  if(py+ph > window.innerHeight-8) py=popClientY-ph-14;
   px=Math.max(8,px); py=Math.max(60,py);
   popup.style.left=px+'px'; popup.style.top=py+'px';
   document.getElementById('popKor').textContent='';
