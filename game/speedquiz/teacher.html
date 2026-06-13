@@ -335,21 +335,37 @@ function saveSettings() {
 }
 
 async function loadBooks() {
+  const sel = document.getElementById('bookSelect');
+  sel.innerHTML = '<option value="">불러오는 중...</option>';
+  const fbBase = (cfg.firebaseUrl || await loadFbUrl()).replace(/\/$/, '');
+  if (!fbBase) {
+    sel.innerHTML = '<option value="">설정에서 Firebase URL을 입력해주세요</option>';
+    return;
+  }
   try {
-    const r = await fetch('./books/manifest.json');
-    const m = await r.json();
-    const sel = document.getElementById('bookSelect');
+    const r = await fetch(`${fbBase}/books.json`);
+    const data = await r.json();
     sel.innerHTML = '<option value="">지도서를 선택하세요...</option>';
-    m.books.forEach(b => {
+    if (!data) { sel.innerHTML += '<option value="" disabled>업로드된 지도서 없음</option>'; return; }
+    const books = Object.entries(data).sort((a, b) => (b[1].uploadedAt || 0) - (a[1].uploadedAt || 0));
+    books.forEach(([id, b]) => {
       const o = document.createElement('option');
-      o.value = b.file;
-      o.textContent = `${b.subject ? '['+b.subject+'] ' : ''}${b.name}`;
-      if (cfg.book === b.file) o.selected = true;
+      o.value = id;
+      o.textContent = b.name || id;
+      if (cfg.book === id) o.selected = true;
       sel.appendChild(o);
     });
   } catch {
-    document.getElementById('bookSelect').innerHTML = '<option value="">books/manifest.json 없음</option>';
+    sel.innerHTML = '<option value="">Firebase 연결 실패</option>';
   }
+}
+
+async function loadFbUrl() {
+  try {
+    const r = await fetch('./config.json');
+    const c = await r.json();
+    return c.firebaseUrl || '';
+  } catch { return ''; }
 }
 
 // ── Firebase REST ──────────────────────────────────────────────────
@@ -466,14 +482,13 @@ function setGenProgress(msg) {
   document.getElementById('genProgress').textContent = msg;
 }
 
-async function loadBookContent(bookFile) {
-  const r = await fetch(`./books/${bookFile}`);
-  if (!r.ok) throw new Error(`지도서 파일을 불러올 수 없습니다: ${bookFile}`);
-  if (bookFile.toLowerCase().endsWith('.pdf')) {
-    const buf = await r.arrayBuffer();
-    return extractPdfText(buf);
-  }
-  return r.text();
+async function loadBookContent(bookId) {
+  const fbBase = cfg.firebaseUrl.replace(/\/$/, '');
+  const r = await fetch(`${fbBase}/books/${bookId}.json`);
+  if (!r.ok) throw new Error(`지도서를 불러올 수 없습니다 (Firebase)`);
+  const data = await r.json();
+  if (!data || !data.text) throw new Error('지도서 텍스트가 없습니다. 다시 업로드해주세요.');
+  return data.text;
 }
 
 async function extractPdfText(buf) {
@@ -594,7 +609,16 @@ function showStatus(msg, type) {
 }
 
 // ── Init ───────────────────────────────────────────────────────────
-startPolling();
+(async () => {
+  if (!cfg.firebaseUrl) {
+    try {
+      const r = await fetch('./config.json');
+      const c = await r.json();
+      if (c.firebaseUrl) { cfg.firebaseUrl = c.firebaseUrl; }
+    } catch {}
+  }
+  startPolling();
+})();
 </script>
 </body>
 </html>

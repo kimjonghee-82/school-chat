@@ -14,7 +14,8 @@ body {
   justify-content:center;
   background:#0d1117;
   font-family:'Segoe UI',sans-serif;
-  gap:40px;
+  gap:32px;
+  padding:40px 20px;
 }
 h1 { color:#fff; font-size:2rem; }
 .sub { color:#8b949e; font-size:0.95rem; }
@@ -38,6 +39,98 @@ a.card.student:hover { transform:translateY(-4px); box-shadow:0 8px 30px rgba(92
 .card .desc { font-size:0.85rem; color:#8b949e; }
 .back { color:#8b949e; font-size:0.85rem; text-decoration:none; }
 .back:hover { color:#ccc; }
+
+/* Upload section */
+.upload-section {
+  background:#161b22;
+  border:2px dashed #30363d;
+  border-radius:16px;
+  padding:24px 32px;
+  text-align:center;
+  width:100%;
+  max-width:480px;
+  transition:border-color 0.2s;
+}
+.upload-section:hover { border-color:#8b949e; }
+.btn-upload {
+  background:transparent;
+  border:2px solid #e3b341;
+  color:#e3b341;
+  padding:12px 28px;
+  border-radius:10px;
+  font-size:1rem;
+  font-weight:600;
+  cursor:pointer;
+  transition:all 0.15s;
+}
+.btn-upload:hover { background:#e3b341; color:#0d1117; }
+.upload-hint { color:#8b949e; font-size:0.82rem; margin-top:10px; }
+.upload-progress {
+  margin-top:14px;
+  display:none;
+}
+.progress-bar-bg {
+  height:8px;
+  background:#30363d;
+  border-radius:4px;
+  overflow:hidden;
+  margin-bottom:8px;
+}
+.progress-bar-fill {
+  height:100%;
+  background:linear-gradient(90deg,#e3b341,#f0c060);
+  border-radius:4px;
+  width:0%;
+  transition:width 0.3s;
+}
+.progress-msg { color:#8b949e; font-size:0.85rem; }
+.upload-result {
+  margin-top:12px;
+  font-size:0.85rem;
+  display:none;
+}
+.upload-result.success { color:#4caf50; }
+.upload-result.error { color:#f47067; }
+
+/* Book list */
+.book-list {
+  margin-top:16px;
+  text-align:left;
+  max-height:200px;
+  overflow-y:auto;
+}
+.book-list-title {
+  color:#8b949e;
+  font-size:0.75rem;
+  text-transform:uppercase;
+  letter-spacing:1px;
+  margin-bottom:8px;
+}
+.book-item-row {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:8px 10px;
+  background:#0d1117;
+  border-radius:8px;
+  margin-bottom:6px;
+  font-size:0.85rem;
+  color:#e6edf3;
+}
+.book-item-row .book-name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.book-item-row .book-date { color:#8b949e; font-size:0.75rem; margin-left:8px; white-space:nowrap; }
+.btn-del-book {
+  background:transparent;
+  border:none;
+  color:#f47067;
+  cursor:pointer;
+  font-size:1rem;
+  padding:2px 6px;
+  border-radius:4px;
+  margin-left:6px;
+  opacity:0.6;
+}
+.btn-del-book:hover { opacity:1; background:#2a1a1a; }
 </style>
 </head>
 <body>
@@ -58,5 +151,164 @@ a.card.student:hover { transform:translateY(-4px); box-shadow:0 8px 30px rgba(92
     <div class="desc">룸코드로 참여</div>
   </a>
 </div>
+
+<!-- Upload section -->
+<div class="upload-section">
+  <button class="btn-upload" onclick="document.getElementById('pdfInput').click()">
+    📚 지도서 업로드
+  </button>
+  <input type="file" id="pdfInput" accept=".pdf,.txt" style="display:none" onchange="handleUpload(this)">
+  <p class="upload-hint">PDF 또는 텍스트 파일 • 텍스트만 추출하여 Firebase에 저장됩니다</p>
+
+  <div class="upload-progress" id="uploadProgress">
+    <div class="progress-bar-bg">
+      <div class="progress-bar-fill" id="progressFill"></div>
+    </div>
+    <p class="progress-msg" id="progressMsg">준비 중...</p>
+  </div>
+
+  <div class="upload-result" id="uploadResult"></div>
+
+  <div class="book-list" id="bookList" style="display:none">
+    <p class="book-list-title">📖 업로드된 지도서</p>
+    <div id="bookListItems"></div>
+  </div>
+</div>
+
+<script>
+const PDFJS_VER = '3.11.174';
+let FB_URL = '';
+
+async function initFirebase() {
+  try {
+    const r = await fetch('./config.json');
+    const c = await r.json();
+    FB_URL = (c.firebaseUrl || '').replace(/\/$/, '');
+  } catch {}
+}
+
+async function loadBookList() {
+  if (!FB_URL) return;
+  try {
+    const r = await fetch(`${FB_URL}/books.json`);
+    const data = await r.json();
+    if (!data) { document.getElementById('bookList').style.display = 'none'; return; }
+    const books = Object.entries(data).sort((a, b) => (b[1].uploadedAt || 0) - (a[1].uploadedAt || 0));
+    if (!books.length) { document.getElementById('bookList').style.display = 'none'; return; }
+    document.getElementById('bookList').style.display = 'block';
+    document.getElementById('bookListItems').innerHTML = books.map(([id, b]) => `
+      <div class="book-item-row">
+        <span class="book-name" title="${esc(b.name)}">${esc(b.name)}</span>
+        <span class="book-date">${formatDate(b.uploadedAt)}</span>
+        <button class="btn-del-book" onclick="deleteBook('${id}', '${esc(b.name)}')" title="삭제">🗑</button>
+      </div>
+    `).join('');
+  } catch {}
+}
+
+async function deleteBook(id, name) {
+  if (!confirm(`"${name}" 지도서를 삭제할까요?`)) return;
+  await fetch(`${FB_URL}/books/${id}.json`, { method: 'DELETE' });
+  loadBookList();
+}
+
+function formatDate(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  return `${d.getMonth()+1}/${d.getDate()}`;
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function setProgress(pct, msg) {
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressMsg').textContent = msg;
+}
+
+function showResult(msg, type) {
+  const el = document.getElementById('uploadResult');
+  el.textContent = msg;
+  el.className = 'upload-result ' + type;
+  el.style.display = 'block';
+}
+
+async function loadPdfJs() {
+  if (window.pdfjsLib) return;
+  await new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VER}/pdf.min.js`;
+    s.onload = res; s.onerror = rej;
+    document.head.appendChild(s);
+  });
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+    `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VER}/pdf.worker.min.js`;
+}
+
+async function handleUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  input.value = '';
+
+  if (!FB_URL) return showResult('⚠️ Firebase URL을 불러올 수 없습니다.', 'error');
+
+  document.getElementById('uploadProgress').style.display = 'block';
+  document.getElementById('uploadResult').style.display = 'none';
+  setProgress(5, '파일 읽는 중...');
+
+  try {
+    let text = '';
+
+    if (file.name.toLowerCase().endsWith('.pdf')) {
+      setProgress(10, 'PDF.js 로딩 중...');
+      await loadPdfJs();
+
+      setProgress(20, 'PDF 분석 중...');
+      const buf = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+      const total = pdf.numPages;
+
+      for (let i = 1; i <= total; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        text += content.items.map(x => x.str).join(' ') + '\n';
+        setProgress(20 + Math.floor(i / total * 60), `페이지 추출 중... ${i}/${total}`);
+      }
+    } else {
+      text = await file.text();
+      setProgress(80, '텍스트 읽기 완료');
+    }
+
+    if (!text.trim()) throw new Error('텍스트를 추출할 수 없습니다.');
+
+    setProgress(85, 'Firebase에 저장 중...');
+    const bookId = 'book_' + Date.now();
+    const bookName = file.name.replace(/\.[^.]+$/, '');
+    await fetch(`${FB_URL}/books/${bookId}.json`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: bookName,
+        text: text,
+        uploadedAt: Date.now(),
+        pages: text.split('\n').length
+      })
+    });
+
+    setProgress(100, '완료!');
+    showResult(`✅ "${bookName}" 업로드 완료 (${Math.round(text.length / 1000)}KB)`, 'success');
+    loadBookList();
+  } catch (e) {
+    showResult('❌ 오류: ' + e.message, 'error');
+  }
+
+  setTimeout(() => {
+    document.getElementById('uploadProgress').style.display = 'none';
+  }, 1500);
+}
+
+initFirebase().then(loadBookList);
+</script>
 </body>
 </html>
