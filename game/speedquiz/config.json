@@ -1,4 +1,4 @@
 {
-  "firebaseUrl": "여기에_Firebase_URL을_입력하세요",
+  "firebaseUrl": "https://speedquiz-1d6a0-default-rtdb.firebaseio.com",
   "note": "이 파일을 수정하면 학생들이 자동으로 Firebase URL을 받습니다. 예: https://my-project-default-rtdb.firebaseio.com"
 }
