@@ -888,8 +888,9 @@ function applyTranslationToImage() {
   }
 
   // 두 이미지 모두 교체
-  page.original = drawOnCanvas(page.original);
-  page.processed = drawOnCanvas(page.processed);
+  const newOriginal = drawOnCanvas(page.original);
+  const newProcessed = drawOnCanvas(page.processed);
+  slots[currentSlot] = { original: newOriginal, processed: newProcessed, width: page.width, height: page.height };
 
   renderCurrentPage();
   document.getElementById('popApply').classList.remove('visible');
@@ -898,8 +899,7 @@ function applyTranslationToImage() {
 
 function undoApply() {
   const page = slots[currentSlot]; if (!page || !beforeApplyData) return;
-  page.original = beforeApplyData.original;
-  page.processed = beforeApplyData.processed;
+  slots[currentSlot] = { original: beforeApplyData.original, processed: beforeApplyData.processed, width: page.width, height: page.height };
   beforeApplyData = null;
   renderCurrentPage();
   document.getElementById('popUndo').classList.remove('visible');
