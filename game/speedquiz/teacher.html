@@ -258,9 +258,9 @@ main { padding:24px; max-width:1400px; margin:0 auto; }
     <p class="section-hint">🔑 API 설정 (최초 1회만 입력하면 저장됩니다)</p>
 
     <div class="form-group">
-      <label>Grok API 키 (xAI)</label>
-      <input type="password" id="claudeApiKey" placeholder="xai-...">
-      <small style="color:#8b949e;font-size:0.75rem;margin-top:4px;display:block">console.x.ai 에서 무료로 발급 가능</small>
+      <label>Groq API 키</label>
+      <input type="password" id="claudeApiKey" placeholder="gsk_...">
+      <small style="color:#8b949e;font-size:0.75rem;margin-top:4px;display:block">console.groq.com 에서 무료로 발급 (번역 프로그램과 동일한 키)</small>
     </div>
 
     <div class="form-group">
@@ -538,14 +538,14 @@ JSON만 응답(다른 텍스트 없이):
 교과서 내용(최대 6000자):
 ${content.substring(0,6000)}`;
 
-  const res = await fetch('https://api.x.ai/v1/chat/completions', {
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`
     },
     body: JSON.stringify({
-      model: 'grok-2-1212',
+      model: 'llama-3.3-70b-versatile',
       max_tokens: 4096,
       messages: [
         { role: 'system', content: '당신은 교육 전문가입니다. 요청한 JSON 형식으로만 응답하세요.' },
@@ -556,7 +556,7 @@ ${content.substring(0,6000)}`;
 
   if (!res.ok) {
     const e = await res.json().catch(() => ({}));
-    throw new Error(e.error?.message || `Grok API 오류 (${res.status})`);
+    throw new Error(e.error?.message || `API 오류 (${res.status})`);
   }
   const data = await res.json();
   const text = data.choices[0].message.content.trim();
