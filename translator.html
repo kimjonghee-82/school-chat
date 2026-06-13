@@ -290,6 +290,74 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
 .nav-arrow.left { left: 0; }
 .nav-arrow.hidden { display: none; }
 
+/* ── TOC Panel ── */
+#tocToggle {
+  position: fixed; top: 60px; left: 0; z-index: 160;
+  width: 36px; height: 36px;
+  background: rgba(92,107,192,.55);
+  backdrop-filter: blur(6px);
+  border: none; border-radius: 0 10px 10px 0;
+  color: white; font-size: 1rem; cursor: pointer;
+  display: none; align-items: center; justify-content: center;
+  transition: background .15s;
+}
+#tocToggle.visible { display: flex; }
+#tocToggle:hover { background: rgba(92,107,192,.85); }
+
+#tocPanel {
+  position: fixed; top: 52px; left: 0; bottom: 0; z-index: 155;
+  width: 200px;
+  background: rgba(26,26,42,.96);
+  backdrop-filter: blur(10px);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  transform: translateX(-100%);
+  transition: transform .25s cubic-bezier(.4,0,.2,1);
+  overflow: hidden;
+}
+#tocPanel.open { transform: translateX(0); }
+
+.toc-header {
+  padding: 12px 14px 8px;
+  font-size: .78rem; font-weight: 700; color: var(--sub);
+  text-transform: uppercase; letter-spacing: .05em;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.toc-close {
+  background: none; border: none; color: var(--sub);
+  cursor: pointer; font-size: 1rem; padding: 2px 4px;
+}
+.toc-close:hover { color: var(--text); }
+
+#tocList {
+  flex: 1; overflow-y: auto;
+  padding: 6px 0;
+}
+#tocList::-webkit-scrollbar { width: 4px; }
+#tocList::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.toc-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 14px;
+  cursor: pointer;
+  transition: background .12s;
+  border-left: 3px solid transparent;
+}
+.toc-item:hover { background: rgba(92,107,192,.15); }
+.toc-item.active {
+  background: rgba(92,107,192,.2);
+  border-left-color: var(--primary);
+}
+.toc-thumb {
+  width: 32px; height: 44px; flex-shrink: 0;
+  background: var(--card); border-radius: 2px;
+  overflow: hidden; border: 1px solid var(--border);
+}
+.toc-thumb img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.toc-thumb-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: .6rem; color: var(--sub); }
+.toc-page-num { font-size: .8rem; color: var(--text); }
+
 /* Page indicator */
 .page-indicator {
   position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
@@ -507,6 +575,18 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
 <!-- Nav arrows -->
 <div class="nav-arrow left hidden" id="navLeft" onclick="goPage(-1)">◀</div>
 <div class="nav-arrow right" id="navRight" onclick="goPage(1)">▶</div>
+
+<!-- TOC toggle button -->
+<button id="tocToggle" onclick="toggleToc()" title="목차">☰</button>
+
+<!-- TOC panel -->
+<div id="tocPanel">
+  <div class="toc-header">
+    <span>목차</span>
+    <button class="toc-close" onclick="closeToc()">✕</button>
+  </div>
+  <div id="tocList"></div>
+</div>
 
 <!-- Page indicator -->
 <div class="page-indicator" id="pageIndicator" style="display:none">1 / 1</div>
@@ -1066,17 +1146,78 @@ function updateNav() {
 
   const total = slots.length;
   const indicator = document.getElementById('pageIndicator');
+  const tocBtn = document.getElementById('tocToggle');
   if (total > 0 && slots.some(s => s !== null)) {
     indicator.style.display = 'block';
     const cur = slots[currentSlot];
-    if (!cur) {
-      indicator.textContent = `${total + 1}페이지 추가`;
-    } else {
-      indicator.textContent = `${currentSlot + 1} / ${total}`;
-    }
+    indicator.textContent = !cur ? `${total + 1}페이지 추가` : `${currentSlot + 1} / ${total}`;
+    // 2페이지 이상이면 목차 버튼 표시
+    if (total > 1) tocBtn.classList.add('visible');
+    else tocBtn.classList.remove('visible');
   } else {
     indicator.style.display = 'none';
+    tocBtn.classList.remove('visible');
   }
+  updateTocHighlight();
+}
+
+// ── TOC ──
+function toggleToc() {
+  document.getElementById('tocPanel').classList.toggle('open');
+  renderToc();
+}
+function closeToc() {
+  document.getElementById('tocPanel').classList.remove('open');
+}
+
+function renderToc() {
+  const list = document.getElementById('tocList');
+  list.innerHTML = '';
+  slots.forEach((slot, idx) => {
+    if (!slot) return;
+    const item = document.createElement('div');
+    item.className = 'toc-item' + (idx === currentSlot ? ' active' : '');
+    item.dataset.idx = idx;
+
+    // 썸네일
+    const thumb = document.createElement('div');
+    thumb.className = 'toc-thumb';
+    if (!slot.pdfRef && slot.original) {
+      // 이미 렌더된 페이지 — 썸네일 생성
+      const tc = document.createElement('canvas');
+      tc.width = slot.width; tc.height = slot.height;
+      tc.getContext('2d').putImageData(slot.original, 0, 0);
+      const img = document.createElement('img');
+      img.src = tc.toDataURL('image/jpeg', 0.5);
+      thumb.appendChild(img);
+    } else {
+      thumb.innerHTML = `<div class="toc-thumb-placeholder">${idx+1}</div>`;
+    }
+
+    const num = document.createElement('div');
+    num.className = 'toc-page-num';
+    num.textContent = `${idx + 1}페이지`;
+
+    item.appendChild(thumb);
+    item.appendChild(num);
+    item.addEventListener('click', () => jumpToPage(idx));
+    list.appendChild(item);
+  });
+}
+
+function updateTocHighlight() {
+  document.querySelectorAll('.toc-item').forEach(el => {
+    el.classList.toggle('active', parseInt(el.dataset.idx) === currentSlot);
+  });
+}
+
+function jumpToPage(idx) {
+  if (idx < 0 || idx >= slots.length) return;
+  currentSlot = idx;
+  closePopup();
+  if (slots[currentSlot]?.pdfRef) renderPdfSlot(currentSlot, true);
+  else { renderSlot(true); updateNav(); }
+  closeToc();
 }
 
 /* ══════════════════════════════
