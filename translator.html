@@ -282,7 +282,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
   <div class="canvas-wrap mode-pan" id="canvasWrap">
     <canvas id="viewerCanvas"></canvas>
     <canvas id="selCanvas"></canvas>
-    <div class="trans-popup" id="transPopup">
+    <div class="trans-popup" id="transPopup" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()">
       <button class="pop-close" onclick="closePopup()">✕</button>
       <div class="pop-lang">🇰🇷 한국어</div>
       <div class="pop-kor" id="popKor"></div>
@@ -813,17 +813,14 @@ async function translateSel(rect, popClientX, popClientY) {
 
 // ── Apply translation to image ──
 function applyTranslationToImage() {
-  const page = slots[currentSlot];
-  if (!page) { alert('오류: page 없음'); return; }
-  if (!lastSelRect) { alert('오류: 선택 영역 없음'); return; }
+  const page = slots[currentSlot]; if (!page || !lastSelRect) return;
   const rus = document.getElementById('popRus').textContent;
-  if (!rus || rus === '번역 실패') { alert('오류: 번역 텍스트 없음 ['+rus+']'); return; }
+  if (!rus || rus === '번역 실패') return;
 
   const cx=Math.max(0,Math.round(lastSelRect.x)), cy=Math.max(0,Math.round(lastSelRect.y));
   const cw=Math.min(Math.round(lastSelRect.w), page.width-cx);
   const ch=Math.min(Math.round(lastSelRect.h), page.height-cy);
-  alert(`디버그: cx=${cx} cy=${cy} cw=${cw} ch=${ch} pageW=${page.width} pageH=${page.height}\n러시아어: ${rus.substring(0,30)}`);
-  if(cw<=0||ch<=0) { alert('오류: 영역 크기 0'); return; }
+  if(cw<=0||ch<=0) return;
 
   // 되돌리기용 백업
   beforeApplyData = {
