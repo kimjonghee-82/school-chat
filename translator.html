@@ -569,7 +569,8 @@ function renderSlot(fitToView) {
   fab.classList.add('visible');
   zoomBar.classList.remove('hidden');
 
-  renderCurrentPage(fitToView);
+  // 레이아웃 정착 후 렌더링
+  requestAnimationFrame(() => requestAnimationFrame(() => renderCurrentPage(fitToView)));
 }
 
 function renderCurrentPage(fitToView) {
@@ -584,7 +585,8 @@ function renderCurrentPage(fitToView) {
   selCanvas.height = wrap.offsetHeight || window.innerHeight;
 
   if (fitToView) {
-    const ww = window.innerWidth, wh = window.innerHeight - 52;
+    const ww = wrap.offsetWidth || window.innerWidth;
+    const wh = wrap.offsetHeight || (window.innerHeight - 52);
     zoom = Math.min(ww / page.width, wh / page.height);
     panX = (ww - page.width * zoom) / 2;
     panY = (wh - page.height * zoom) / 2;
@@ -599,7 +601,9 @@ function applyTransform() {
 
 function clampPan() {
   const page = slots[currentSlot]; if (!page) return;
-  const ww = window.innerWidth, wh = window.innerHeight - 52;
+  const wrap = document.getElementById('canvasWrap');
+  const ww = wrap.offsetWidth || window.innerWidth;
+  const wh = wrap.offsetHeight || (window.innerHeight - 52);
   const pw = page.width*zoom, ph = page.height*zoom;
   panX = Math.max(Math.min(panX, 20), ww-pw-20);
   panY = Math.max(Math.min(panY, 20), wh-ph-20);
