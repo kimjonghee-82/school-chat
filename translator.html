@@ -590,6 +590,7 @@ function renderCurrentPage(fitToView) {
     zoom = Math.min(ww / page.width, wh / page.height);
     panX = (ww - page.width * zoom) / 2;
     panY = (wh - page.height * zoom) / 2;
+    clampPan();
   }
   applyTransform();
 }
@@ -604,9 +605,12 @@ function clampPan() {
   const wrap = document.getElementById('canvasWrap');
   const ww = wrap.offsetWidth || window.innerWidth;
   const wh = wrap.offsetHeight || (window.innerHeight - 52);
-  const pw = page.width*zoom, ph = page.height*zoom;
-  panX = Math.max(Math.min(panX, 20), ww-pw-20);
-  panY = Math.max(Math.min(panY, 20), wh-ph-20);
+  const pw = page.width * zoom, ph = page.height * zoom;
+  // 이미지가 화면보다 작으면 중앙 고정, 크면 경계 내에서 이동
+  if (pw <= ww) panX = (ww - pw) / 2;
+  else panX = Math.max(Math.min(panX, 0), ww - pw);
+  if (ph <= wh) panY = (wh - ph) / 2;
+  else panY = Math.max(Math.min(panY, 0), wh - ph);
 }
 
 function zoomIn(){setZoom(zoom*1.25);}
@@ -644,7 +648,18 @@ function initViewer() {
   });
 
   window.addEventListener('mousemove', e => {
-    if (viewMode==='pan'&&isPanning) { panX=e.clientX-panStart.x; panY=e.clientY-panStart.y; clampPan(); applyTransform(); }
+    if (viewMode==='pan'&&isPanning) {
+      panX=e.clientX-panStart.x; panY=e.clientY-panStart.y;
+      // 확대됐을 때만 clamp (그냥 화면 맞춤 상태면 중앙 유지)
+      const page=slots[currentSlot];
+      if (page) {
+        const wrap=document.getElementById('canvasWrap');
+        const ww=wrap.offsetWidth||window.innerWidth, wh=wrap.offsetHeight||(window.innerHeight-52);
+        if (page.width*zoom<=ww) panX=(ww-page.width*zoom)/2;
+        if (page.height*zoom<=wh) panY=(wh-page.height*zoom)/2;
+      }
+      applyTransform();
+    }
     else if (viewMode==='select'&&isSelecting) { selEnd=imgPos(e); drawSel(); }
   });
 
