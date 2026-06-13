@@ -1213,7 +1213,13 @@ function setTtsIcon(on) {
   btn.textContent = on ? '⏹' : '🔊';
 }
 
-/* 팝업 닫을 때 TTS 중단 */
+/* 팝업 닫기 */
+function closePopup() {
+  document.getElementById('transPopup').classList.remove('visible');
+  selCtx.clearRect(0, 0, selCanvas.width, selCanvas.height);
+  if (ttsSynth && ttsSynth.speaking) { ttsSynth.cancel(); setTtsIcon(false); }
+}
+
 /* ══════════════════════════════
    Navigation
 ══════════════════════════════ */
@@ -1515,7 +1521,9 @@ function initViewer() {
       isPanning=true; panStart={x:e.clientX-v.panX, y:e.clientY-v.panY};
       wrap.classList.add('grabbing');
     } else if (selMode === 'pen') {
-      isSelecting=true; penPoints=[imgPos(e)]; closePopup(); drawPenPath();
+      closePopup();
+      const r = detectTextLine(imgPos(e));
+      if (r) { drawDetectedLine(r); translateSel(r, e.clientX, e.clientY); }
     } else {
       isSelecting=true; selStart=imgPos(e); selEnd=selStart; closePopup();
     }
@@ -1540,28 +1548,17 @@ function initViewer() {
         applyTransform();
       }
     }
-    else if (viewMode==='select'&&isSelecting) {
-      if (selMode==='pen') { penPoints.push(imgPos(e)); drawPenPath(); }
-      else { selEnd=imgPos(e); drawSel(); }
-    }
+    else if (viewMode==='select'&&isSelecting) { selEnd=imgPos(e); drawSel(); }
   });
 
   window.addEventListener('mouseup', e => {
     document.getElementById('canvasWrap').classList.remove('grabbing');
     if (viewMode==='pan') { isPanning=false; }
     else if (viewMode==='select'&&isSelecting) {
-      isSelecting=false;
-      if (selMode==='pen') {
-        penPoints.push(imgPos(e));
-        const r = penBBox();
-        if(r&&r.w>10&&r.h>10) translateSel(r, e.clientX, e.clientY);
-        else selCtx.clearRect(0,0,selCanvas.width,selCanvas.height);
-      } else {
-        selEnd=imgPos(e); drawSel();
-        const r=selRect();
-        if(r.w>20&&r.h>20) translateSel(r, e.clientX, e.clientY);
-        else selCtx.clearRect(0,0,selCanvas.width,selCanvas.height);
-      }
+      isSelecting=false; selEnd=imgPos(e); drawSel();
+      const r=selRect();
+      if(r.w>20&&r.h>20) translateSel(r, e.clientX, e.clientY);
+      else selCtx.clearRect(0,0,selCanvas.width,selCanvas.height);
     }
   });
 
@@ -1570,7 +1567,11 @@ function initViewer() {
       selectPane(e.touches[0].clientX);
       const v=av();
       if(viewMode==='pan'){isPanning=true;panStart={x:e.touches[0].clientX-v.panX,y:e.touches[0].clientY-v.panY};}
-      else if(selMode==='pen'){isSelecting=true;penPoints=[imgPosTouch(e.touches[0])];closePopup();drawPenPath();}
+      else if(selMode==='pen'){
+        closePopup();
+        const r=detectTextLine(imgPosTouch(e.touches[0]));
+        if(r){drawDetectedLine(r);translateSel(r,e.touches[0].clientX,e.touches[0].clientY+60);}
+      }
       else{isSelecting=true;selStart=imgPosTouch(e.touches[0]);selEnd=selStart;closePopup();}
     } else if(e.touches.length===2){lastPinchDist=pdist(e);}
     e.preventDefault();
@@ -1590,10 +1591,7 @@ function initViewer() {
           renderCurrentPage(false);
         }else{panX=e.touches[0].clientX-panStart.x;panY=e.touches[0].clientY-panStart.y;clampPan();applyTransform();}
       }
-      else if(viewMode==='select'&&isSelecting){
-        if(selMode==='pen'){penPoints.push(imgPosTouch(e.touches[0]));drawPenPath();}
-        else{selEnd=imgPosTouch(e.touches[0]);drawSel();}
-      }
+      else if(viewMode==='select'&&isSelecting){selEnd=imgPosTouch(e.touches[0]);drawSel();}
     } else if(e.touches.length===2&&lastPinchDist){
       const d=pdist(e);
       const cx=(e.touches[0].clientX+e.touches[1].clientX)/2;
@@ -1608,21 +1606,12 @@ function initViewer() {
     if(e.touches.length<2) lastPinchDist=null;
     if(e.touches.length===0){
       if(viewMode==='select'&&isSelecting){
-        isSelecting=false;
-        if(selMode==='pen'){
-          const r=penBBox();
-          if(r&&r.w>10&&r.h>10){
-            const v=av(); const px=r.x*v.zoom+v.panX, py=r.y*v.zoom+v.panY+52;
-            translateSel(r, px, py);
-          } else selCtx.clearRect(0,0,selCanvas.width,selCanvas.height);
-        } else {
-          drawSel();
-          const r=selRect();
-          const v=av();
-          const px=selEnd.x*v.zoom+v.panX, py=selEnd.y*v.zoom+v.panY+52;
-          if(r.w>20&&r.h>20) translateSel(r, px, py);
-          else selCtx.clearRect(0,0,selCanvas.width,selCanvas.height);
-        }
+        isSelecting=false; drawSel();
+        const r=selRect();
+        const v=av();
+        const px=selEnd.x*v.zoom+v.panX, py=selEnd.y*v.zoom+v.panY+52;
+        if(r.w>20&&r.h>20) translateSel(r, px, py);
+        else selCtx.clearRect(0,0,selCanvas.width,selCanvas.height);
       }
       isPanning=false;
     }
@@ -1674,52 +1663,98 @@ function drawSel() {
   selCtx.strokeRect(x,y,w,h);
 }
 
-function drawPenPath() {
+/* 형광펜 모드: 탭/클릭 지점에서 텍스트 줄 자동 감지 */
+function detectTextLine(imgPoint) {
+  const slotIdx = (getTwoPageMode() && activePane===1) ? currentSlot+1 : currentSlot;
+  const page = slots[slotIdx];
+  if (!page) return null;
+
+  const px = Math.round(imgPoint.x), py = Math.round(imgPoint.y);
+  if (px < 0 || py < 0 || px >= page.width || py >= page.height) return null;
+
+  const data = page.original.data;
+  const W = page.width, H = page.height;
+  const DARK = 160; // 이 값보다 어두우면 텍스트로 판정
+  const MIN_DARK_FRAC = 0.03; // 행에서 최소 3% 이상 어두운 픽셀
+
+  function rowHasDark(row) {
+    if (row < 0 || row >= H) return false;
+    let dark = 0;
+    for (let c = 0; c < W; c++) {
+      const i = (row * W + c) * 4;
+      if ((data[i]+data[i+1]+data[i+2])/3 < DARK) dark++;
+    }
+    return dark / W > MIN_DARK_FRAC;
+  }
+
+  // 클릭 위치에서 위아래로 텍스트 행 확장
+  let top = py, bottom = py;
+  while (top > 0    && rowHasDark(top - 1)) top--;
+  while (bottom < H-1 && rowHasDark(bottom + 1)) bottom++;
+
+  // 텍스트 없는 빈 행이면 주변 탐색 (±40px)
+  if (!rowHasDark(top) && !rowHasDark(bottom)) {
+    let found = false;
+    for (let d = 1; d <= 40; d++) {
+      if (rowHasDark(py - d)) { top = bottom = py - d; found = true; break; }
+      if (rowHasDark(py + d)) { top = bottom = py + d; found = true; break; }
+    }
+    if (!found) return null;
+    while (top > 0    && rowHasDark(top - 1)) top--;
+    while (bottom < H-1 && rowHasDark(bottom + 1)) bottom++;
+  }
+
+  // 행 높이가 너무 크면 단일 줄로 제한
+  if (bottom - top > 120) {
+    top    = Math.max(0,   py - 30);
+    bottom = Math.min(H-1, py + 30);
+  }
+
+  // 해당 행 범위에서 실제 텍스트 열 범위 (좌우 여백 제거)
+  let left = W, right = 0;
+  for (let row = top; row <= bottom; row++) {
+    for (let c = 0; c < W; c++) {
+      const i = (row * W + c) * 4;
+      if ((data[i]+data[i+1]+data[i+2])/3 < DARK) {
+        if (c < left)  left  = c;
+        if (c > right) right = c;
+      }
+    }
+  }
+  if (right <= left) { left = 0; right = W - 1; }
+
+  // 약간의 패딩 추가
+  const pad = 8;
+  return {
+    x: Math.max(0, left - pad),
+    y: Math.max(0, top  - pad),
+    w: Math.min(W, right - left + pad*2),
+    h: Math.min(H, bottom - top  + pad*2)
+  };
+}
+
+function drawDetectedLine(rect) {
   const wrap = document.getElementById('canvasWrap');
   selCanvas.width = wrap.offsetWidth; selCanvas.height = wrap.offsetHeight;
   selCtx.clearRect(0,0,selCanvas.width,selCanvas.height);
-  if (penPoints.length < 2) return;
+  if (!rect) return;
   const v = av();
   const ww = wrap.offsetWidth; const half = Math.floor(ww/2);
   const baseX = getTwoPageMode() && activePane===1 ? half : 0;
-
-  selCtx.save();
-  selCtx.globalCompositeOperation = 'multiply';
-  selCtx.strokeStyle = 'rgba(255,235,59,0.75)';
-  selCtx.lineWidth   = 18;
-  selCtx.lineCap     = 'round';
-  selCtx.lineJoin    = 'round';
-  selCtx.beginPath();
-  const p0 = penPoints[0];
-  selCtx.moveTo(p0.x*v.zoom+v.panX+baseX, p0.y*v.zoom+v.panY);
-  for (let i=1; i<penPoints.length; i++) {
-    const p = penPoints[i];
-    selCtx.lineTo(p.x*v.zoom+v.panX+baseX, p.y*v.zoom+v.panY);
-  }
-  selCtx.stroke();
-  selCtx.restore();
-
-  // bbox 테두리 점선
-  const r = penBBox();
-  if (!r) return;
-  const sx = r.x*v.zoom+v.panX+baseX, sy = r.y*v.zoom+v.panY;
-  const sw = r.w*v.zoom, sh = r.h*v.zoom;
-  selCtx.strokeStyle = '#f5d33a';
-  selCtx.lineWidth = 1.5;
+  const sx = rect.x*v.zoom + v.panX + baseX;
+  const sy = rect.y*v.zoom + v.panY;
+  const sw = rect.w*v.zoom;
+  const sh = rect.h*v.zoom;
+  selCtx.fillStyle = 'rgba(255,235,59,0.35)';
+  selCtx.fillRect(sx, sy, sw, sh);
+  selCtx.strokeStyle = '#f5c800';
+  selCtx.lineWidth = 2;
   selCtx.setLineDash([5,3]);
   selCtx.strokeRect(sx, sy, sw, sh);
   selCtx.setLineDash([]);
 }
 
-function penBBox() {
-  if (!penPoints.length) return null;
-  let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
-  for (const p of penPoints) {
-    if(p.x<minX)minX=p.x; if(p.y<minY)minY=p.y;
-    if(p.x>maxX)maxX=p.x; if(p.y>maxY)maxY=p.y;
-  }
-  return {x:minX, y:minY, w:maxX-minX, h:maxY-minY};
-}
+function penBBox() { return null; } // legacy stub
 
 /* ══════════════════════════════
    Area translate
