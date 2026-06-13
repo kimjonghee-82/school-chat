@@ -270,7 +270,9 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
 .canvas-wrap.mode-select { cursor: crosshair; }
 .canvas-wrap.grabbing { cursor: grabbing; }
 #viewerCanvas { position: absolute; transform-origin: 0 0; display: block; }
+#viewerCanvas2 { position: absolute; transform-origin: 0 0; }
 #selCanvas { position: absolute; top: 0; left: 0; pointer-events: none; }
+.scan-filter { filter: contrast(1.18) brightness(1.06) saturate(0.85); }
 
 /* ── Nav arrows ── */
 .nav-arrow {
@@ -998,7 +1000,11 @@ function updateApiChip(ok) {
   el.textContent = ok ? '저장됨 ✓' : '미설정';
   el.className = 'chip ' + (ok ? 'ok' : 'no');
 }
-function onScanToggle() { if (slots[currentSlot]) renderCurrentPage(); }
+function onScanToggle() {
+  const on = document.getElementById('scanToggle').checked;
+  applyScanFilter(canvas,  on);
+  applyScanFilter(canvas2, on);
+}
 
 /* ══════════════════════════════
    Upload menu
@@ -1067,9 +1073,8 @@ async function renderPdfSlot(idx, fitToView) {
     const vp = pdfPage.getViewport({scale});
     const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
     await pdfPage.render({canvasContext: c.getContext('2d'), viewport: vp}).promise;
-    const original  = c.getContext('2d').getImageData(0, 0, c.width, c.height);
-    const processed = scanEffect(original, c.width, c.height);
-    slots[i] = {original, processed, width: c.width, height: c.height};
+    const original = c.getContext('2d').getImageData(0, 0, c.width, c.height);
+    slots[i] = {original, width: c.width, height: c.height};
   }
   try {
     await renderOne(idx);
@@ -1077,6 +1082,27 @@ async function renderPdfSlot(idx, fitToView) {
   } finally { hideLoading(); }
   renderSlot(fitToView);
   updateNav();
+  // 인접 페이지 백그라운드 미리 렌더링
+  prefetchAdjacent(idx);
+}
+
+async function prefetchAdjacent(idx) {
+  const step = (pageLayout === 2) ? 2 : 1;
+  for (const i of [idx + step, idx - step, idx + step*2]) {
+    if (i < 0 || i >= slots.length) continue;
+    if (slots[i]?.pdfRef) {
+      const slot = slots[i];
+      try {
+        const pdfPage = await slot.pdfRef.getPage(slot.pageNum);
+        const scale = Math.min(2, 1600 / pdfPage.getViewport({scale:1}).width);
+        const vp = pdfPage.getViewport({scale});
+        const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
+        await pdfPage.render({canvasContext: c.getContext('2d'), viewport: vp}).promise;
+        const original = c.getContext('2d').getImageData(0, 0, c.width, c.height);
+        slots[i] = {original, width: c.width, height: c.height};
+      } catch(_) {}
+    }
+  }
 }
 
 function addImageToCurrentSlot(dataUrl) {
@@ -1085,9 +1111,8 @@ function addImageToCurrentSlot(dataUrl) {
     const c = document.createElement('canvas');
     c.width = img.naturalWidth; c.height = img.naturalHeight;
     c.getContext('2d').drawImage(img, 0, 0);
-    const original  = c.getContext('2d').getImageData(0, 0, c.width, c.height);
-    const processed = scanEffect(original, c.width, c.height);
-    slots[currentSlot] = {original, processed, width: c.width, height: c.height};
+    const original = c.getContext('2d').getImageData(0, 0, c.width, c.height);
+    slots[currentSlot] = {original, width: c.width, height: c.height};
     renderSlot(true);
     updateNav();
   };
@@ -1100,29 +1125,20 @@ function addNewSlotWithImage(dataUrl) {
     const c = document.createElement('canvas');
     c.width = img.naturalWidth; c.height = img.naturalHeight;
     c.getContext('2d').drawImage(img, 0, 0);
-    const original  = c.getContext('2d').getImageData(0, 0, c.width, c.height);
-    const processed = scanEffect(original, c.width, c.height);
+    const original = c.getContext('2d').getImageData(0, 0, c.width, c.height);
     const insertIdx = slots[slots.length-1] === null ? slots.length - 1 : slots.length;
-    slots.splice(insertIdx, 0, {original, processed, width: c.width, height: c.height});
+    slots.splice(insertIdx, 0, {original, width: c.width, height: c.height});
     updateNav();
   };
   img.src = dataUrl;
 }
 
 /* ══════════════════════════════
-   Scan effect
+   Scan effect — CSS filter 방식 (JS 픽셀 처리 제거)
 ══════════════════════════════ */
-function scanEffect(imageData, w, h) {
-  const src = imageData.data, out = new Uint8ClampedArray(src.length);
-  for (let i = 0; i < src.length; i += 4) {
-    const r=src[i],g=src[i+1],b=src[i+2];
-    const avg=(r+g+b)/3;
-    let nr=Math.min(255,r*1.3+15),ng=Math.min(255,g*1.3+15),nb=Math.min(255,b*1.3+15);
-    nr=nr*.6+avg*.4; ng=ng*.6+avg*.4; nb=nb*.6+avg*.4;
-    if(nr>200&&ng>200&&nb>200){const w2=Math.min(1,(Math.min(nr,ng,nb)-180)/40);nr+=(255-nr)*w2;ng+=(255-ng)*w2;nb+=(255-nb)*w2;}
-    out[i]=Math.round(nr);out[i+1]=Math.round(ng);out[i+2]=Math.round(nb);out[i+3]=src[i+3];
-  }
-  return new ImageData(out, w, h);
+function applyScanFilter(el, on) {
+  if (on) el.classList.add('scan-filter');
+  else     el.classList.remove('scan-filter');
 }
 
 /* ══════════════════════════════
@@ -1286,10 +1302,10 @@ function clampView(v, page, areaW, areaH) {
 function renderCurrentPage(fitToView) {
   const page = slots[currentSlot];
   if (!page) return;
-  const scanOn   = document.getElementById('scanToggle').checked;
-  const wrap     = document.getElementById('canvasWrap');
-  const ww       = wrap.offsetWidth  || window.innerWidth;
-  const wh       = wrap.offsetHeight || (window.innerHeight - 52);
+  const scanOn = document.getElementById('scanToggle').checked;
+  const wrap   = document.getElementById('canvasWrap');
+  const ww     = wrap.offsetWidth  || window.innerWidth;
+  const wh     = wrap.offsetHeight || (window.innerHeight - 52);
 
   selCanvas.width = ww; selCanvas.height = wh;
 
@@ -1300,10 +1316,13 @@ function renderCurrentPage(fitToView) {
     const half = Math.floor(ww / 2);
 
     canvas.width = page.width; canvas.height = page.height;
-    ctx.putImageData(scanOn ? page.processed : page.original, 0, 0);
+    ctx.putImageData(page.original, 0, 0);
     canvas2.width = nextPage.width; canvas2.height = nextPage.height;
-    ctx2.putImageData(scanOn ? nextPage.processed : nextPage.original, 0, 0);
+    ctx2.putImageData(nextPage.original, 0, 0);
     canvas2.style.display = 'block';
+
+    applyScanFilter(canvas,  scanOn);
+    applyScanFilter(canvas2, scanOn);
 
     if (fitToView) { fitView(vL, page, half, wh); fitView(vR, nextPage, half, wh); }
 
@@ -1320,7 +1339,8 @@ function renderCurrentPage(fitToView) {
     canvas2.style.display = 'none';
     canvas.style.outline  = 'none';
     canvas.width = page.width; canvas.height = page.height;
-    ctx.putImageData(scanOn ? page.processed : page.original, 0, 0);
+    ctx.putImageData(page.original, 0, 0);
+    applyScanFilter(canvas, scanOn);
     if (fitToView) fitView(vL, page, ww, wh);
     canvas.style.transform = `translate(${vL.panX}px,${vL.panY}px) scale(${vL.zoom})`;
     zoom = vL.zoom; panX = vL.panX; panY = vL.panY;
@@ -1588,9 +1608,8 @@ async function translateSel(rect, popClientX, popClientY) {
   popup.classList.add('visible');
 
   try {
-    const scanOn=document.getElementById('scanToggle').checked;
     const full=document.createElement('canvas'); full.width=page.width; full.height=page.height;
-    full.getContext('2d').putImageData(scanOn?page.processed:page.original,0,0);
+    full.getContext('2d').putImageData(page.original,0,0);
     const crop=document.createElement('canvas'); crop.width=cw; crop.height=ch;
     crop.getContext('2d').drawImage(full,cx,cy,cw,ch,0,0,cw,ch);
     const b64=crop.toDataURL('image/jpeg',.92).split(',')[1];
@@ -1633,8 +1652,7 @@ function applyTranslationToImage() {
   if(cw<=0||ch<=0) return;
 
   beforeApplyData = {
-    original:  new ImageData(new Uint8ClampedArray(page.original.data),  page.width, page.height),
-    processed: new ImageData(new Uint8ClampedArray(page.processed.data), page.width, page.height)
+    original: new ImageData(new Uint8ClampedArray(page.original.data), page.width, page.height)
   };
 
   const tmpC = document.createElement('canvas');
@@ -1673,7 +1691,7 @@ function applyTranslationToImage() {
     return heights[Math.floor(heights.length * 0.7)];
   }
 
-  const estimatedH = estimateTextHeight(page.processed);
+  const estimatedH = estimateTextHeight(page.original);
 
   function drawOnCanvas(srcImageData) {
     const c = document.createElement('canvas');
@@ -1719,9 +1737,8 @@ function applyTranslationToImage() {
     return x.getImageData(0, 0, page.width, page.height);
   }
 
-  const newOriginal  = drawOnCanvas(page.original);
-  const newProcessed = drawOnCanvas(page.processed);
-  slots[lastSelSlot] = { original: newOriginal, processed: newProcessed, width: page.width, height: page.height };
+  const newOriginal = drawOnCanvas(page.original);
+  slots[lastSelSlot] = { original: newOriginal, width: page.width, height: page.height };
 
   renderCurrentPage();
   document.getElementById('popApply').classList.remove('visible');
@@ -1730,7 +1747,7 @@ function applyTranslationToImage() {
 
 function undoApply() {
   const page = slots[lastSelSlot]; if (!page || !beforeApplyData) return;
-  slots[lastSelSlot] = { original: beforeApplyData.original, processed: beforeApplyData.processed, width: page.width, height: page.height };
+  slots[lastSelSlot] = { original: beforeApplyData.original, width: page.width, height: page.height };
   beforeApplyData = null;
   renderCurrentPage();
   document.getElementById('popUndo').classList.remove('visible');
@@ -1747,10 +1764,9 @@ function closePopup() {
 ══════════════════════════════ */
 function downloadPage() {
   const page = slots[currentSlot]; if (!page) return;
-  const scanOn = document.getElementById('scanToggle').checked;
   const tmp = document.createElement('canvas');
   tmp.width = page.width; tmp.height = page.height;
-  tmp.getContext('2d').putImageData(scanOn ? page.processed : page.original, 0, 0);
+  tmp.getContext('2d').putImageData(page.original, 0, 0);
   const a = document.createElement('a');
   a.href = tmp.toDataURL('image/png');
   a.download = `page_${currentSlot + 1}.png`;
