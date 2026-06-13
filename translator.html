@@ -371,6 +371,11 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs
 const slots = [null];
 let pdfDoc = null;
 let currentSlot = 0;
+// 각 페이지별 독립 뷰 상태: L=왼쪽(currentSlot), R=오른쪽(currentSlot+1)
+let vL = {zoom:1,panX:0,panY:0};
+let vR = {zoom:1,panX:0,panY:0};
+let activePane = 0; // 0=왼쪽, 1=오른쪽 (클릭으로 선택)
+// 단일 페이지 모드 호환 단축
 let zoom = 1, panX = 0, panY = 0;
 let isPanning = false, panStart = {x:0,y:0};
 let lastPinchDist = null;
@@ -616,6 +621,29 @@ function renderSlot(fitToView) {
   requestAnimationFrame(() => requestAnimationFrame(() => renderCurrentPage(fitToView)));
 }
 
+function getTwoPageMode() {
+  const nextPage = slots[currentSlot + 1];
+  return isLandscape() && nextPage && !nextPage.pdfRef;
+}
+
+// 현재 활성 뷰 객체 반환
+function av() { return getTwoPageMode() ? (activePane===1 ? vR : vL) : vL; }
+
+// 각 뷰를 해당 영역에 맞게 fit
+function fitView(v, page, areaW, areaH) {
+  v.zoom = Math.min(areaW / page.width, areaH / page.height);
+  v.panX = (areaW - page.width * v.zoom) / 2;
+  v.panY = (areaH - page.height * v.zoom) / 2;
+}
+
+function clampView(v, page, areaW, areaH) {
+  const pw = page.width * v.zoom, ph = page.height * v.zoom;
+  if (pw <= areaW) v.panX = (areaW - pw) / 2;
+  else v.panX = Math.max(Math.min(v.panX, 0), areaW - pw);
+  if (ph <= areaH) v.panY = (areaH - ph) / 2;
+  else v.panY = Math.max(Math.min(v.panY, 0), areaH - ph);
+}
+
 function renderCurrentPage(fitToView) {
   const page = slots[currentSlot];
   if (!page) return;
@@ -626,46 +654,57 @@ function renderCurrentPage(fitToView) {
 
   selCanvas.width = ww; selCanvas.height = wh;
 
-  // 두 페이지 모드 여부 (가로 화면 + 오른쪽에 페이지 있을 때)
-  const nextPage = slots[currentSlot + 1];
-  const showTwo = isLandscape() && nextPage && !nextPage.pdfRef;
+  const showTwo = getTwoPageMode();
+  const nextPage = showTwo ? slots[currentSlot + 1] : null;
 
-  if (showTwo) {
-    // 왼쪽 페이지
+  if (showTwo && nextPage) {
+    const half = Math.floor(ww / 2);
+
     canvas.width = page.width; canvas.height = page.height;
     ctx.putImageData(scanOn ? page.processed : page.original, 0, 0);
-    // 오른쪽 페이지
     canvas2.width = nextPage.width; canvas2.height = nextPage.height;
     ctx2.putImageData(scanOn ? nextPage.processed : nextPage.original, 0, 0);
     canvas2.style.display = 'block';
+
     if (fitToView) {
-      const half = ww / 2;
-      zoom = Math.min(half / page.width, wh / page.height);
-      panX = (half - page.width * zoom) / 2;
-      panY = (wh - page.height * zoom) / 2;
+      fitView(vL, page, half, wh);
+      fitView(vR, nextPage, half, wh);
     }
-    canvas.style.transform = `translate(${panX}px,${panY}px) scale(${zoom})`;
-    const rx = ww / 2 + (ww / 2 - nextPage.width * zoom) / 2;
-    canvas2.style.transform = `translate(${rx}px,${panY}px) scale(${zoom})`;
+
+    // 왼쪽 페이지: 왼쪽 절반 안에서 panX/panY
+    canvas.style.transform = `translate(${vL.panX}px,${vL.panY}px) scale(${vL.zoom})`;
+    // 오른쪽 페이지: 오른쪽 절반 기준 panX + half 오프셋
+    canvas2.style.transform = `translate(${half + vR.panX}px,${vR.panY}px) scale(${vR.zoom})`;
     canvas2.style.transformOrigin = '0 0';
+
+    // 활성 페이지 테두리 표시
+    canvas.style.outline  = activePane===0 ? '2px solid rgba(124,131,224,0.6)' : 'none';
+    canvas2.style.outline = activePane===1 ? '2px solid rgba(124,131,224,0.6)' : 'none';
+
+    const v = av();
+    document.getElementById('zoomLabel').textContent = Math.round(v.zoom*100) + '%';
   } else {
     canvas2.style.display = 'none';
+    canvas.style.outline = 'none';
     canvas.width = page.width; canvas.height = page.height;
     ctx.putImageData(scanOn ? page.processed : page.original, 0, 0);
-    if (fitToView) {
-      zoom = Math.min(ww / page.width, wh / page.height);
-      panX = (ww - page.width * zoom) / 2;
-      panY = (wh - page.height * zoom) / 2;
-      clampPan();
-    }
-    applyTransform();
+    if (fitToView) fitView(vL, page, ww, wh);
+    canvas.style.transform = `translate(${vL.panX}px,${vL.panY}px) scale(${vL.zoom})`;
+    // 단일 페이지 모드 전역 변수 동기화 (imgPos 등에서 사용)
+    zoom = vL.zoom; panX = vL.panX; panY = vL.panY;
+    document.getElementById('zoomLabel').textContent = Math.round(vL.zoom*100) + '%';
   }
-  document.getElementById('zoomLabel').textContent = Math.round(zoom*100) + '%';
 }
 
 function applyTransform() {
-  canvas.style.transform = `translate(${panX}px,${panY}px) scale(${zoom})`;
-  document.getElementById('zoomLabel').textContent = Math.round(zoom*100) + '%';
+  const showTwo = getTwoPageMode();
+  if (showTwo) {
+    renderCurrentPage(false);
+  } else {
+    vL.zoom = zoom; vL.panX = panX; vL.panY = panY;
+    canvas.style.transform = `translate(${panX}px,${panY}px) scale(${zoom})`;
+    document.getElementById('zoomLabel').textContent = Math.round(zoom*100) + '%';
+  }
 }
 
 function clampPan() {
@@ -673,22 +712,56 @@ function clampPan() {
   const wrap = document.getElementById('canvasWrap');
   const ww = wrap.offsetWidth || window.innerWidth;
   const wh = wrap.offsetHeight || (window.innerHeight - 52);
-  const pw = page.width * zoom, ph = page.height * zoom;
-  // 이미지가 화면보다 작으면 중앙 고정, 크면 경계 내에서 이동
-  if (pw <= ww) panX = (ww - pw) / 2;
-  else panX = Math.max(Math.min(panX, 0), ww - pw);
-  if (ph <= wh) panY = (wh - ph) / 2;
-  else panY = Math.max(Math.min(panY, 0), wh - ph);
+  const showTwo = getTwoPageMode();
+  if (showTwo) {
+    const half = Math.floor(ww / 2);
+    const nextPage = slots[currentSlot+1];
+    clampView(vL, page, half, wh);
+    if (nextPage) clampView(vR, nextPage, half, wh);
+  } else {
+    const pw = page.width * zoom, ph = page.height * zoom;
+    if (pw <= ww) panX = (ww - pw) / 2;
+    else panX = Math.max(Math.min(panX, 0), ww - pw);
+    if (ph <= wh) panY = (wh - ph) / 2;
+    else panY = Math.max(Math.min(panY, 0), wh - ph);
+  }
 }
 
-function zoomIn(){setZoom(zoom*1.25);}
-function zoomOut(){setZoom(zoom/1.25);}
-function resetZoom(){renderCurrentPage(true);}
-function setZoom(nz,cx,cy){
-  const prev=zoom; zoom=Math.max(0.2,Math.min(5,nz));
-  if(cx!==undefined){panX=cx-(cx-panX)*zoom/prev;panY=cy-(cy-panY)*zoom/prev;clampPan();}
-  applyTransform();
+function zoomIn()  { doZoom(av().zoom * 1.25); }
+function zoomOut() { doZoom(av().zoom / 1.25); }
+function resetZoom(){ renderCurrentPage(true); }
+
+function doZoom(nz, cx, cy) {
+  const showTwo = getTwoPageMode();
+  const wrap = document.getElementById('canvasWrap');
+  const ww = wrap.offsetWidth || window.innerWidth;
+  const wh = wrap.offsetHeight || (window.innerHeight - 52);
+  const half = Math.floor(ww / 2);
+
+  if (showTwo) {
+    const v = av();
+    const page = slots[currentSlot + (activePane===1?1:0)];
+    if (!page) return;
+    const areaW = half, areaH = wh;
+    const prev = v.zoom;
+    v.zoom = Math.max(0.2, Math.min(5, nz));
+    if (cx !== undefined) {
+      // cx를 해당 페이지 영역 기준으로 변환
+      const lx = activePane===1 ? cx - half : cx;
+      v.panX = lx - (lx - v.panX) * v.zoom / prev;
+      v.panY = cy - (cy - v.panY) * v.zoom / prev;
+    }
+    clampView(v, page, areaW, areaH);
+    renderCurrentPage(false);
+  } else {
+    const prev = zoom;
+    zoom = Math.max(0.2, Math.min(5, nz));
+    if (cx !== undefined) { panX = cx-(cx-panX)*zoom/prev; panY = cy-(cy-panY)*zoom/prev; clampPan(); }
+    applyTransform();
+  }
 }
+
+function setZoom(nz, cx, cy) { doZoom(nz, cx, cy); }
 
 // 항상 영역 선택 모드
 function setMode(m) {
@@ -703,9 +776,18 @@ function setMode(m) {
 function initViewer() {
   const wrap = document.getElementById('canvasWrap');
 
+  function selectPane(clientX) {
+    if (!getTwoPageMode()) { activePane=0; return; }
+    const ww = wrap.offsetWidth || window.innerWidth;
+    const newPane = clientX > ww/2 ? 1 : 0;
+    if (newPane !== activePane) { activePane = newPane; renderCurrentPage(false); }
+  }
+
   wrap.addEventListener('mousedown', e => {
+    selectPane(e.clientX);
+    const v = av();
     if (viewMode==='pan') {
-      isPanning=true; panStart={x:e.clientX-panX,y:e.clientY-panY};
+      isPanning=true; panStart={x:e.clientX-v.panX, y:e.clientY-v.panY};
       wrap.classList.add('grabbing');
     } else {
       isSelecting=true; selStart=imgPos(e); selEnd=selStart; closePopup();
@@ -713,17 +795,23 @@ function initViewer() {
   });
 
   window.addEventListener('mousemove', e => {
-    if (viewMode==='pan'&&isPanning) {
-      panX=e.clientX-panStart.x; panY=e.clientY-panStart.y;
-      // 확대됐을 때만 clamp (그냥 화면 맞춤 상태면 중앙 유지)
-      const page=slots[currentSlot];
-      if (page) {
-        const wrap=document.getElementById('canvasWrap');
-        const ww=wrap.offsetWidth||window.innerWidth, wh=wrap.offsetHeight||(window.innerHeight-52);
-        if (page.width*zoom<=ww) panX=(ww-page.width*zoom)/2;
-        if (page.height*zoom<=wh) panY=(wh-page.height*zoom)/2;
+    if (viewMode==='pan' && isPanning) {
+      const v = av();
+      const wrap2 = document.getElementById('canvasWrap');
+      const ww = wrap2.offsetWidth||window.innerWidth, wh = wrap2.offsetHeight||(window.innerHeight-52);
+      const half = Math.floor(ww/2);
+      if (getTwoPageMode()) {
+        const page = slots[currentSlot + (activePane===1?1:0)];
+        v.panX = e.clientX - panStart.x;
+        v.panY = e.clientY - panStart.y;
+        if (page) clampView(v, page, half, wh);
+        renderCurrentPage(false);
+      } else {
+        panX=e.clientX-panStart.x; panY=e.clientY-panStart.y;
+        const page=slots[currentSlot];
+        if(page){if(page.width*zoom<=ww)panX=(ww-page.width*zoom)/2;if(page.height*zoom<=wh)panY=(wh-page.height*zoom)/2;}
+        applyTransform();
       }
-      applyTransform();
     }
     else if (viewMode==='select'&&isSelecting) { selEnd=imgPos(e); drawSel(); }
   });
@@ -741,7 +829,9 @@ function initViewer() {
 
   wrap.addEventListener('touchstart', e=>{
     if(e.touches.length===1){
-      if(viewMode==='pan'){isPanning=true;panStart={x:e.touches[0].clientX-panX,y:e.touches[0].clientY-panY};}
+      selectPane(e.touches[0].clientX);
+      const v=av();
+      if(viewMode==='pan'){isPanning=true;panStart={x:e.touches[0].clientX-v.panX,y:e.touches[0].clientY-v.panY};}
       else{isSelecting=true;selStart=imgPosTouch(e.touches[0]);selEnd=selStart;closePopup();}
     } else if(e.touches.length===2){lastPinchDist=pdist(e);}
     e.preventDefault();
@@ -749,9 +839,26 @@ function initViewer() {
 
   wrap.addEventListener('touchmove', e=>{
     if(e.touches.length===1){
-      if(viewMode==='pan'&&isPanning){panX=e.touches[0].clientX-panStart.x;panY=e.touches[0].clientY-panStart.y;clampPan();applyTransform();}
+      if(viewMode==='pan'&&isPanning){
+        const v=av();
+        const wrap2=document.getElementById('canvasWrap');
+        const ww=wrap2.offsetWidth||window.innerWidth,wh=wrap2.offsetHeight||(window.innerHeight-52);
+        const half=Math.floor(ww/2);
+        if(getTwoPageMode()){
+          const page=slots[currentSlot+(activePane===1?1:0)];
+          v.panX=e.touches[0].clientX-panStart.x;v.panY=e.touches[0].clientY-panStart.y;
+          if(page)clampView(v,page,half,wh);
+          renderCurrentPage(false);
+        }else{panX=e.touches[0].clientX-panStart.x;panY=e.touches[0].clientY-panStart.y;clampPan();applyTransform();}
+      }
       else if(viewMode==='select'&&isSelecting){selEnd=imgPosTouch(e.touches[0]);drawSel();}
-    } else if(e.touches.length===2&&lastPinchDist){const d=pdist(e);setZoom(zoom*(d/lastPinchDist));lastPinchDist=d;}
+    } else if(e.touches.length===2&&lastPinchDist){
+      const d=pdist(e);
+      const cx=(e.touches[0].clientX+e.touches[1].clientX)/2;
+      const cy=(e.touches[0].clientY+e.touches[1].clientY)/2-52;
+      doZoom(av().zoom*(d/lastPinchDist),cx,cy);
+      lastPinchDist=d;
+    }
     e.preventDefault();
   },{passive:false});
 
@@ -761,7 +868,8 @@ function initViewer() {
       if(viewMode==='select'&&isSelecting){
         isSelecting=false;drawSel();
         const r=selRect();
-        const px=selEnd.x*zoom+panX, py=selEnd.y*zoom+panY+52;
+        const v=av();
+        const px=selEnd.x*v.zoom+v.panX, py=selEnd.y*v.zoom+v.panY+52;
         if(r.w>20&&r.h>20) translateSel(r, px, py);
         else selCtx.clearRect(0,0,selCanvas.width,selCanvas.height);
       }
@@ -770,7 +878,9 @@ function initViewer() {
   });
 
   wrap.addEventListener('wheel', e=>{
-    e.preventDefault(); setZoom(zoom+(e.deltaY>0?-0.15:0.15),e.clientX,e.clientY-52);
+    e.preventDefault();
+    selectPane(e.clientX);
+    const v=av(); doZoom(v.zoom+(e.deltaY>0?-0.15:0.15), e.clientX, e.clientY-52);
   },{passive:false});
 
   window.addEventListener('resize', ()=>{ if(slots[currentSlot]) renderCurrentPage(true); });
@@ -778,11 +888,17 @@ function initViewer() {
 
 function imgPos(e) {
   const wrap=document.getElementById('canvasWrap').getBoundingClientRect();
-  return {x:(e.clientX-wrap.left-panX)/zoom, y:(e.clientY-wrap.top-panY)/zoom};
+  const v=av();
+  const ww=wrap.width; const half=Math.floor(ww/2);
+  const baseX = getTwoPageMode() && activePane===1 ? half : 0;
+  return {x:(e.clientX-wrap.left-baseX-v.panX)/v.zoom, y:(e.clientY-wrap.top-v.panY)/v.zoom};
 }
 function imgPosTouch(t) {
   const wrap=document.getElementById('canvasWrap').getBoundingClientRect();
-  return {x:(t.clientX-wrap.left-panX)/zoom, y:(t.clientY-wrap.top-panY)/zoom};
+  const v=av();
+  const ww=wrap.width; const half=Math.floor(ww/2);
+  const baseX = getTwoPageMode() && activePane===1 ? half : 0;
+  return {x:(t.clientX-wrap.left-baseX-v.panX)/v.zoom, y:(t.clientY-wrap.top-v.panY)/v.zoom};
 }
 function selRect() {
   return {x:Math.max(0,Math.min(selStart.x,selEnd.x)),y:Math.max(0,Math.min(selStart.y,selEnd.y)),w:Math.abs(selEnd.x-selStart.x),h:Math.abs(selEnd.y-selStart.y)};
@@ -793,8 +909,11 @@ function drawSel() {
   const wrap=document.getElementById('canvasWrap');
   selCanvas.width=wrap.offsetWidth; selCanvas.height=wrap.offsetHeight;
   selCtx.clearRect(0,0,selCanvas.width,selCanvas.height);
-  const sx=selStart.x*zoom+panX, sy=selStart.y*zoom+panY;
-  const ex=selEnd.x*zoom+panX, ey=selEnd.y*zoom+panY;
+  const v=av();
+  const ww=wrap.offsetWidth; const half=Math.floor(ww/2);
+  const baseX = getTwoPageMode() && activePane===1 ? half : 0;
+  const sx=selStart.x*v.zoom+v.panX+baseX, sy=selStart.y*v.zoom+v.panY;
+  const ex=selEnd.x*v.zoom+v.panX+baseX, ey=selEnd.y*v.zoom+v.panY;
   const x=Math.min(sx,ex),y=Math.min(sy,ey),w=Math.abs(ex-sx),h=Math.abs(ey-sy);
   selCtx.fillStyle='rgba(124,131,224,.15)';
   selCtx.fillRect(x,y,w,h);
