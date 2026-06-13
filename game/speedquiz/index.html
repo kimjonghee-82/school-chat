@@ -208,6 +208,57 @@ async function loadPdfJs() {
     `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VER}/pdf.worker.min.js`;
 }
 
+async function compressPdf(originalBuf) {
+  // Render each page to JPEG canvas and rebuild as a new PDF using jsPDF
+  await loadJsPdf();
+  await loadPdfJs();
+  const pdf = await pdfjsLib.getDocument({ data: originalBuf.slice(0) }).promise;
+  const pageCount = pdf.numPages;
+  const firstPage = await pdf.getPage(1);
+  const vp0 = firstPage.getViewport({ scale: 1 });
+  // Use landscape/portrait based on first page
+  const isLandscape = vp0.width > vp0.height;
+  const doc = new window.jspdf.jsPDF({ orientation: isLandscape ? 'l' : 'p', unit: 'pt', format: 'a4' });
+  const A4_W = isLandscape ? 841.89 : 595.28;
+  const A4_H = isLandscape ? 595.28 : 841.89;
+
+  for (let p = 1; p <= pageCount; p++) {
+    setProgress(10 + Math.round((p - 1) / pageCount * 50), `PDF 압축 중... ${p}/${pageCount}페이지`);
+    const page = await pdf.getPage(p);
+    const scale = Math.min(A4_W / page.getViewport({ scale: 1 }).width, 1.2);
+    const viewport = page.getViewport({ scale });
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+    const imgData = canvas.toDataURL('image/jpeg', 0.75);
+    if (p > 1) doc.addPage();
+    doc.addImage(imgData, 'JPEG', 0, 0, A4_W, A4_H);
+  }
+  const compressed = doc.output('arraybuffer');
+  return { buf: compressed, pageCount };
+}
+
+async function loadJsPdf() {
+  if (window.jspdf) return;
+  await new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+    s.onload = res; s.onerror = rej;
+    document.head.appendChild(s);
+  });
+}
+
+async function bufToB64(buf) {
+  const bytes = new Uint8Array(buf);
+  let binary = '';
+  const chunkSize = 8192;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
+
 async function handleUpload(input) {
   const file = input.files[0];
   if (!file) return;
@@ -219,11 +270,7 @@ async function handleUpload(input) {
   const isTxt = file.name.toLowerCase().endsWith('.txt');
   if (!isPdf && !isTxt) return showResult('❌ PDF 또는 TXT 파일만 가능합니다.', 'error');
 
-  // 파일 크기 체크 (PDF는 6MB 이하 권장)
-  const mbSize = file.size / 1024 / 1024;
-  if (isPdf && mbSize > 8) {
-    return showResult(`❌ 파일이 너무 큽니다 (${mbSize.toFixed(1)}MB). 8MB 이하 PDF만 가능합니다. PDF 압축 후 다시 시도하세요.`, 'error');
-  }
+  const originalMb = file.size / 1024 / 1024;
 
   document.getElementById('uploadProgress').style.display = 'block';
   document.getElementById('uploadResult').style.display = 'none';
@@ -234,31 +281,33 @@ async function handleUpload(input) {
     const bookId = 'book_' + Date.now();
 
     if (isPdf) {
-      setProgress(15, 'PDF 분석 중...');
-      await loadPdfJs();
-      const buf = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: buf.slice(0) }).promise;
-      const pageCount = pdf.numPages;
+      setProgress(10, 'PDF 불러오는 중...');
+      const originalBuf = await file.arrayBuffer();
 
-      setProgress(40, 'Base64 변환 중...');
-      const bytes = new Uint8Array(buf);
-      let binary = '';
-      const chunkSize = 8192;
-      for (let i = 0; i < bytes.length; i += chunkSize) {
-        binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
-        if (i % 100000 === 0) setProgress(40 + Math.round(i / bytes.length * 40), 'Base64 변환 중...');
+      let finalBuf, pageCount;
+      if (originalMb > 3) {
+        setProgress(10, `PDF 압축 중... (원본 ${originalMb.toFixed(1)}MB)`);
+        ({ buf: finalBuf, pageCount } = await compressPdf(originalBuf));
+      } else {
+        await loadPdfJs();
+        const pdf = await pdfjsLib.getDocument({ data: originalBuf.slice(0) }).promise;
+        pageCount = pdf.numPages;
+        finalBuf = originalBuf;
+        setProgress(60, 'Base64 변환 중...');
       }
-      const b64 = btoa(binary);
 
-      setProgress(80, 'Firebase에 저장 중...');
+      const finalMb = finalBuf.byteLength / 1024 / 1024;
+      setProgress(62, `Base64 변환 중... (${finalMb.toFixed(1)}MB)`);
+      const b64 = await bufToB64(finalBuf);
+
+      setProgress(75, 'Firebase에 저장 중...');
       await fetch(`${FB_URL}/books/${bookId}.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: bookName, uploadedAt: Date.now(), pageCount, type: 'pdf', pdfSize: Math.round(mbSize * 10) / 10 })
+        body: JSON.stringify({ name: bookName, uploadedAt: Date.now(), pageCount, type: 'pdf', pdfSize: Math.round(finalMb * 10) / 10 })
       });
 
-      // PDF를 청크로 나눠 저장 (Firebase 노드 크기 제한 대응)
-      const chunkMb = 500000; // ~500KB per chunk
+      const chunkMb = 500000;
       const chunks = Math.ceil(b64.length / chunkMb);
       for (let i = 0; i < chunks; i++) {
         const chunk = b64.slice(i * chunkMb, (i + 1) * chunkMb);
@@ -267,7 +316,7 @@ async function handleUpload(input) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(chunk)
         });
-        setProgress(80 + Math.round((i + 1) / chunks * 18), `PDF 저장 중... ${i+1}/${chunks}`);
+        setProgress(75 + Math.round((i + 1) / chunks * 23), `Firebase 저장 중... ${i+1}/${chunks}`);
       }
       await fetch(`${FB_URL}/books/${bookId}/pdf/chunks.json`, {
         method: 'PUT',
@@ -276,7 +325,8 @@ async function handleUpload(input) {
       });
 
       setProgress(100, '완료!');
-      showResult(`✅ "${bookName}" (${pageCount}페이지, ${mbSize.toFixed(1)}MB) 업로드 완료\n교사 설정에서 페이지 범위를 지정하고 문제를 생성하세요.`, 'success');
+      const sizeMsg = originalMb > 3 ? ` (${originalMb.toFixed(1)}MB → ${finalMb.toFixed(1)}MB 압축)` : ` (${finalMb.toFixed(1)}MB)`;
+      showResult(`✅ "${bookName}" (${pageCount}페이지${sizeMsg}) 업로드 완료\n교사 설정에서 페이지 범위를 지정하고 문제를 생성하세요.`, 'success');
     } else {
       setProgress(50, '텍스트 읽는 중...');
       const text = await file.text();
