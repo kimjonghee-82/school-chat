@@ -587,6 +587,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
       <div class="pop-kor" id="popKor"></div>
       <div class="pop-lang" id="popLangLabel" style="margin-bottom:5px">🌐 러시아어</div>
       <div class="pop-rus" id="popRus"></div>
+      <div id="popPronunc" style="font-size:.8rem;color:var(--sub);margin-top:-8px;margin-bottom:12px;line-height:1.6;display:none"></div>
       <div class="pop-loading" id="popLoading" style="display:none">번역 중...</div>
       <button class="pop-apply" id="popApply" onclick="applyTranslationToImage()">✏️ 이미지에 번역어 적용</button>
       <button class="pop-undo" id="popUndo" onclick="undoApply()">↩ 되돌리기</button>
@@ -1690,6 +1691,7 @@ async function translateSel(rect, popClientX, popClientY) {
   popup.style.left=px+'px'; popup.style.top=py+'px';
   document.getElementById('popKor').textContent='';
   document.getElementById('popRus').textContent='';
+  document.getElementById('popPronunc').style.display='none';
   document.getElementById('popLoading').style.display='block';
   document.getElementById('popApply').classList.remove('visible');
   document.getElementById('popUndo').classList.remove('visible');
@@ -1722,7 +1724,7 @@ async function translateSel(rect, popClientX, popClientY) {
 4. 번역하지 말고 그대로 둬야 할 것: 고유명사(지명·인명), 수식, 기호, 단위.
 5. 반드시 아래 형식으로만 답하세요. 다른 설명은 금지.`},
           {role:'user',content:[
-            {type:'text',text:`아래 이미지의 한국어를 인식하고 ${LANG_FULL[targetLang]}로 번역하세요.\n형식:\n[KOREAN]인식한 한국어[/KOREAN]\n[TRANSLATED]${LANG_FULL[targetLang]} 번역[/TRANSLATED]`},
+            {type:'text',text:`아래 이미지의 한국어를 인식하고 ${LANG_FULL[targetLang]}로 번역하세요.\n형식:\n[KOREAN]인식한 한국어[/KOREAN]\n[TRANSLATED]${LANG_FULL[targetLang]} 번역[/TRANSLATED]\n[PRONOUNCE]번역된 내용의 한글 발음 표기 (예: 쁘리볫, 헬로우)[/PRONOUNCE]`},
             {type:'image_url',image_url:{url:`data:image/jpeg;base64,${b64}`}}
           ]}
         ]})
@@ -1732,8 +1734,11 @@ async function translateSel(rect, popClientX, popClientY) {
     const text=json.choices?.[0]?.message?.content||'';
     const kor=(text.match(/\[KOREAN\]([\s\S]*?)\[\/KOREAN\]/)||[])[1]?.trim()||'인식 실패';
     const rus=(text.match(/\[TRANSLATED\]([\s\S]*?)\[\/TRANSLATED\]/)||[])[1]?.trim()||'번역 실패';
+    const pronounc=(text.match(/\[PRONOUNCE\]([\s\S]*?)\[\/PRONOUNCE\]/)||[])[1]?.trim()||'';
     document.getElementById('popKor').textContent=kor;
     document.getElementById('popRus').textContent=rus;
+    const pEl=document.getElementById('popPronunc');
+    if(pronounc){pEl.textContent='🔤 '+pronounc;pEl.style.display='block';}else{pEl.style.display='none';}
     if(kor !== '인식 실패') document.getElementById('popApply').classList.add('visible');
   } catch(e) {
     document.getElementById('popKor').textContent='오류: '+e.message;
