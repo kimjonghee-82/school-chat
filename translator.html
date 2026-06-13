@@ -760,8 +760,13 @@ let currentBookId = null;
 const BOOKS_PER_SHELF = 5;
 
 async function initLibrary() {
-  await openDB();
-  bookList = await dbGetAll();
+  try {
+    await openDB();
+    bookList = await dbGetAll();
+  } catch(e) {
+    console.error('DB 오류:', e);
+    bookList = [];
+  }
   renderBookshelf();
 }
 
