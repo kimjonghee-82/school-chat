@@ -725,6 +725,7 @@ function dbDelete(id) {
 ══════════════════════════════ */
 let bookList = [];       // [{id, title, thumbnail, addedAt, pdfData}]
 let deleteTargetId = null;
+let currentBookId = null;
 const BOOKS_PER_SHELF = 5;
 
 async function initLibrary() {
@@ -885,23 +886,34 @@ async function handleLibraryPdf(file) {
 async function openBook(id) {
   document.getElementById('libraryScreen').style.display = 'none';
   document.getElementById('translatorScreen').style.display = 'block';
+  currentBookId = id;
   try {
-    // IndexedDB에서 매번 새로 읽어서 detached ArrayBuffer 문제 방지
     const book = await dbGet(id);
     if (!book) return;
-    // slice()로 복사본 전달 — 원본은 DB에 안전하게 유지
     await handlePdf(book.pdfData.slice(0));
+    // 마지막으로 읽던 페이지 복원
+    const savedPage = parseInt(localStorage.getItem(`book_page_${id}`) || '0');
+    if (savedPage > 0 && savedPage < slots.length) {
+      currentSlot = savedPage;
+      if (slots[currentSlot]?.pdfRef) await renderPdfSlot(currentSlot, true);
+      else { renderSlot(true); updateNav(); }
+    }
   } catch(e) {
     alert('PDF 오류: ' + e.message);
   }
 }
 
+function saveCurrentPage() {
+  if (currentBookId) localStorage.setItem(`book_page_${currentBookId}`, currentSlot);
+}
+
 function goToLibrary() {
+  saveCurrentPage();
   document.getElementById('translatorScreen').style.display = 'none';
   document.getElementById('libraryScreen').style.display   = 'flex';
   // 번역기 상태 초기화
   slots.length = 0; slots.push(null);
-  pdfDoc = null; currentSlot = 0;
+  pdfDoc = null; currentSlot = 0; currentBookId = null;
   renderSlot(); updateNav();
 }
 
@@ -1129,6 +1141,7 @@ function goPage(dir) {
   }
 
   currentSlot = Math.max(0, Math.min(next, slots.length - 1));
+  saveCurrentPage();
   closePopup();
 
   document.getElementById('viewer').classList.add('flip-anim');
@@ -1214,6 +1227,7 @@ function updateTocHighlight() {
 function jumpToPage(idx) {
   if (idx < 0 || idx >= slots.length) return;
   currentSlot = idx;
+  saveCurrentPage();
   closePopup();
   if (slots[currentSlot]?.pdfRef) renderPdfSlot(currentSlot, true);
   else { renderSlot(true); updateNav(); }
@@ -1635,6 +1649,32 @@ function applyTranslationToImage() {
   const bgColor  = bright ? `rgb(245,245,240)` : `rgb(30,30,46)`;
   const textColor = bright ? '#1a1a2e' : '#e8e8f8';
 
+  // 선택 영역의 한글 글자 높이 추정
+  function estimateTextHeight(imgData) {
+    const d = imgData.data, W = imgData.width;
+    const rowDark = [];
+    for (let row = cy; row < cy + ch; row++) {
+      let dark = 0;
+      for (let col = cx; col < cx + cw; col++) {
+        const i = (row * W + col) * 4;
+        if ((d[i] + d[i+1] + d[i+2]) / 3 < 140) dark++;
+      }
+      rowDark.push(dark / cw > 0.04);
+    }
+    const heights = [];
+    let inLine = false, lineStart = 0;
+    for (let i = 0; i < rowDark.length; i++) {
+      if (rowDark[i] && !inLine) { inLine = true; lineStart = i; }
+      else if (!rowDark[i] && inLine) { inLine = false; heights.push(i - lineStart); }
+    }
+    if (inLine) heights.push(rowDark.length - lineStart);
+    if (!heights.length) return null;
+    heights.sort((a,b)=>a-b);
+    return heights[Math.floor(heights.length * 0.7)];
+  }
+
+  const estimatedH = estimateTextHeight(page.processed);
+
   function drawOnCanvas(srcImageData) {
     const c = document.createElement('canvas');
     c.width = page.width; c.height = page.height;
@@ -1644,7 +1684,9 @@ function applyTranslationToImage() {
     x.fillRect(cx, cy, cw, ch);
     const pad   = 6;
     const maxW  = cw - pad*2;
-    let fontSize = Math.min(Math.floor(ch * 0.45), 32);
+    // 한글 글자 높이 기반 폰트 크기, 없으면 영역 비율
+    let fontSize = estimatedH ? Math.max(10, Math.min(estimatedH, Math.floor(ch * 0.85)))
+                              : Math.max(10, Math.min(Math.floor(ch * 0.45), 48));
 
     function wrapText(sz) {
       x.font = `bold ${sz}px 'Segoe UI', Arial, sans-serif`;
