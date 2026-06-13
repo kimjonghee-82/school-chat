@@ -175,6 +175,39 @@ main { padding:24px; max-width:1400px; margin:0 auto; }
 
 .hidden { display:none !important; }
 
+/* Range picker */
+.range-picker {
+  margin-top:10px;
+  background:#0d1117;
+  border:1px solid #30363d;
+  border-radius:8px;
+  padding:10px;
+  max-height:220px;
+  overflow-y:auto;
+}
+.range-picker-msg { color:#8b949e; font-size:0.8rem; padding:4px; }
+.range-unit { margin-bottom:4px; }
+.range-unit-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:6px 8px; border-radius:6px; cursor:pointer;
+  background:#161b22;
+  user-select:none;
+}
+.range-unit-header:hover { background:#1c2128; }
+.range-check-wrap { display:flex; align-items:center; gap:8px; font-size:0.85rem; color:#e6edf3; }
+.range-check-wrap input[type=checkbox] { width:14px; height:14px; accent-color:#4caf50; cursor:pointer; }
+.range-expand { color:#8b949e; font-size:0.75rem; transition:transform 0.15s; }
+.range-expand.open { transform:rotate(90deg); }
+.range-lessons { padding:4px 8px 4px 24px; display:none; }
+.range-lessons.open { display:block; }
+.range-lesson {
+  display:flex; align-items:center; gap:8px;
+  padding:5px 6px; border-radius:4px; font-size:0.82rem;
+  color:#c9d1d9; cursor:pointer;
+}
+.range-lesson:hover { background:#1c2128; }
+.range-lesson input[type=checkbox] { width:13px; height:13px; accent-color:#5c6bc0; cursor:pointer; }
+.range-summary { font-size:0.75rem; color:#58a6ff; margin-top:6px; }
 
 .final-banner {
   text-align:center; padding:20px; background:#1a2a1a;
@@ -193,8 +226,8 @@ main { padding:24px; max-width:1400px; margin:0 auto; }
     <span class="room-code-value" id="roomCode" onclick="showRoomPopup()" title="클릭하면 크게 보기">------</span>
   </div>
   <div class="game-controls">
-    <button class="btn-start" id="startBtn" onclick="startGame()">▶ 게임 시작</button>
-    <button class="btn-end" id="endBtn" onclick="resetGame()" disabled>🔄 리셋</button>
+    <button class="btn-start" id="startBtn" onclick="startGame()">게임 시작</button>
+    <button class="btn-end" id="endBtn" onclick="resetGame()" disabled>리셋</button>
   </div>
 </header>
 
@@ -251,6 +284,14 @@ main { padding:24px; max-width:1400px; margin:0 auto; }
     </div>
 
     <div class="form-group">
+      <label>범위 선택</label>
+      <div class="range-picker" id="rangePicker">
+        <p class="range-picker-msg">지도서를 선택하면 단원/차시 목록이 표시됩니다</p>
+      </div>
+      <div class="range-summary" id="rangeSummary"></div>
+    </div>
+
+    <div class="form-group">
       <label>❓ 생성할 문제 수</label>
       <input type="number" id="questionCount" value="20" min="5" max="50">
     </div>
@@ -302,6 +343,9 @@ let pollInterval = null;
 let totalMs = 0;
 let endTime = 0;
 let selectedDiff = cfg.difficulty || '중';
+let bookStructure = null;
+let bookTextCache = '';
+let selectedRanges = new Set(cfg.selectedRanges || []);
 
 localStorage.setItem('sq_room', roomCode);
 document.getElementById('roomCode').textContent = roomCode;
@@ -343,6 +387,7 @@ function saveSettings() {
     difficulty: selectedDiff,
     claudeApiKey: document.getElementById('claudeApiKey').value.trim(),
     firebaseUrl: document.getElementById('firebaseUrl').value.trim().replace(/\/$/, ''),
+    selectedRanges: [...selectedRanges],
   };
   localStorage.setItem('sq_cfg', JSON.stringify(cfg));
   closeSettings();
@@ -371,9 +416,184 @@ async function loadBooks() {
       if (cfg.book === id) o.selected = true;
       sel.appendChild(o);
     });
+    // Load structure for currently selected book
+    if (cfg.book) loadBookStructure(cfg.book, fbBase);
   } catch {
     sel.innerHTML = '<option value="">Firebase 연결 실패</option>';
   }
+  sel.addEventListener('change', () => {
+    const bookId = sel.value;
+    selectedRanges.clear();
+    if (bookId) {
+      const fbBase2 = (cfg.firebaseUrl || '').replace(/\/$/, '') || fbBase;
+      loadBookStructure(bookId, fbBase2);
+    } else {
+      document.getElementById('rangePicker').innerHTML = '<p class="range-picker-msg">지도서를 선택하면 단원/차시 목록이 표시됩니다</p>';
+      document.getElementById('rangeSummary').textContent = '';
+    }
+  });
+}
+
+async function loadBookStructure(bookId, fbBase) {
+  const picker = document.getElementById('rangePicker');
+  picker.innerHTML = '<p class="range-picker-msg">단원/차시 분석 중...</p>';
+  try {
+    const r = await fetch(`${fbBase}/books/${bookId}.json`);
+    const data = await r.json();
+    if (!data || !data.text) { picker.innerHTML = '<p class="range-picker-msg">텍스트를 불러올 수 없습니다</p>'; return; }
+    bookTextCache = data.text;
+    bookStructure = parseBookStructure(data.text);
+    renderRangePicker(bookStructure);
+  } catch {
+    picker.innerHTML = '<p class="range-picker-msg">불러오기 실패</p>';
+  }
+}
+
+function parseBookStructure(text) {
+  const units = [];
+  // Find all "N단원" occurrences (1~15)
+  const unitRegex = /(\d{1,2})\s*단원/g;
+  const unitHits = [];
+  let m;
+  while ((m = unitRegex.exec(text)) !== null) {
+    const num = parseInt(m[1]);
+    if (!unitHits.find(u => u.num === num)) {
+      unitHits.push({ num, index: m.index });
+    }
+  }
+  if (!unitHits.length) return { units: [] };
+
+  // Determine text span for each unit (start of unit N to start of unit N+1)
+  // Skip content before first unit and after last unit
+  for (let i = 0; i < unitHits.length; i++) {
+    const start = unitHits[i].index;
+    const end = i + 1 < unitHits.length ? unitHits[i + 1].index : text.length;
+    const unitText = text.slice(start, end);
+
+    // Find lessons within this unit's text
+    const lessonRegex = /(\d{1,2})(?:~(\d{1,2}))?\s*차시/g;
+    const lessonHits = [];
+    let lm;
+    while ((lm = lessonRegex.exec(unitText)) !== null) {
+      const n1 = parseInt(lm[1]);
+      const n2 = lm[2] ? parseInt(lm[2]) : null;
+      const name = n2 ? `${n1}~${n2}차시` : `${n1}차시`;
+      if (!lessonHits.find(l => l.name === name)) {
+        lessonHits.push({ name, index: lm.index });
+      }
+    }
+
+    const lessons = lessonHits.map((lh, j) => ({
+      id: `u${unitHits[i].num}_l${j}`,
+      name: lh.name,
+      text: unitText.slice(lh.index, j + 1 < lessonHits.length ? lessonHits[j + 1].index : unitText.length)
+    }));
+
+    units.push({
+      id: `u${unitHits[i].num}`,
+      num: unitHits[i].num,
+      name: `${unitHits[i].num}단원`,
+      text: unitText,
+      lessons
+    });
+  }
+  return { units };
+}
+
+function renderRangePicker(structure) {
+  const picker = document.getElementById('rangePicker');
+  if (!structure.units.length) {
+    picker.innerHTML = '<p class="range-picker-msg">단원 구조를 인식할 수 없습니다 (전체 내용으로 문제 출제)</p>';
+    return;
+  }
+  picker.innerHTML = structure.units.map(unit => `
+    <div class="range-unit">
+      <div class="range-unit-header" onclick="toggleUnit('${unit.id}')">
+        <label class="range-check-wrap" onclick="event.stopPropagation()">
+          <input type="checkbox" id="chk_${unit.id}" onchange="onUnitCheck('${unit.id}')">
+          <span>${unit.name} 전체</span>
+        </label>
+        <span class="range-expand" id="exp_${unit.id}">▸</span>
+      </div>
+      <div class="range-lessons" id="lessons_${unit.id}">
+        ${unit.lessons.length ? unit.lessons.map(l => `
+          <label class="range-lesson">
+            <input type="checkbox" id="chk_${l.id}" onchange="onLessonCheck('${unit.id}','${l.id}')">
+            <span>${l.name}</span>
+          </label>
+        `).join('') : '<p class="range-picker-msg">차시 없음</p>'}
+      </div>
+    </div>
+  `).join('');
+
+  // Restore saved selections
+  selectedRanges.forEach(id => {
+    const el = document.getElementById('chk_' + id);
+    if (el) el.checked = true;
+  });
+  updateRangeSummary();
+}
+
+function toggleUnit(unitId) {
+  const lessons = document.getElementById('lessons_' + unitId);
+  const exp = document.getElementById('exp_' + unitId);
+  lessons.classList.toggle('open');
+  exp.classList.toggle('open');
+}
+
+function onUnitCheck(unitId) {
+  const unit = bookStructure.units.find(u => u.id === unitId);
+  const checked = document.getElementById('chk_' + unitId).checked;
+  if (checked) {
+    selectedRanges.add(unitId);
+    // Uncheck individual lessons (unit全体 takes over)
+    unit.lessons.forEach(l => {
+      selectedRanges.delete(l.id);
+      const el = document.getElementById('chk_' + l.id);
+      if (el) el.checked = false;
+    });
+  } else {
+    selectedRanges.delete(unitId);
+  }
+  updateRangeSummary();
+}
+
+function onLessonCheck(unitId, lessonId) {
+  const checked = document.getElementById('chk_' + lessonId).checked;
+  if (checked) {
+    selectedRanges.add(lessonId);
+    // Uncheck parent unit
+    selectedRanges.delete(unitId);
+    const uEl = document.getElementById('chk_' + unitId);
+    if (uEl) uEl.checked = false;
+  } else {
+    selectedRanges.delete(lessonId);
+  }
+  updateRangeSummary();
+}
+
+function updateRangeSummary() {
+  const el = document.getElementById('rangeSummary');
+  if (!el) return;
+  if (selectedRanges.size === 0) { el.textContent = '선택 없음 (전체 내용으로 문제 출제)'; return; }
+  const names = [];
+  if (bookStructure) {
+    bookStructure.units.forEach(unit => {
+      if (selectedRanges.has(unit.id)) { names.push(unit.name + ' 전체'); return; }
+      unit.lessons.forEach(l => { if (selectedRanges.has(l.id)) names.push(`${unit.name} ${l.name}`); });
+    });
+  }
+  el.textContent = '선택: ' + names.join(', ');
+}
+
+function getSelectedText() {
+  if (!bookStructure || !bookTextCache || selectedRanges.size === 0) return bookTextCache || '';
+  const parts = [];
+  bookStructure.units.forEach(unit => {
+    if (selectedRanges.has(unit.id)) { parts.push(unit.text); return; }
+    unit.lessons.forEach(l => { if (selectedRanges.has(l.id)) parts.push(l.text); });
+  });
+  return parts.join('\n\n') || bookTextCache;
 }
 
 async function loadFbUrl() {
@@ -461,7 +681,16 @@ async function startGame() {
 
   try {
     setGenProgress('지도서 불러오는 중...');
-    const content = await loadBookContent(cfg.book);
+    // Use cached text if available, otherwise fetch
+    if (!bookTextCache || bookStructure === null) {
+      const fbBase = cfg.firebaseUrl.replace(/\/$/, '');
+      const r = await fetch(`${fbBase}/books/${cfg.book}.json`);
+      const data = await r.json();
+      if (!data || !data.text) throw new Error('지도서 텍스트가 없습니다. 다시 업로드해주세요.');
+      bookTextCache = data.text;
+      bookStructure = parseBookStructure(data.text);
+    }
+    const content = getSelectedText();
     setGenProgress('AI가 문제를 생성하는 중... (20~40초 소요)');
     const questions = await generateQuestions(content, cfg.questionCount||20, cfg.difficulty||'중', cfg.claudeApiKey);
 
