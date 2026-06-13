@@ -1119,26 +1119,47 @@ async function renderPdfSlot(idx, fitToView) {
   } finally { hideLoading(); }
   renderSlot(fitToView);
   updateNav();
-  // 인접 페이지 백그라운드 미리 렌더링
-  prefetchAdjacent(idx);
+  // 전체 페이지 백그라운드 렌더링 시작
+  prefetchAll();
 }
 
-async function prefetchAdjacent(idx) {
-  const step = (pageLayout === 2) ? 2 : 1;
-  for (const i of [idx + step, idx - step, idx + step*2]) {
-    if (i < 0 || i >= slots.length) continue;
-    if (slots[i]?.pdfRef) {
-      const slot = slots[i];
-      try {
-        const pdfPage = await slot.pdfRef.getPage(slot.pageNum);
-        const scale = Math.min(2, 1600 / pdfPage.getViewport({scale:1}).width);
-        const vp = pdfPage.getViewport({scale});
-        const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
-        await pdfPage.render({canvasContext: c.getContext('2d'), viewport: vp}).promise;
-        const original = c.getContext('2d').getImageData(0, 0, c.width, c.height);
-        slots[i] = {original, width: c.width, height: c.height};
-      } catch(_) {}
-    }
+let _prefetchId = 0; // 책 전환 시 이전 prefetch 중단용
+
+async function prefetchAll() {
+  const myId = ++_prefetchId;
+  const total = slots.length;
+  let done = 0;
+
+  // 진행률 표시 요소 생성/재사용
+  let bar = document.getElementById('prefetchBar');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'prefetchBar';
+    bar.style.cssText = 'position:fixed;bottom:60px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.75);color:#fff;font-size:12px;padding:6px 16px;border-radius:20px;z-index:9999;pointer-events:none;transition:opacity .4s';
+    document.body.appendChild(bar);
+  }
+  bar.style.opacity = '1';
+
+  for (let i = 0; i < total; i++) {
+    if (myId !== _prefetchId) break; // 책 바꾸면 중단
+    if (!slots[i]?.pdfRef) { done++; continue; }
+    const slot = slots[i];
+    try {
+      const pdfPage = await slot.pdfRef.getPage(slot.pageNum);
+      const scale = Math.min(2, 1600 / pdfPage.getViewport({scale:1}).width);
+      const vp = pdfPage.getViewport({scale});
+      const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
+      await pdfPage.render({canvasContext: c.getContext('2d'), viewport: vp}).promise;
+      const original = c.getContext('2d').getImageData(0, 0, c.width, c.height);
+      if (myId === _prefetchId) slots[i] = {original, width: c.width, height: c.height};
+    } catch(_) {}
+    done++;
+    bar.textContent = `📄 페이지 준비 중... ${done}/${total}`;
+  }
+
+  if (myId === _prefetchId) {
+    bar.textContent = '✅ 모든 페이지 준비 완료!';
+    setTimeout(() => { bar.style.opacity = '0'; }, 1500);
   }
 }
 
