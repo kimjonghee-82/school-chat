@@ -971,10 +971,13 @@ async function translate() {
     document.getElementById('russianText').value = rus;
     document.getElementById('korCount').textContent = kor.length + '자';
     document.getElementById('rusCount').textContent = rus.length + '자';
-    document.getElementById('resultGrid').classList.add('visible');
+    const grid = document.getElementById('resultGrid');
+    grid.classList.add('visible');
+    setTimeout(() => grid.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
 
   } catch (e) {
     showError('오류: ' + e.message);
+    document.getElementById('errorMsg').scrollIntoView({ behavior: 'smooth', block: 'center' });
   } finally {
     hideLoading();
   }
