@@ -1,0 +1,3193 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>분수 학습</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Nanum Gothic', 'Apple SD Gothic Neo', sans-serif;
+  background: #f0f0f0; min-height: 100vh;
+  display: flex; flex-direction: column;
+}
+
+/* ── 헤더 ── */
+.header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 20px; background: white;
+  border-bottom: 1px solid #e0e0e0; position: relative; z-index: 300;
+}
+.header-left { display: flex; align-items: center; gap: 10px; }
+.header h1 { font-size: 18px; font-weight: 700; color: #222; }
+
+.count-selector { position: relative; }
+.count-btn {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: #e06020; color: white; font-size: 15px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; border: none; user-select: none;
+}
+.count-btn:hover { background: #c04010; }
+.count-dropdown {
+  position: absolute; top: calc(100% + 6px); left: 50%;
+  transform: translateX(-50%);
+  background: white; border: 1.5px solid #ddd;
+  border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.15);
+  overflow: hidden; display: none; z-index: 400; min-width: 60px;
+}
+.count-dropdown.open { display: block; }
+.count-option {
+  padding: 9px 20px; font-size: 15px; font-weight: 700;
+  text-align: center; cursor: pointer; color: #444; transition: background .15s;
+}
+.count-option:hover { background: #fff0e8; color: #e06020; }
+.count-option.active { color: #e06020; background: #fff5f0; }
+
+.header-btns { display: flex; align-items: center; gap: 8px; }
+.hbtn {
+  padding: 5px 14px; border-radius: 20px; border: none;
+  cursor: pointer; font-size: 12px; font-weight: 700; color: white;
+}
+.hbtn-sound { background: #4caf50; border-radius: 50%; width: 32px; height: 32px; padding: 0; font-size: 16px; }
+.hbtn-help  { background: #4caf50; }
+.hbtn-link  { background: #f06090; }
+.hbtn-qr    { background: #5090d0; }
+
+/* ── 뷰 탭 ── */
+.view-tabs {
+  display: flex; padding: 0 20px; background: white;
+  border-bottom: 2px solid #e8e8e8; gap: 4px;
+}
+.vtab {
+  padding: 9px 22px; font-size: 13px; font-weight: 700;
+  color: #aaa; cursor: pointer; border-bottom: 3px solid transparent;
+  transition: color .2s, border-color .2s; user-select: none;
+}
+.vtab.active { color: #e06020; border-bottom-color: #e06020; }
+
+/* ── 메인 ── */
+.main-wrap {
+  flex: 1; display: flex; align-items: stretch;
+  padding: 16px; gap: 8px; overflow: visible;
+}
+
+.frac-panel {
+  flex: 1; min-width: 0; background: white;
+  border: 2px dashed #c0c0c0; border-radius: 14px;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 20px 10px 18px; position: relative; min-height: 300px;
+}
+
+/* 가운데 비교 열 */
+.cmp-col {
+  width: 200px; flex-shrink: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 14px; overflow: visible; position: relative;
+}
+
+.cmp-viz-wrap {
+  width: 90px; height: 90px;
+  border: 2.5px solid #f0a060; border-radius: 50%; background: white;
+  overflow: visible;
+  transition: width .45s ease, height .45s ease, border-radius .45s ease;
+  position: relative; z-index: 10; flex-shrink: 0;
+}
+.cmp-viz-wrap svg { width: 100%; height: 100%; }
+
+.cmp-symbol {
+  font-size: 20px; font-weight: 900;
+  text-align: center; min-width: 50px; display: none;
+  color: #555;
+}
+
+/* 퀴즈 드롭다운 */
+.quiz-row { display: flex; align-items: center; justify-content: center; }
+.quiz-dropdown { position: relative; }
+.quiz-trigger {
+  width: 60px; height: 60px; border-radius: 50%;
+  background: white; border: 2.5px solid #ddd;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px; font-weight: 900; color: #ccc;
+  user-select: none; cursor: not-allowed;
+  transition: border-color .2s, color .2s, box-shadow .2s;
+}
+.quiz-trigger.active {
+  border-color: #f0a060; color: #e06020; cursor: pointer;
+}
+.quiz-trigger.active:hover { box-shadow: 0 0 0 3px rgba(224,96,32,.18); }
+.quiz-options {
+  position: absolute; top: calc(100% + 8px); left: 50%;
+  transform: translateX(-50%);
+  background: white; border: 1.5px solid #e0d0c0;
+  border-radius: 14px; box-shadow: 0 6px 20px rgba(0,0,0,.13);
+  display: none; z-index: 300; overflow: hidden; min-width: 70px;
+}
+.quiz-options.open { display: block; }
+.quiz-option {
+  padding: 11px 22px; font-size: 24px; font-weight: 900;
+  color: #444; cursor: pointer; text-align: center;
+  transition: background .12s;
+}
+.quiz-option:hover { background: #fff5f0; color: #e06020; }
+
+/* O/X 피드백 오버레이 */
+.quiz-feedback-overlay {
+  position: fixed; inset: 0; z-index: 900;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none; opacity: 0;
+  transition: opacity .25s;
+  background: rgba(255,255,255,0.55);
+}
+.quiz-feedback-overlay .feedback-mark {
+  font-size: 220px; font-weight: 900; line-height: 1;
+  filter: drop-shadow(0 8px 24px rgba(0,0,0,.18));
+}
+.quiz-feedback-overlay.show { opacity: 1; }
+
+.btn-compare {
+  padding: 10px 28px; background: white;
+  border: 2.5px solid #f0a060; border-radius: 24px;
+  font-size: 15px; font-weight: 700; color: #e06020; cursor: pointer;
+  transition: background .2s, color .2s; white-space: nowrap;
+}
+.btn-compare:hover { background: #f0a060; color: white; }
+
+/* 시각화 래퍼 */
+.viz-wrap {
+  display: flex; gap: 6px;
+  align-items: center; justify-content: center;
+  flex-wrap: nowrap;
+}
+
+/* 분수 입력 */
+.frac-area {
+  position: relative; display: flex;
+  flex-direction: column; align-items: center; margin-top: 14px;
+}
+.frac-cell {
+  width: 60px; height: 52px;
+  border: 2.5px solid #f0a060; border-radius: 10px;
+  background: #fff9f5; font-size: 26px; font-weight: 700;
+  text-align: center; color: #333; outline: none; cursor: pointer;
+  caret-color: transparent; user-select: none;
+  transition: border-color .2s, box-shadow .2s;
+  display: flex; align-items: center; justify-content: center;
+}
+.frac-cell.active {
+  border-color: #e06020; box-shadow: 0 0 0 3px rgba(224,96,32,.18);
+}
+.frac-line { width: 76px; height: 2.5px; background: #555; margin: 4px 0; border-radius: 2px; }
+
+/* 숫자패드 */
+.numpad {
+  position: absolute; background: white;
+  border: 1.5px solid #ddd; border-radius: 14px; padding: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.15);
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 5px; z-index: 250;
+  opacity: 0; pointer-events: none;
+  transition: opacity .18s, transform .18s;
+  transform: translateY(6px); top: 0;
+}
+.numpad.visible { opacity: 1; pointer-events: all; transform: translateY(0); }
+.numpad.pad-right { left: calc(100% + 10px); }
+.numpad.pad-left  { right: calc(100% + 10px); }
+
+.np-btn {
+  width: 40px; height: 38px;
+  border: 1.5px solid #ddd; border-radius: 8px;
+  background: #f9f9f9; font-size: 16px; font-weight: 600;
+  color: #333; cursor: pointer; transition: background .1s;
+  display: flex; align-items: center; justify-content: center;
+}
+.np-btn:hover { background: #f0e8ff; border-color: #b090e0; }
+.np-btn:active { background: #e0d0ff; }
+.np-btn.del {
+  font-size: 16px;
+  background: #fff0f0; border-color: #f0b0b0; color: #c04040;
+  white-space: nowrap; overflow: hidden;
+  padding: 0 4px; letter-spacing: -0.3px;
+}
+.np-btn.del:hover { background: #ffe0e0; }
+
+/* ── 푸터 ── */
+.footer {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 28px; background: white; border-top: 1px solid #e8e8e8;
+}
+.btn-reset {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: #f0a060; border: none; cursor: pointer;
+  font-size: 18px; color: white;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .2s;
+}
+.btn-reset:hover { background: #e08040; }
+.btn-quiz {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 18px; background: #f5f5f5; border: none;
+  border-radius: 24px; font-size: 14px; font-weight: 700;
+  color: #444; cursor: pointer; transition: background .2s;
+}
+.btn-quiz:hover { background: #e8e8e8; }
+.btn-quiz-arrow {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: #e06020; color: white; border: none;
+  font-size: 15px; cursor: pointer; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.ghost-el {
+  position: fixed; pointer-events: none; z-index: 500; opacity: .7;
+  transition: left .5s ease, top .5s ease, width .5s ease, height .5s ease, opacity .5s ease;
+}
+
+/* Top-level tabs */
+.top-tabs {
+  display: flex; gap: 0; align-items: flex-end;
+}
+.top-tab {
+  padding: 6px 20px; font-size: 14px; font-weight: 700;
+  color: #999; cursor: pointer; border-bottom: 3px solid transparent;
+  transition: color .2s, border-color .2s; white-space: nowrap; user-select: none;
+}
+.top-tab.active { color: #e06020; border-bottom-color: #e06020; }
+
+/* Concept tab layout */
+#page-concept {
+  flex: 1; display: none; flex-direction: column;
+  background: #f5f0e8; position: relative;
+}
+.concept-mode-btn {
+  position: absolute; top: 14px; left: 18px; z-index: 10;
+  padding: 7px 18px; border-radius: 20px; border: 2px solid #e06020;
+  background: white; color: #e06020; font-size: 13px; font-weight: 700;
+  cursor: pointer; transition: background .2s, color .2s;
+  display: flex; align-items: center; gap: 6px;
+}
+.concept-mode-btn:hover { background: #e06020; color: white; }
+.concept-body {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  gap: 160px; padding: 24px 40px; overflow: visible;
+}
+.concept-left {
+  display: flex; flex-direction: column; align-items: center; gap: 24px;
+  flex-shrink: 0;
+}
+.pizza-wrap {
+  width: 420px; height: 420px;
+  display: flex; align-items: center; justify-content: center;
+  overflow: visible;
+}
+.pizza-wrap svg { overflow: visible; }
+/* 막대 모드 */
+.bar-wrap {
+  width: 480px; display: flex; flex-direction: column; align-items: center;
+  gap: 0;
+}
+.bar-track {
+  width: 100%; height: 90px; display: flex; border-radius: 12px; overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0,0,0,.12);
+}
+.bar-seg {
+  flex: 1; border-right: 2px solid rgba(255,255,255,0.6);
+  background: #7ecef4; transition: background .3s;
+}
+.bar-seg:last-child { border-right: none; }
+.bar-seg.bar-highlight {
+  background: #f4a13e;
+  animation: barSparkle 0.9s ease-in-out infinite;
+}
+@keyframes barSparkle {
+  0%,100% { opacity: 1; filter: brightness(1); }
+  40%      { opacity: 0.4; filter: brightness(1.3); }
+}
+.concept-input-row {
+  display: flex; align-items: center; gap: 12px;
+}
+/* 숫자 spinner 화살표 제거 */
+.concept-input::-webkit-inner-spin-button,
+.concept-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.concept-input[type=number] { -moz-appearance: textfield; }
+.concept-input {
+  width: 70px; height: 70px; border: 2.5px solid #f0a060;
+  border-radius: 12px; font-size: 32px; font-weight: 700;
+  text-align: center; color: #333; outline: none;
+  background: #fff9f5;
+}
+.concept-input:focus { border-color: #e06020; box-shadow: 0 0 0 3px rgba(224,96,32,.18); }
+.concept-명 {
+  font-size: 24px; font-weight: 700; color: #333;
+}
+.concept-right {
+  display: flex; align-items: center; justify-content: center;
+  min-width: 220px;
+}
+#concept-frac-display {
+  display: flex; flex-direction: column; align-items: center;
+  min-height: 220px; justify-content: center;
+}
+.cfd-num, .cfd-den {
+  font-size: 110px; font-weight: 900; color: #e06020; line-height: 1;
+}
+.cfd-line {
+  width: 180px; height: 7px; background: #e06020; border-radius: 4px; margin: 10px 0;
+}
+/* 분수 등장 애니메이션 */
+@keyframes fracAppear {
+  from { opacity: 0; transform: scale(0.7) translateY(20px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.cfd-animate { animation: fracAppear 0.5s cubic-bezier(.34,1.56,.64,1) both; }
+.cfd-box {
+  width: 200px; height: 230px;
+  border: 4px dashed #f0a060; border-radius: 16px;
+  background: #fff9f5; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.2s, border-color 0.2s;
+}
+.cfd-box:hover { background: #ffe8d6; border-color: #e06020; }
+
+/* 하이라이트 슬라이스 반짝임 */
+@keyframes sparkle {
+  0%,100% { opacity: 1; }
+  40%      { opacity: 0.25; }
+}
+.pizza-sparkle { animation: sparkle 0.9s ease-in-out infinite; }
+
+.concept-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 28px; background: white; border-top: 1px solid #e8e8e8;
+}
+.btn-confirm {
+  padding: 10px 32px; background: #e06020; border: none;
+  border-radius: 24px; font-size: 15px; font-weight: 700;
+  color: white; cursor: pointer; transition: background .2s;
+}
+.btn-confirm:hover { background: #c04010; }
+
+/* page-compare uses existing flex layout */
+#page-compare { flex: 1; display: none; flex-direction: column; }
+
+/* ── 로그인 화면 ── */
+#login-screen {
+  position: fixed; inset: 0; z-index: 9999;
+  background: linear-gradient(135deg, #fff5ee 0%, #ffe0c8 100%);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 32px;
+}
+.login-title {
+  font-size: 28px; font-weight: 900; color: #e06020;
+  letter-spacing: -0.5px;
+}
+.login-subtitle {
+  font-size: 14px; color: #888; margin-top: -20px;
+}
+.login-role-row {
+  display: flex; gap: 20px;
+}
+.login-role-btn {
+  width: 140px; height: 140px; border-radius: 20px; border: 3px solid #f0a060;
+  background: white; cursor: pointer; font-size: 15px; font-weight: 700;
+  color: #444; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 10px;
+  transition: all .2s; box-shadow: 0 4px 16px rgba(224,96,32,.1);
+}
+.login-role-btn:hover { border-color: #e06020; background: #fff5f0; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(224,96,32,.2); }
+.login-role-btn .role-icon { font-size: 42px; }
+.login-pw-box {
+  display: none; flex-direction: column; align-items: center; gap: 14px;
+  background: white; padding: 28px 36px; border-radius: 20px;
+  box-shadow: 0 4px 24px rgba(0,0,0,.1);
+}
+.login-pw-box.show { display: flex; }
+.login-pw-title { font-size: 15px; font-weight: 700; color: #555; }
+.login-pw-input {
+  width: 180px; height: 50px; border: 2px solid #f0a060; border-radius: 12px;
+  font-size: 22px; text-align: center; outline: none; letter-spacing: 6px;
+  color: #333;
+}
+.login-pw-input:focus { border-color: #e06020; box-shadow: 0 0 0 3px rgba(224,96,32,.15); }
+.login-pw-save-row {
+  display: flex; align-items: center; gap: 8px; font-size: 13px; color: #888; cursor: pointer;
+}
+.login-pw-save-row input { cursor: pointer; accent-color: #e06020; }
+.login-submit-btn {
+  width: 180px; height: 44px; background: #e06020; border: none;
+  border-radius: 22px; color: white; font-size: 15px; font-weight: 700;
+  cursor: pointer; transition: background .2s;
+}
+.login-submit-btn:hover { background: #c04010; }
+.login-back-btn {
+  background: none; border: none; color: #aaa; font-size: 13px;
+  cursor: pointer; text-decoration: underline;
+}
+.login-student-box {
+  display: none; flex-direction: column; align-items: center; gap: 14px;
+  background: white; padding: 28px 36px; border-radius: 20px;
+  box-shadow: 0 4px 24px rgba(0,0,0,.1);
+}
+.login-student-box.show { display: flex; }
+.login-field-label { font-size: 13px; font-weight: 700; color: #888; align-self: flex-start; }
+.login-text-input {
+  width: 220px; height: 48px; border: 2px solid #f0a060; border-radius: 12px;
+  font-size: 17px; text-align: center; outline: none; color: #333;
+}
+.login-text-input:focus { border-color: #e06020; box-shadow: 0 0 0 3px rgba(224,96,32,.15); }
+.login-error { font-size: 13px; color: #e05050; display: none; }
+.login-error.show { display: block; }
+
+/* ── 분수 게임 탭 ── */
+#page-game { flex: 1; display: none; flex-direction: column; }
+
+/* 교사용 레이아웃 */
+#game-teacher-view { flex: 1; display: flex; flex-direction: column; }
+
+/* 상단 방코드 바 (높이 50% 줄임) */
+.game-topbar {
+  flex: 0 0 auto; height: 44px;
+  background: #1a1a2e; display: flex;
+  align-items: center; justify-content: center;
+  border-bottom: 2px solid white;
+}
+.game-room-code-label {
+  font-size: 13px; font-weight: 700; color: rgba(255,255,255,.6);
+  letter-spacing: 1px; display: flex; align-items: center; gap: 12px;
+}
+.game-room-code-label span {
+  color: #ffd580; letter-spacing: 8px; font-size: 20px; font-weight: 900;
+}
+
+/* 하단 9:1 분할 영역 */
+.game-main-row { flex: 1; display: flex; flex-direction: row; }
+
+/* 분수 입력 영역 (9/10 가로) */
+.game-frac-area {
+  flex: 9; background: white;
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+}
+
+/* 확인 전: 분수 위젯 중앙 */
+.game-frac-widget {
+  display: flex; flex-direction: column; align-items: center; gap: 0;
+}
+.game-frac-cell {
+  width: 180px; height: 160px;
+  border: 3px solid #f0a060; border-radius: 20px;
+  background: #fff5ee;
+  display: flex; align-items: center; justify-content: center;
+}
+.game-frac-cell input {
+  width: 100%; height: 100%;
+  background: transparent; border: none; outline: none;
+  font-size: 96px; font-weight: 900;
+  text-align: center; line-height: 1;
+  color: #fff5ee;
+  caret-color: #bbb;
+  border-radius: 18px;
+  transition: color .4s;
+}
+.game-frac-cell input.revealed { color: #222; }
+.game-frac-cell input::placeholder { color: #c8a88a; font-weight: 700; font-size: 72px; }
+.game-frac-divider {
+  width: 200px; height: 5px; background: #f0a060; border-radius: 3px;
+  margin: 6px 0;
+}
+
+/* 확인 버튼 */
+.game-confirm-btn {
+  position: absolute; bottom: 22px; right: 28px;
+  padding: 11px 32px; background: #e06020; border: none;
+  border-radius: 24px; font-size: 15px; font-weight: 700;
+  color: white; cursor: pointer; transition: background .2s;
+  box-shadow: 0 4px 12px rgba(224,96,32,.3);
+}
+.game-confirm-btn:hover { background: #c04010; }
+
+/* 확인 후: 원형 + 분수 나란히 */
+.game-revealed-layout {
+  display: flex; align-items: center; justify-content: center;
+  gap: 60px; width: 100%;
+}
+.game-circle-wrap svg { display: block; }
+.game-revealed-frac {
+  display: flex; flex-direction: column; align-items: center; gap: 0;
+}
+.game-revealed-num, .game-revealed-den {
+  font-size: 110px; font-weight: 900; color: #222; line-height: 1;
+}
+.game-revealed-line {
+  width: 180px; height: 7px; background: #222; border-radius: 4px; margin: 6px 0;
+}
+@keyframes fracReveal {
+  from { opacity: 0; transform: scale(0.75) translateY(16px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.frac-reveal-anim { animation: fracReveal .5s cubic-bezier(.34,1.56,.64,1) both; }
+
+/* 학생 목록 패널 (왼쪽, 정답 패널과 동일한 반응형 구조) */
+.game-roster {
+  flex: 0 0 0; width: 0; overflow: hidden;
+  background: white;
+  border-right: 2px solid #e0e0e0;
+  display: flex; flex-direction: column;
+  transition: flex-basis .35s ease, width .35s ease;
+  position: relative;
+}
+.game-roster.open { flex: 0 0 140px; width: 140px; }
+.roster-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px;
+  background: #222; color: white;
+  font-size: 13px; font-weight: 700; letter-spacing: 1px;
+  flex-shrink: 0;
+  border-bottom: 2px solid white;
+}
+/* 목록 열기 탭 (패널 닫혔을 때 노출) */
+.roster-open-tab {
+  position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+  width: 22px; height: 60px; z-index: 10;
+  background: #222; border: none; cursor: pointer;
+  border-radius: 0 6px 6px 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; color: white; font-weight: 900;
+  box-shadow: 2px 0 6px rgba(0,0,0,.15);
+}
+.roster-open-tab:hover { background: #444; }
+.roster-title {
+  font-size: 13px; font-weight: 700; color: white;
+  padding: 12px 12px 10px;
+  background: #222;
+  border-top: 2px solid white;
+  border-bottom: 2px solid white;
+  letter-spacing: 1px; text-align: center;
+}
+.roster-list { flex: 1; overflow-y: auto; padding: 6px 0; background: #e8e8e8; }
+.roster-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px;
+  border-bottom: 1px solid #d0d0d0;
+  animation: rosterIn .3s ease;
+}
+.roster-name-chip {
+  background: #666; color: white;
+  font-size: 11px; font-weight: 700;
+  padding: 3px 6px; border-radius: 10px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 56px;
+}
+
+/* 정답 패널 (오른쪽, 반응형 접힘) */
+.game-answer-panel {
+  flex: 0 0 0; width: 0; overflow: hidden;
+  background: #fafafa;
+  border-left: 2px solid #e0e0e0;
+  display: flex; flex-direction: column;
+  position: relative;
+  transition: flex-basis .35s ease, width .35s ease;
+  position: relative;
+}
+.game-answer-panel.open {
+  flex: 0 0 35%; width: 35%;
+}
+.answer-panel-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px;
+  background: #222; color: white;
+  font-size: 13px; font-weight: 700; letter-spacing: 1px;
+  flex-shrink: 0;
+  border-bottom: 2px solid white;
+}
+.answer-panel-toggle {
+  position: absolute; top: 50%; left: -18px; transform: translateY(-50%);
+  width: 18px; height: 48px;
+  background: #e06020; border: none; cursor: pointer;
+  border-radius: 6px 0 0 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; color: white; font-weight: 900;
+  writing-mode: vertical-rl;
+  box-shadow: -2px 0 6px rgba(0,0,0,.15);
+  z-index: 5;
+}
+.answer-panel-toggle:hover { background: #c04010; }
+.answer-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 14px; border-bottom: 1px solid #eee;
+  font-size: 13px; color: #333;
+  animation: rosterIn .3s ease;
+}
+.answer-name { font-weight: 700; color: #555; min-width: 50px; }
+.answer-value {
+  background: #e06020; color: white;
+  font-size: 13px; font-weight: 700;
+  padding: 3px 10px; border-radius: 10px;
+}
+.answer-empty {
+  font-size: 12px; color: #bbb; text-align: center;
+  padding: 24px 12px; line-height: 1.7;
+}
+/* 정답 토글 버튼 (패널 닫혔을 때도 노출) */
+.answer-open-tab {
+  position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+  width: 22px; height: 60px;
+  background: #e06020; border: none; cursor: pointer;
+  border-radius: 6px 0 0 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; color: white; font-weight: 900;
+  z-index: 10;
+  box-shadow: -2px 0 6px rgba(0,0,0,.15);
+}
+.answer-open-tab:hover { background: #c04010; }
+@keyframes rosterIn {
+  from { opacity: 0; transform: translateX(10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.roster-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: #4caf50; flex-shrink: 0;
+}
+.roster-empty {
+  font-size: 11px; color: #999; text-align: center;
+  padding: 20px 8px; line-height: 1.6;
+}
+
+/* 학생 게임 화면 */
+.student-game-wrap {
+  flex: 1; display: flex; flex-direction: row;
+  background: white;
+}
+/* 학생 좌측: 분수 입력 (50%) */
+.student-frac-area {
+  flex: 0 0 50%; display: flex;
+  align-items: center; justify-content: center;
+  background: white; border-right: 3px solid #e0e0e0;
+  position: relative;
+}
+/* 학생 분수 셀: 교사와 같은 디자인이나 텍스트 검은색 */
+.student-frac-cell {
+  width: 180px; height: 160px;
+  border: 3px solid #f0a060; border-radius: 20px;
+  background: #fff5ee;
+  display: flex; align-items: center; justify-content: center;
+}
+.student-frac-cell input {
+  width: 100%; height: 100%;
+  background: transparent; border: none; outline: none;
+  font-size: 96px; font-weight: 900;
+  text-align: center; line-height: 1;
+  color: #222;
+  caret-color: #bbb;
+  border-radius: 18px;
+}
+.student-frac-cell input::placeholder { color: #c8a88a; font-weight: 700; font-size: 72px; }
+/* 학생 우측: 인터랙티브 원그래프 (50%) */
+.student-pie-area {
+  flex: 0 0 50%; display: flex;
+  flex-direction: column; align-items: center; justify-content: center;
+  background: #fafafa; position: relative; gap: 20px;
+}
+.student-pie-hint {
+  font-size: 13px; color: #aaa; font-weight: 600;
+}
+#student-pie-svg { cursor: pointer; display: block; }
+#student-pie-svg path { transition: fill .15s; }
+.student-submit-btn {
+  position: absolute; bottom: 22px; right: 28px;
+  padding: 12px 36px; background: #3a7bd5; border: none;
+  border-radius: 24px; font-size: 15px; font-weight: 700;
+  color: white; cursor: pointer; transition: background .2s;
+  box-shadow: 0 4px 14px rgba(58,123,213,.35);
+}
+.student-submit-btn:hover { background: #2a5faa; }
+.student-submit-btn:disabled { background: #aaa; cursor: default; }
+/* 교사 정답 패널: 그리드 레이아웃 */
+.answer-list { flex: 1; overflow-y: auto; padding: 6px; display: grid; grid-template-columns: repeat(2,1fr); gap: 6px; align-content: start; }
+.answer-list.cols3 { grid-template-columns: repeat(3,1fr); }
+.answer-submission {
+  background: white; border: 1.5px solid #e0e0e0; border-radius: 10px;
+  padding: 8px 6px; cursor: pointer;
+  animation: rosterIn .3s ease; display: flex; flex-direction: column; align-items: center; gap: 6px;
+}
+.answer-submission:hover { border-color: #f0a060; background: #fff8f3; }
+.answer-sub-frac {
+  display: flex; flex-direction: column; align-items: center; gap: 0; flex-shrink: 0;
+}
+.answer-sub-num, .answer-sub-den {
+  font-size: 20px; font-weight: 900; color: #222; line-height: 1;
+}
+.answer-sub-line {
+  width: 32px; height: 2.5px; background: #222; border-radius: 2px; margin: 2px 0;
+}
+/* 전체화면 모달 */
+#submission-modal {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.7); z-index: 9999;
+  align-items: center; justify-content: center;
+}
+#submission-modal.open { display: flex; }
+.submission-modal-box {
+  background: white; border-radius: 20px; padding: 28px 32px;
+  min-width: 360px; max-width: 92vw;
+  display: flex; flex-direction: column; align-items: center; gap: 16px;
+  box-shadow: 0 12px 48px rgba(0,0,0,.4);
+  position: relative;
+}
+.submission-modal-name {
+  font-size: 18px; font-weight: 900; color: #333;
+}
+.submission-modal-close {
+  position: absolute; top: 14px; right: 18px;
+  background: none; border: none; font-size: 22px;
+  cursor: pointer; color: #999; line-height: 1;
+}
+.submission-modal-close:hover { color: #333; }
+.submission-modal-content {
+  display: flex; align-items: center; gap: 32px;
+}
+.submission-modal-frac {
+  display: flex; flex-direction: column; align-items: center; gap: 0;
+}
+.submission-modal-num, .submission-modal-den {
+  font-size: 80px; font-weight: 900; color: #222; line-height: 1;
+}
+.submission-modal-line {
+  width: 120px; height: 6px; background: #222; border-radius: 3px; margin: 6px 0;
+}
+/* 비교하기 버튼 */
+.modal-compare-btn {
+  padding: 10px 28px; background: #5a9fd4; border: none;
+  border-radius: 20px; font-size: 14px; font-weight: 700;
+  color: white; cursor: pointer; transition: background .2s;
+  box-shadow: 0 3px 10px rgba(90,159,212,.35);
+}
+.modal-compare-btn:hover { background: #3a7fb4; }
+/* 비교 뷰 */
+.compare-view {
+  display: flex; align-items: center; justify-content: center;
+  gap: 20px; flex-wrap: wrap;
+}
+.compare-party {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+}
+.compare-label {
+  font-size: 12px; font-weight: 700; color: #888; letter-spacing: 1px;
+}
+.compare-frac {
+  display: flex; flex-direction: column; align-items: center;
+}
+.compare-frac-num, .compare-frac-den {
+  font-size: 36px; font-weight: 900; color: #222; line-height: 1;
+}
+.compare-frac-line {
+  width: 54px; height: 4px; background: #222; border-radius: 2px; margin: 3px 0;
+}
+.compare-symbol {
+  font-size: 52px; font-weight: 900; color: #e06020; line-height: 1;
+  flex-shrink: 0;
+}
+.compare-symbol.eq { color: #3cb371; }
+.compare-symbol.lt { color: #5a9fd4; }
+
+/* ── 채점 설정 (톱니바퀴) ── */
+.scoring-gear-btn {
+  position: absolute; top: 12px; right: 16px;
+  width: 34px; height: 34px; border-radius: 50%;
+  background: rgba(0,0,0,.07); border: 1.5px solid #ddd;
+  font-size: 18px; cursor: pointer; display: flex;
+  align-items: center; justify-content: center;
+  z-index: 20; transition: background .2s;
+}
+.scoring-gear-btn:hover { background: rgba(0,0,0,.14); }
+.scoring-panel {
+  position: absolute; top: 52px; right: 16px;
+  background: white; border: 1.5px solid #e0e0e0;
+  border-radius: 14px; padding: 14px 18px; z-index: 30;
+  box-shadow: 0 8px 28px rgba(0,0,0,.15);
+  min-width: 280px;
+}
+.scoring-panel-title {
+  font-size: 12px; font-weight: 700; color: #888;
+  letter-spacing: 1px; margin-bottom: 12px;
+}
+.scoring-row {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 10px;
+}
+.scoring-cond-label {
+  font-size: 12px; font-weight: 700; flex: 1;
+}
+.scoring-cond-label.equal  { color: #3cb371; }
+.scoring-cond-label.greater{ color: #e06020; }
+.scoring-cond-label.less   { color: #5a9fd4; }
+.scoring-pts-input {
+  width: 52px; border: 1.5px solid #ddd; border-radius: 8px;
+  padding: 5px 6px; font-size: 14px; font-weight: 700;
+  text-align: center; outline: none;
+}
+.scoring-pts-input:focus { border-color: #e06020; }
+.scoring-pts-unit { font-size: 12px; color: #aaa; }
+/* 정답 패널 하단 채점 버튼 영역 */
+.answer-panel-footer {
+  flex-shrink: 0; padding: 8px 10px;
+  background: #f5f5f5; border-top: 1px solid #e0e0e0;
+  display: flex; gap: 6px; justify-content: flex-end;
+}
+.score-run-btn {
+  padding: 7px 18px; background: #e06020; border: none;
+  border-radius: 16px; font-size: 12px; font-weight: 700;
+  color: white; cursor: pointer; transition: background .2s;
+}
+.score-run-btn:hover { background: #c04010; }
+.score-reset-btn {
+  padding: 7px 14px; background: #aaa; border: none;
+  border-radius: 16px; font-size: 12px; font-weight: 700;
+  color: white; cursor: pointer; transition: background .2s;
+}
+.score-reset-btn:hover { background: #888; }
+/* 제출 카드: 이름+점수 가로 배치 */
+.answer-sub-name {
+  font-size: 11px; font-weight: 700; color: #555; text-align: center;
+  width: 100%; word-break: break-all; line-height: 1.3;
+  display: flex; align-items: center; justify-content: center; gap: 4px; flex-wrap: wrap;
+}
+.answer-sub-score-inline {
+  background: #e06020; color: white;
+  font-size: 10px; font-weight: 900;
+  padding: 1px 6px; border-radius: 8px; white-space: nowrap; flex-shrink: 0;
+}
+/* 채점 후 카드 테두리 깜박임 */
+@keyframes flash-red {
+  0%,100% { box-shadow: 0 0 0 3px #e05050; }
+  50%      { box-shadow: 0 0 0 6px rgba(224,80,80,.15); }
+}
+@keyframes flash-green {
+  0%,100% { box-shadow: 0 0 0 3px #3cb371; }
+  50%      { box-shadow: 0 0 0 6px rgba(60,179,113,.15); }
+}
+.answer-submission.flash-red   { animation: flash-red   .6s ease 4; border-color: #e05050; }
+.answer-submission.flash-green { animation: flash-green .6s ease 4; border-color: #3cb371; }
+/* 학생 화면 중앙 점수 팝업 */
+#student-score-popup {
+  display: none; position: fixed; inset: 0; z-index: 8888;
+  align-items: center; justify-content: center;
+  pointer-events: none;
+}
+#student-score-popup.show { display: flex; }
+.score-popup-inner {
+  font-size: 120px; font-weight: 900; color: #e05050;
+  line-height: 1; text-align: center;
+  animation: scorePopBlink 0.5s ease infinite;
+  text-shadow: 0 4px 24px rgba(224,80,80,.5);
+  pointer-events: none;
+}
+@keyframes scorePopBlink {
+  0%,100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.4; transform: scale(1.08); }
+}
+.score-popup-label {
+  font-size: 28px; font-weight: 700; color: #e05050; text-align: center; margin-top: 4px;
+  animation: scorePopBlink 0.5s ease infinite;
+}
+.answer-submission { position: relative; }
+/* 학생 점수 상단 바 */
+.student-score-bar {
+  background: #1a1a2e; padding: 6px 20px;
+  display: flex; align-items: center; gap: 8px;
+  flex-shrink: 0;
+}
+.student-score-label { font-size: 12px; color: rgba(255,255,255,.5); font-weight: 700; }
+.student-score-val {
+  font-size: 28px; font-weight: 900; color: #ffd580;
+  line-height: 1; min-width: 32px; text-align: right;
+  transition: transform .3s, color .3s;
+}
+.student-score-val.bump { transform: scale(1.4); color: #ffaa00; }
+.student-score-pts { font-size: 12px; color: rgba(255,255,255,.4); font-weight: 700; }
+
+/* ── 채점 설정 진입 화면 (게임 탭 첫 진입 시) ── */
+#scoring-setup-screen {
+  display: none; position: fixed; inset: 0;
+  background: rgba(20,20,40,.85); z-index: 7000;
+  align-items: center; justify-content: center;
+}
+#scoring-setup-screen.open { display: flex; }
+.scoring-setup-box {
+  background: white; border-radius: 24px;
+  padding: 36px 40px; min-width: 360px; max-width: 92vw;
+  display: flex; flex-direction: column; gap: 20px;
+  box-shadow: 0 16px 56px rgba(0,0,0,.45);
+}
+.scoring-setup-title {
+  font-size: 20px; font-weight: 900; color: #222; text-align: center;
+}
+.scoring-setup-sub {
+  font-size: 13px; color: #aaa; text-align: center; margin-top: -12px;
+}
+.scoring-setup-row {
+  display: flex; align-items: center; gap: 12px;
+}
+.scoring-setup-label {
+  flex: 1; font-size: 14px; font-weight: 700;
+}
+.scoring-setup-label.equal   { color: #3cb371; }
+.scoring-setup-label.greater { color: #e06020; }
+.scoring-setup-label.less    { color: #5a9fd4; }
+.scoring-setup-input {
+  width: 72px; border: 2px solid #ddd; border-radius: 10px;
+  padding: 8px 10px; font-size: 18px; font-weight: 900;
+  text-align: center; outline: none; color: #222;
+}
+.scoring-setup-input:focus { border-color: #e06020; }
+.scoring-setup-unit { font-size: 13px; color: #aaa; }
+.scoring-setup-confirm {
+  padding: 14px; background: #e06020; border: none;
+  border-radius: 16px; font-size: 16px; font-weight: 900;
+  color: white; cursor: pointer; transition: background .2s;
+  box-shadow: 0 4px 14px rgba(224,96,32,.35);
+}
+.scoring-setup-confirm:hover { background: #c04010; }
+
+/* ── 역할 바 (로그인 후 항상 표시) ── */
+#role-bar {
+  display: none;
+  background: #1a1a2e;
+  padding: 0 20px;
+  height: 44px;
+  align-items: center; gap: 20px;
+  border-bottom: 2px solid rgba(255,255,255,.12);
+  flex-shrink: 0;
+}
+.role-bar-code {
+  font-size: 13px; font-weight: 700; color: rgba(255,255,255,.55);
+  letter-spacing: 1px; display: flex; align-items: center; gap: 10px;
+  white-space: nowrap;
+}
+.role-bar-code span {
+  color: #ffd580; letter-spacing: 7px; font-size: 20px; font-weight: 900;
+}
+.role-bar-divider {
+  width: 1px; height: 22px; background: rgba(255,255,255,.18);
+}
+/* 탭 옆 O/X 허용 뱃지 (교사만 클릭 가능) */
+.tab-perm-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 50%;
+  font-size: 11px; font-weight: 900; line-height: 1;
+  margin-left: 5px; vertical-align: middle;
+  cursor: pointer; transition: background .2s, color .2s;
+  background: #3cb371; color: white;
+  border: none; user-select: none;
+}
+.tab-perm-badge.denied {
+  background: #e05050; color: white;
+}
+/* 학생용: 잠긴 탭 */
+.top-tab.locked {
+  opacity: 0.35; cursor: not-allowed; pointer-events: none;
+}
+</style>
+</head>
+<body>
+
+<!-- 로그인 화면 -->
+<div id="login-screen">
+  <div class="login-title">분수 학습</div>
+  <div class="login-subtitle">역할을 선택해 주세요</div>
+  <div class="login-role-row" id="login-role-row">
+    <button class="login-role-btn" id="btn-teacher-role">
+      <span class="role-icon">👩‍🏫</span>교사용
+    </button>
+    <button class="login-role-btn" id="btn-student-role">
+      <span class="role-icon">🎒</span>학생용
+    </button>
+  </div>
+
+  <!-- 교사 비밀번호 박스 -->
+  <div class="login-pw-box" id="login-pw-box">
+    <div class="login-pw-title">교사 비밀번호 입력</div>
+    <input type="password" class="login-pw-input" id="login-pw-input" maxlength="6" placeholder="····">
+    <label class="login-pw-save-row">
+      <input type="checkbox" id="login-pw-save"> 비밀번호 저장
+    </label>
+    <div class="login-error" id="login-pw-error">비밀번호가 올바르지 않습니다</div>
+    <button class="login-submit-btn" id="login-pw-submit">입장</button>
+    <button class="login-back-btn" id="login-pw-back">← 돌아가기</button>
+  </div>
+
+  <!-- 학생 입장 박스 -->
+  <div class="login-student-box" id="login-student-box">
+    <div class="login-pw-title">학생 정보 입력</div>
+    <div class="login-field-label">이름</div>
+    <input type="text" class="login-text-input" id="login-student-name" placeholder="이름 입력" maxlength="10">
+    <div class="login-field-label">방 코드 (선생님께 확인)</div>
+    <input type="text" class="login-text-input" id="login-student-code" placeholder="00000" maxlength="5"
+      style="letter-spacing:6px; font-size:22px;">
+    <div class="login-error" id="login-student-error">방 코드를 확인해 주세요</div>
+    <button class="login-submit-btn" id="login-student-submit">입장</button>
+    <button class="login-back-btn" id="login-student-back">← 돌아가기</button>
+  </div>
+</div>
+
+<div class="header">
+  <div class="header-left">
+    <div class="top-tabs">
+      <div class="top-tab" data-page="concept">분수 개념 익히기<span class="tab-perm-badge" id="perm-badge-concept" style="display:none;">✕</span></div>
+      <div class="top-tab" data-page="compare">분수 크기 비교<span class="tab-perm-badge" id="perm-badge-compare" style="display:none;">✕</span></div>
+      <div class="top-tab" data-page="game">분수 게임<span class="tab-perm-badge" id="perm-badge-game" style="display:none;">✕</span></div>
+    </div>
+  </div>
+  <div class="header-btns">
+    <button class="hbtn hbtn-sound">🔊</button>
+    <button class="hbtn hbtn-help">도움말</button>
+    <button class="hbtn hbtn-link">🔗 링크복사</button>
+    <button class="hbtn hbtn-qr">📱 QR</button>
+  </div>
+</div>
+
+<!-- 역할 바: 로그인 후 모든 탭에서 표시 -->
+<div id="role-bar">
+  <div class="role-bar-code">방 코드 &nbsp;<span id="role-bar-code-val">-----</span></div>
+  <!-- 학생용: 이름 표시 -->
+  <div id="student-role-info" style="display:none; font-size:12px; color:rgba(255,255,255,.4); font-weight:700;"></div>
+</div>
+
+<!-- 학생 디버그 바 (항상 고정) -->
+<div id="student-debug-bar" style="display:none; position:fixed; bottom:0; left:0; right:0; background:#222; color:#0f0; font-size:11px; font-family:monospace; padding:4px 10px; z-index:9999; white-space:nowrap;">
+  [학생 디버그] 폴링 대기 중...
+</div>
+
+<!-- 학생 대기 화면 -->
+<div id="page-waiting" style="display:none; flex:1; flex-direction:column; align-items:center; justify-content:center; gap:18px; background:#fff;">
+  <div style="font-size:48px;">⏳</div>
+  <div style="font-size:20px; font-weight:700; color:#555;">선생님의 허락을 기다리고 있어요</div>
+  <div id="waiting-debug" style="padding:12px 24px; background:#eef; border:1px solid #aac; border-radius:8px; font-size:13px; color:#333; text-align:center; line-height:2;">
+    Firebase 연결 중...
+  </div>
+  <button onclick="checkPermsNow()" style="padding:8px 20px; background:#3c7; color:#fff; border:none; border-radius:6px; font-size:14px; cursor:pointer;">🔄 권한 수동 확인</button>
+</div>
+
+<div id="page-concept">
+  <button class="concept-mode-btn" id="concept-mode-btn">📊 막대</button>
+  <div class="concept-body">
+    <div class="concept-left">
+      <div class="pizza-wrap" id="pizza-wrap"></div>
+      <div class="bar-wrap" id="bar-wrap" style="display:none;">
+        <div class="bar-track" id="bar-track"></div>
+      </div>
+      <div class="concept-input-row">
+        <input type="number" class="concept-input" id="concept-input" min="1" max="12" placeholder="?">
+        <span class="concept-명">명</span>
+      </div>
+    </div>
+    <div class="concept-right">
+      <div id="concept-frac-display"></div>
+    </div>
+  </div>
+  <div class="concept-footer">
+    <button class="btn-reset" id="concept-reset" title="초기화">↺</button>
+    <button class="btn-confirm" id="concept-confirm">확인</button>
+  </div>
+</div>
+
+<div id="page-compare">
+<div style="display:flex; align-items:center; gap:10px; padding:6px 12px; border-bottom:1px solid #e0d8cc;">
+  <div class="view-tabs" id="view-tabs-bar" style="border-bottom:none; margin:0;">
+    <div class="vtab active" data-tab="circle">원형</div>
+    <div class="vtab" data-tab="bar">막대그래프</div>
+  </div>
+  <div class="count-selector">
+    <div class="count-btn" id="count-btn">2</div>
+    <div class="count-dropdown" id="count-dropdown">
+      <div class="count-option active" data-n="2">2</div>
+      <div class="count-option" data-n="3">3</div>
+      <div class="count-option" data-n="4">4</div>
+      <div class="count-option" data-n="5">5</div>
+    </div>
+  </div>
+</div>
+
+<div class="main-wrap" id="main-wrap"></div>
+
+<div class="footer">
+  <button class="btn-reset" id="btn-reset" title="초기화">↺</button>
+  <div></div>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <button class="btn-quiz">🌱 학생용 퀴즈</button>
+    <button class="btn-quiz-arrow">→</button>
+  </div>
+</div>
+</div>
+
+<!-- 분수 게임 탭 -->
+<div id="page-game">
+  <!-- 교사용 화면 -->
+  <div id="game-teacher-view" style="display:none;">
+    <!-- 하단: 목록(왼) | 분수영역(중) | 정답패널(오른) -->
+    <div class="game-main-row" style="position:relative;">
+      <!-- 학생 목록 (왼쪽, 반응형) -->
+      <div class="game-roster" id="game-roster">
+        <div class="roster-header">
+          <span>목록</span>
+          <button onclick="toggleRoster()"
+            style="background:none;border:none;color:white;font-size:16px;cursor:pointer;padding:0;">✕</button>
+        </div>
+        <div class="roster-list" id="roster-list">
+          <div class="roster-empty" id="roster-empty">없음</div>
+        </div>
+      </div>
+      <!-- 분수 입력 영역 (중앙, flex:1) -->
+      <div class="game-frac-area" id="game-frac-area" style="position:relative;">
+        <div class="game-frac-widget" id="game-frac-widget">
+          <div class="game-frac-cell">
+            <input id="game-num-input" type="text" inputmode="numeric"
+              maxlength="3" placeholder="?" autocomplete="off" spellcheck="false">
+          </div>
+          <div class="game-frac-divider"></div>
+          <div class="game-frac-cell">
+            <input id="game-den-input" type="text" inputmode="numeric"
+              maxlength="3" placeholder="?" autocomplete="off" spellcheck="false">
+          </div>
+        </div>
+        <button class="game-confirm-btn" id="game-confirm-btn">확인</button>
+        <!-- 목록 열기 탭 (왼쪽, 닫혔을 때 보임) -->
+        <button class="roster-open-tab" id="roster-open-tab" onclick="toggleRoster()" title="목록 펼치기">목록</button>
+        <!-- 정답 패널 열기 탭 (오른쪽, 닫혔을 때 보임) -->
+        <button class="answer-open-tab" id="answer-open-tab" onclick="toggleAnswerPanel()" title="정답 패널">정답</button>
+      </div>
+      <!-- 정답 패널 (오른쪽, 반응형) -->
+      <div class="game-answer-panel" id="game-answer-panel">
+        <div class="answer-panel-header">
+          <span>정답</span>
+          <div style="display:flex;align-items:center;gap:6px;position:relative;">
+            <!-- 톱니바퀴 채점 설정 (answer panel 내, 항상 유지) -->
+            <button class="scoring-gear-btn" id="scoring-gear-btn" onclick="toggleScoringPanel()" title="채점 설정" style="width:26px;height:26px;font-size:15px;">⚙</button>
+            <button onclick="toggleAnswerPanel()"
+              style="background:none;border:none;color:white;font-size:16px;cursor:pointer;padding:0;">✕</button>
+          </div>
+        </div>
+        <!-- 채점 설정 드롭다운 (answer panel 내, 항상 유지) -->
+        <div class="scoring-panel" id="scoring-panel" style="display:none;position:absolute;top:44px;right:0;z-index:50;">
+          <div class="scoring-panel-title">채점 기준</div>
+          <div class="scoring-row">
+            <span class="scoring-cond-label equal">선생님과 같을 때</span>
+            <input class="scoring-pts-input" id="score-eq" type="number" min="0" max="999" value="10" placeholder="점">
+            <span class="scoring-pts-unit">점</span>
+          </div>
+          <div class="scoring-row">
+            <span class="scoring-cond-label greater">선생님보다 클 때</span>
+            <input class="scoring-pts-input" id="score-gt" type="number" min="0" max="999" value="0" placeholder="점">
+            <span class="scoring-pts-unit">점</span>
+          </div>
+          <div class="scoring-row">
+            <span class="scoring-cond-label less">선생님보다 작을 때</span>
+            <input class="scoring-pts-input" id="score-lt" type="number" min="0" max="999" value="0" placeholder="점">
+            <span class="scoring-pts-unit">점</span>
+          </div>
+        </div>
+        <div class="answer-list" id="answer-list">
+          <div class="answer-empty" style="grid-column:1/-1">학생이 정답을<br>제출하면 표시됩니다</div>
+        </div>
+        <div class="answer-panel-footer">
+          <button class="score-reset-btn" id="score-reset-btn" onclick="resetAllScores()">↺ 리셋</button>
+          <button class="score-run-btn" id="score-run-btn" onclick="runScoring()">채점하기</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- 학생용 화면 -->
+  <div id="game-student-view" style="display:none; flex:1; flex-direction:column;">
+    <!-- 학생 점수 상단 바 -->
+    <div class="student-score-bar" id="student-score-bar" style="display:none;">
+      <span class="student-score-label">내 점수</span>
+      <span class="student-score-val" id="student-score-val">0</span>
+      <span class="student-score-pts">점</span>
+    </div>
+    <div class="student-game-wrap">
+      <!-- 좌측: 분수 입력 -->
+      <div class="student-frac-area">
+        <div class="game-frac-widget">
+          <div class="student-frac-cell">
+            <input id="stu-num-input" type="text" inputmode="numeric"
+              maxlength="3" placeholder="?" autocomplete="off" spellcheck="false">
+          </div>
+          <div class="game-frac-divider"></div>
+          <div class="student-frac-cell">
+            <input id="stu-den-input" type="text" inputmode="numeric"
+              maxlength="3" placeholder="?" autocomplete="off" spellcheck="false">
+          </div>
+        </div>
+      </div>
+      <!-- 우측: 인터랙티브 원그래프 -->
+      <div class="student-pie-area">
+        <div id="student-pie-container">
+          <div class="student-pie-hint">분모를 입력하면<br>원이 나타납니다</div>
+        </div>
+        <button class="student-submit-btn" id="student-submit-btn">제출하기</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 채점 설정 진입 화면 -->
+<div id="scoring-setup-screen">
+  <div class="scoring-setup-box">
+    <div class="scoring-setup-title">⚙ 채점 기준 설정</div>
+    <div class="scoring-setup-sub">게임을 시작하기 전에 채점 기준을 설정해 주세요</div>
+    <div class="scoring-setup-row">
+      <span class="scoring-setup-label equal">선생님과 같을 때</span>
+      <input class="scoring-setup-input" id="setup-score-eq" type="number" min="0" max="999" value="10">
+      <span class="scoring-setup-unit">점</span>
+    </div>
+    <div class="scoring-setup-row">
+      <span class="scoring-setup-label greater">선생님보다 클 때</span>
+      <input class="scoring-setup-input" id="setup-score-gt" type="number" min="0" max="999" value="0">
+      <span class="scoring-setup-unit">점</span>
+    </div>
+    <div class="scoring-setup-row">
+      <span class="scoring-setup-label less">선생님보다 작을 때</span>
+      <input class="scoring-setup-input" id="setup-score-lt" type="number" min="0" max="999" value="0">
+      <span class="scoring-setup-unit">점</span>
+    </div>
+    <button class="scoring-setup-confirm" onclick="confirmScoringSetup()">설정 완료 → 게임 시작</button>
+  </div>
+</div>
+
+<!-- 학생 점수 팝업 -->
+<div id="student-score-popup">
+  <div style="display:flex;flex-direction:column;align-items:center;">
+    <div class="score-popup-inner" id="score-popup-val">+0</div>
+    <div class="score-popup-label">점</div>
+  </div>
+</div>
+
+<!-- 제출 전체화면 모달 -->
+<div id="submission-modal">
+  <div class="submission-modal-box">
+    <button class="submission-modal-close" onclick="closeSubmissionModal()">✕</button>
+    <div class="submission-modal-name" id="modal-student-name"></div>
+    <div class="submission-modal-content" id="modal-content"></div>
+  </div>
+</div>
+
+<script>
+function buildPizzaSVG(n, split) {
+  const S = 420, cx = 210, cy = 210, R = 195;
+  const sauceR = R - 22, cheeseR = sauceR - 7;
+
+  // 토핑 데이터 (pepperoni, herbs, cheese dots, corn)
+  const pepps = [
+    {x:270,y:115},{x:148,y:108},{x:305,y:210},{x:112,y:215},
+    {x:250,y:305},{x:155,y:315},{x:298,y:148},{x:120,y:155},
+    {x:210,y:130},{x:285,y:265},{x:132,y:270},{x:195,y:310},
+  ];
+  const herbs = [
+    {x:240,y:158},{x:175,y:148},{x:300,y:188},{x:118,y:192},
+    {x:228,y:270},{x:168,y:278},{x:260,y:120},{x:148,y:330},
+    {x:305,y:245},{x:195,y:350},{x:320,y:175},{x:105,y:240},
+  ];
+  const dots = [
+    {x:210,y:175},{x:250,y:155},{x:168,y:190},{x:290,y:225},
+    {x:160,y:235},{x:230,y:248},{x:280,y:175},{x:142,y:175},
+    {x:210,y:290},{x:270,y:295},{x:150,y:290},{x:195,y:220},
+  ];
+  const corn = [
+    {x:230,y:200},{x:190,y:198},{x:258,y:232},{x:165,y:258},
+    {x:250,y:280},{x:178,y:185},{x:215,y:248},
+  ];
+
+  function pizzaLayers(clip) {
+    const cp = clip ? `clip-path="url(#${clip})"` : '';
+    let t = `<g ${cp}>`;
+    // 크러스트 (외곽 링 - 두 레이어로 질감)
+    t += `<circle cx="${cx}" cy="${cy}" r="${R}" fill="#c8913a"/>`;
+    t += `<circle cx="${cx}" cy="${cy}" r="${R-3}" fill="#e8b860"/>`;
+    // 소스
+    t += `<circle cx="${cx}" cy="${cy}" r="${sauceR}" fill="#bb2e0a"/>`;
+    // 치즈
+    t += `<circle cx="${cx}" cy="${cy}" r="${cheeseR}" fill="#f5b020"/>`;
+    // 치즈 얼룩
+    [{x:230,y:185,rx:22,ry:18},{x:178,y:230,rx:18,ry:14},{x:255,y:255,rx:16,ry:12},{x:162,y:172,rx:14,ry:11}].forEach(b=>{
+      t += `<ellipse cx="${b.x}" cy="${b.y}" rx="${b.rx}" ry="${b.ry}" fill="#fcc840" opacity="0.55"/>`;
+    });
+    // 페퍼로니
+    pepps.forEach(p => {
+      t += `<ellipse cx="${p.x}" cy="${p.y}" rx="16" ry="15" fill="#9a1205"/>`;
+      t += `<ellipse cx="${p.x}" cy="${p.y}" rx="13" ry="12" fill="#c01808"/>`;
+      t += `<ellipse cx="${p.x-3}" cy="${p.y-3}" rx="6" ry="5" fill="#d83020" opacity="0.55"/>`;
+      // 페퍼로니 하이라이트
+      t += `<ellipse cx="${p.x-4}" cy="${p.y-4}" rx="3" ry="2" fill="rgba(255,200,180,0.4)"/>`;
+    });
+    // 허브 (바질)
+    herbs.forEach(h => {
+      const rot = (h.x * 11 + h.y * 7) % 80 - 40;
+      t += `<ellipse cx="${h.x}" cy="${h.y}" rx="7" ry="4" fill="#2d7018" transform="rotate(${rot} ${h.x} ${h.y})"/>`;
+      t += `<ellipse cx="${h.x}" cy="${h.y}" rx="5" ry="2.5" fill="#4a9828" opacity="0.7" transform="rotate(${rot} ${h.x} ${h.y})"/>`;
+    });
+    // 옥수수
+    corn.forEach(c => {
+      t += `<circle cx="${c.x}" cy="${c.y}" r="5" fill="#f0d020"/>`;
+      t += `<circle cx="${c.x}" cy="${c.y}" r="3" fill="#f8e060"/>`;
+    });
+    // 치즈 기포
+    dots.forEach(d => {
+      t += `<circle cx="${d.x}" cy="${d.y}" r="6" fill="rgba(255,255,240,0.6)"/>`;
+    });
+    t += `</g>`;
+    return t;
+  }
+
+  // 크러스트 외곽선 (테두리 질감)
+  function crustBorder() {
+    let b = '';
+    for (let i=0; i<36; i++) {
+      const a = i/36 * 2*Math.PI;
+      const r1 = R - 2, r2 = R + 1;
+      const bx = cx + r1*Math.cos(a), by = cy + r1*Math.sin(a);
+      b += `<circle cx="${bx.toFixed(1)}" cy="${by.toFixed(1)}" r="3.5" fill="#b07830" opacity="0.4"/>`;
+    }
+    return b;
+  }
+
+  if (!split || n < 2) {
+    return `<svg viewBox="0 0 ${S} ${S}" width="${S}" height="${S}" style="overflow:visible">
+      ${pizzaLayers('')}
+      ${crustBorder()}
+      <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="#7a4008" stroke-width="3.5"/>
+    </svg>`;
+  }
+
+  let defs = '<defs>';
+  let slices = '';
+
+  for (let i = 0; i < n; i++) {
+    const a0 = (i/n)*2*Math.PI - Math.PI/2;
+    const a1 = ((i+1)/n)*2*Math.PI - Math.PI/2;
+    const x0 = cx + R*Math.cos(a0), y0 = cy + R*Math.sin(a0);
+    const x1 = cx + R*Math.cos(a1), y1 = cy + R*Math.sin(a1);
+    const lg = (1/n > 0.5) ? 1 : 0;
+    const sectorD = n === 1
+      ? `M ${cx} ${cy} m -${R} 0 a ${R} ${R} 0 1 1 ${R*2} 0 a ${R} ${R} 0 1 1 -${R*2} 0 Z`
+      : `M ${cx} ${cy} L ${x0.toFixed(2)} ${y0.toFixed(2)} A ${R} ${R} 0 ${lg} 1 ${x1.toFixed(2)} ${y1.toFixed(2)} Z`;
+
+    defs += `<clipPath id="cp-${i}"><path d="${sectorD}"/></clipPath>`;
+
+    const midA = (a0 + a1) / 2;
+    const offset = 22;
+    const dx = (Math.cos(midA) * offset).toFixed(1);
+    const dy = (Math.sin(midA) * offset).toFixed(1);
+
+    const isHighlight = (i === 0);
+    slices += `<g style="transform:translate(${dx}px,${dy}px);transition:transform 0.55s cubic-bezier(.34,1.56,.64,1)">`;
+    slices += pizzaLayers(`cp-${i}`);
+    // 크러스트 테두리
+    slices += `<path d="${sectorD}" fill="none" stroke="#7a4008" stroke-width="3"/>`;
+    // 하이라이트 슬라이스: 반짝이는 황금 오버레이
+    if (isHighlight) {
+      slices += `<path class="pizza-sparkle" d="${sectorD}" fill="rgba(255,230,50,0.45)" stroke="none"/>`;
+      // 테두리 강조선
+      slices += `<path d="${sectorD}" fill="none" stroke="#ffcc00" stroke-width="3" opacity="0.8"/>`;
+    }
+    slices += `</g>`;
+  }
+
+  defs += '</defs>';
+  return `<svg viewBox="0 0 ${S} ${S}" width="${S}" height="${S}" style="overflow:visible">${defs}${slices}</svg>`;
+}
+
+const COLORS = ['#e05050','#3aaa30','#3070e0','#9040d0','#e09020'];
+
+const state = {
+  count: 2,
+  fractions: Array.from({length:5}, () => ({num:'', den:''})),
+  active: null,
+  viewMode: 'circle',
+  compared: false,
+  correctSym: null,
+  quizAnswered: false,
+};
+
+// ── SVG 기본 ─────────────────────────────────────────────
+// transparentEmpty=true: 빈 슬라이스를 투명으로 처리 (비교 오버레이용)
+function makePieSVG(num, den, color, size, alpha, transparentEmpty) {
+  alpha = (alpha === undefined) ? 1 : alpha;
+  const cx = size/2, cy = size/2, r = size/2 - 4;
+  if (!den || den < 1) {
+    return `<svg viewBox="0 0 ${size} ${size}" opacity="${alpha}"><circle cx="${cx}" cy="${cy}" r="${r}" fill="white" stroke="#ccc" stroke-width="1.5"/></svg>`;
+  }
+  const n = Math.min(Math.max(0, num||0), den);
+  let p = '';
+  for (let i = 0; i < den; i++) {
+    const a0 = (i/den)*2*Math.PI - Math.PI/2;
+    const a1 = ((i+1)/den)*2*Math.PI - Math.PI/2;
+    const x0 = cx + r*Math.cos(a0), y0 = cy + r*Math.sin(a0);
+    const x1 = cx + r*Math.cos(a1), y1 = cy + r*Math.sin(a1);
+    const lg = (a1-a0 > Math.PI) ? 1 : 0;
+    const d = den===1
+      ? `M ${cx} ${cy} m -${r} 0 a ${r} ${r} 0 1 1 ${r*2} 0 a ${r} ${r} 0 1 1 -${r*2} 0 Z`
+      : `M ${cx} ${cy} L ${x0} ${y0} A ${r} ${r} 0 ${lg} 1 ${x1} ${y1} Z`;
+    const emptyFill = transparentEmpty ? 'none' : 'white';
+    p += `<path d="${d}" fill="${i<n ? color : emptyFill}" stroke="#555" stroke-width="1" stroke-dasharray="4 2"/>`;
+  }
+  p += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#333" stroke-width="2"/>`;
+  return `<svg viewBox="0 0 ${size} ${size}" opacity="${alpha}">${p}</svg>`;
+}
+
+function makeBarSVG(num, den, color, w, h) {
+  if (!den || den < 1) {
+    return `<svg viewBox="0 0 ${w} ${h}"><rect x="2" y="2" width="${w-4}" height="${h-4}" rx="6" fill="#f5f5f5" stroke="#ccc" stroke-width="1.5"/></svg>`;
+  }
+  const n = Math.min(Math.max(0, num||0), den);
+  const sw = (w-4)/den; let r = '';
+  for (let i = 0; i < den; i++) {
+    r += `<rect x="${2+i*sw}" y="2" width="${sw-1}" height="${h-4}" rx="3" fill="${i<n ? color : '#f0f0f0'}" stroke="#bbb" stroke-width="0.5"/>`;
+  }
+  r += `<rect x="2" y="2" width="${w-4}" height="${h-4}" rx="6" fill="none" stroke="#666" stroke-width="2"/>`;
+  return `<svg viewBox="0 0 ${w} ${h}">${r}</svg>`;
+}
+
+// ── 가분수 처리: 원/막대를 여러 개로 분리 ─────────────────
+function renderFracViz(vizEl, num, den, color, sz) {
+  vizEl.innerHTML = '';
+  vizEl.style.display = 'flex';
+  vizEl.style.gap = '6px';
+  vizEl.style.alignItems = 'center';
+  vizEl.style.justifyContent = 'center';
+  vizEl.style.flexWrap = 'nowrap';
+
+  const n = parseInt(num)||0, d = parseInt(den)||0;
+  const barH = Math.round(sz * 0.44);
+
+  if (!d) {
+    // 분모 없음: 빈 원/막대 하나
+    const div = document.createElement('div');
+    div.style.cssText = `width:${sz}px;height:${state.viewMode==='circle'?sz:barH}px;flex-shrink:0;`;
+    div.innerHTML = state.viewMode==='circle' ? makePieSVG(0,0,color,sz) : makeBarSVG(0,0,color,sz,barH);
+    vizEl.appendChild(div);
+    return;
+  }
+
+  if (n <= d) {
+    // 진분수 또는 1: 원/막대 하나
+    const div = document.createElement('div');
+    div.style.cssText = `width:${sz}px;height:${state.viewMode==='circle'?sz:barH}px;flex-shrink:0;`;
+    div.innerHTML = state.viewMode==='circle' ? makePieSVG(n,d,color,sz) : makeBarSVG(n,d,color,sz,barH);
+    vizEl.appendChild(div);
+  } else {
+    // 가분수: 온원 여러 개 + 나머지 원
+    const whole = Math.floor(n/d);
+    const rem   = n % d;
+    const total = whole + (rem > 0 ? 1 : 0);
+    // 공간에 맞게 크기 축소
+    const smallSz = Math.max(Math.floor((sz * 2.2) / total - 6), 50);
+    const smallBarH = Math.round(smallSz * 0.44);
+
+    for (let i = 0; i < whole; i++) {
+      const div = document.createElement('div');
+      div.style.cssText = `width:${smallSz}px;height:${state.viewMode==='circle'?smallSz:smallBarH}px;flex-shrink:0;`;
+      div.innerHTML = state.viewMode==='circle'
+        ? makePieSVG(d,d,color,smallSz)
+        : makeBarSVG(d,d,color,smallSz,smallBarH);
+      vizEl.appendChild(div);
+    }
+    if (rem > 0) {
+      const div = document.createElement('div');
+      div.style.cssText = `width:${smallSz}px;height:${state.viewMode==='circle'?smallSz:smallBarH}px;flex-shrink:0;`;
+      div.innerHTML = state.viewMode==='circle'
+        ? makePieSVG(rem,d,color,smallSz)
+        : makeBarSVG(rem,d,color,smallSz,smallBarH);
+      vizEl.appendChild(div);
+    }
+  }
+}
+
+// ── 레이어드 파이 SVG: overlapDeg 각도 기준으로 sector 분리 ───
+// 0~overlapDeg: 반투명(이전 분수와 겹침), overlapDeg~valueDeg: 원색(새 영역)
+// 슬라이스 단위가 아닌 연속 sector 방식이라 분모 크기와 무관하게 정확함
+function makeLayeredPieSVG(num, den, color, size, overlapDeg) {
+  const cx = size/2, cy = size/2, r = size/2 - 4;
+  if (!den || den < 1) {
+    return `<svg viewBox="0 0 ${size} ${size}"><circle cx="${cx}" cy="${cy}" r="${r}" fill="white" stroke="#ccc" stroke-width="1.5"/></svg>`;
+  }
+  const n = Math.min(Math.max(0, num||0), den);
+  const valueDeg = (n / den) * 360;
+
+  // sector(startDeg, endDeg, fillOpacity): 부채꼴 경로 생성
+  function sector(sd, ed, fo) {
+    if (ed - sd < 0.01) return '';
+    const full = ed - sd >= 359.99;
+    const a0 = (sd - 90) * Math.PI/180, a1 = (ed - 90) * Math.PI/180;
+    const x0=cx+r*Math.cos(a0), y0=cy+r*Math.sin(a0);
+    const x1=cx+r*Math.cos(a1), y1=cy+r*Math.sin(a1);
+    const lg = ed - sd > 180 ? 1 : 0;
+    const d = full
+      ? `M ${cx} ${cy} m -${r} 0 a ${r} ${r} 0 1 1 ${r*2} 0 a ${r} ${r} 0 1 1 -${r*2} 0 Z`
+      : `M ${cx} ${cy} L ${x0} ${y0} A ${r} ${r} 0 ${lg} 1 ${x1} ${y1} Z`;
+    return `<path d="${d}" fill="${color}" fill-opacity="${fo}"/>`;
+  }
+
+  let p = '';
+  // 겹치는 영역 (반투명)
+  const overlapEnd = Math.min(overlapDeg, valueDeg);
+  if (overlapEnd > 0.01) p += sector(0, overlapEnd, 0.52);
+  // 새 영역 (원색)
+  if (valueDeg > overlapDeg + 0.01) p += sector(overlapDeg, valueDeg, 1.0);
+
+  // 분모 구분선 (슬라이스 경계)
+  for (let i = 0; i < den; i++) {
+    const a = ((i / den) * 360 - 90) * Math.PI / 180;
+    const x = cx + r*Math.cos(a), y = cy + r*Math.sin(a);
+    p += `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="#555" stroke-width="1" stroke-dasharray="4 2"/>`;
+  }
+  p += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#333" stroke-width="2"/>`;
+  return `<svg viewBox="0 0 ${size} ${size}">${p}</svg>`;
+}
+
+// ── 드래그 헬퍼 ─────────────────────────────────────────
+function attachDrag(el) {
+  let dragging = false, sx = 0, sy = 0;
+  function onStart(cx, cy) { dragging=true; sx=cx; sy=cy; el.style.transition='none'; el.style.cursor='grabbing'; }
+  function onMove(cx, cy) { if(!dragging) return; el.style.transform=`translate(${cx-sx}px,${cy-sy}px)`; }
+  function onEnd() { if(!dragging) return; dragging=false; el.style.cursor='grab'; el.style.transition='transform 0.45s cubic-bezier(.34,1.56,.64,1)'; el.style.transform='translate(0,0)'; }
+  el.addEventListener('mousedown', e => { e.preventDefault(); onStart(e.clientX, e.clientY); });
+  el.addEventListener('touchstart', e => { e.preventDefault(); onStart(e.touches[0].clientX, e.touches[0].clientY); }, {passive:false});
+  const mmH = e => onMove(e.clientX, e.clientY);
+  const muH = () => onEnd();
+  const tmH = e => { e.preventDefault(); onMove(e.touches[0].clientX, e.touches[0].clientY); };
+  const tuH = () => onEnd();
+  document.addEventListener('mousemove', mmH);
+  document.addEventListener('mouseup', muH);
+  document.addEventListener('touchmove', tmH, {passive:false});
+  document.addEventListener('touchend', tuH);
+  el._cleanup = () => {
+    document.removeEventListener('mousemove', mmH);
+    document.removeEventListener('mouseup', muH);
+    document.removeEventListener('touchmove', tmH);
+    document.removeEventListener('touchend', tuH);
+  };
+}
+
+// ── 비교 뷰 렌더링 ───────────────────────────────────────
+function renderCmpView() {
+  const cmpWrap = document.getElementById('cmp-wrap');
+  if (!cmpWrap) return;
+
+  const fracs = state.fractions.slice(0, state.count);
+  const parsed = fracs.map((f, i) => {
+    const n = parseInt(f.num)||0, d = parseInt(f.den)||0;
+    const whole = d>0 ? Math.floor(n/d) : 0;
+    const rem   = d>0 ? n%d : 0;
+    return { num:n, den:d, color:COLORS[i], whole, rem,
+             circles: whole + (rem>0?1:0) || 1,
+             val: d>0 ? n/d : 0 };
+  });
+  const hasImproper = parsed.some(f => f.den>0 && f.num>f.den);
+
+  if (state.viewMode === 'circle') {
+    if (!hasImproper) {
+      // ── 진분수: 레이어드 SVG 겹치기 + 드래그 시 원색 복귀 ──
+      const sz = 260;
+      cmpWrap.style.cssText = `width:${sz}px;height:${sz}px;border-radius:50%;overflow:visible;position:relative;background:white;border:2px solid #ddd;`;
+      cmpWrap.innerHTML = '';
+
+      // 오름차순 정렬: 작은 분수 먼저 그려 겹침 영역 파악
+      const sorted = [...parsed].sort((a,b) => a.val-b.val);
+      let overlapDeg = 0;
+      sorted.forEach((f, layerIdx) => {
+        const myOverlapDeg = overlapDeg;
+        const thisDeg = f.den>0 ? (f.num/f.den)*360 : 0;
+
+        const div = document.createElement('div');
+        div.style.cssText = `position:absolute;top:0;left:0;width:${sz}px;height:${sz}px;cursor:grab;user-select:none;-webkit-user-select:none;z-index:${layerIdx+1};transition:transform 0.45s cubic-bezier(.34,1.56,.64,1);`;
+        div.innerHTML = makeLayeredPieSVG(f.num, f.den, f.color, sz, myOverlapDeg);
+
+        let dragging = false, dsx = 0, dsy = 0;
+        function onDStart(cx,cy){ dragging=true; dsx=cx; dsy=cy; div.style.transition='none'; div.style.cursor='grabbing'; div.innerHTML=makeLayeredPieSVG(f.num,f.den,f.color,sz,0); }
+        function onDMove(cx,cy){ if(!dragging) return; div.style.transform=`translate(${cx-dsx}px,${cy-dsy}px)`; }
+        function onDEnd(){ if(!dragging) return; dragging=false; div.style.cursor='grab'; div.style.transition='transform 0.45s cubic-bezier(.34,1.56,.64,1)'; div.style.transform='translate(0,0)'; setTimeout(()=>{ div.innerHTML=makeLayeredPieSVG(f.num,f.den,f.color,sz,myOverlapDeg); },460); }
+
+        div.addEventListener('mousedown', e=>{ e.preventDefault(); onDStart(e.clientX,e.clientY); });
+        div.addEventListener('touchstart', e=>{ e.preventDefault(); onDStart(e.touches[0].clientX,e.touches[0].clientY); },{passive:false});
+        const mmH=e=>onDMove(e.clientX,e.clientY), muH=()=>onDEnd();
+        const tmH=e=>{ e.preventDefault(); onDMove(e.touches[0].clientX,e.touches[0].clientY); }, tuH=()=>onDEnd();
+        document.addEventListener('mousemove',mmH); document.addEventListener('mouseup',muH);
+        document.addEventListener('touchmove',tmH,{passive:false}); document.addEventListener('touchend',tuH);
+        div._cleanup=()=>{ document.removeEventListener('mousemove',mmH); document.removeEventListener('mouseup',muH); document.removeEventListener('touchmove',tmH); document.removeEventListener('touchend',tuH); };
+
+        cmpWrap.appendChild(div);
+        overlapDeg = Math.max(overlapDeg, thisDeg);
+      });
+
+    } else {
+      // ── 가분수 포함: 분수별 행(온원 + 나머지 원) ──
+      const maxC  = Math.max(...parsed.map(f => f.circles));
+      const circSz = Math.min(110, Math.max(48, Math.floor(300/maxC - 8)));
+      const rowH  = circSz + 6;
+      const gapY  = 12;
+      const totalH = state.count*rowH + (state.count-1)*gapY;
+      const totalW = Math.max(280, maxC*(circSz+8) + 8);
+
+      cmpWrap.style.cssText = `width:${totalW}px;height:${totalH}px;border-radius:12px;overflow:visible;position:relative;background:white;border:2px solid #ddd;`;
+      cmpWrap.innerHTML = '';
+
+      parsed.forEach((f, i) => {
+        const y = i*(rowH+gapY);
+        const rowDiv = document.createElement('div');
+        rowDiv.style.cssText = `position:absolute;left:6px;top:${y}px;display:flex;gap:6px;align-items:center;cursor:grab;user-select:none;-webkit-user-select:none;transition:transform 0.45s cubic-bezier(.34,1.56,.64,1);`;
+
+        // 온원
+        for (let w=0; w<f.whole; w++) {
+          const cd = document.createElement('div');
+          cd.style.cssText = `width:${circSz}px;height:${circSz}px;flex-shrink:0;`;
+          cd.innerHTML = makePieSVG(f.den, f.den, f.color, circSz, 1, false);
+          rowDiv.appendChild(cd);
+        }
+        // 나머지 원
+        if (f.rem > 0) {
+          const cd = document.createElement('div');
+          cd.style.cssText = `width:${circSz}px;height:${circSz}px;flex-shrink:0;`;
+          cd.innerHTML = makePieSVG(f.rem, f.den, f.color, circSz, 1, false);
+          rowDiv.appendChild(cd);
+        }
+        // 진분수(whole=0, rem=0인 경우 포함)
+        if (f.whole===0 && f.rem===0) {
+          const cd = document.createElement('div');
+          cd.style.cssText = `width:${circSz}px;height:${circSz}px;flex-shrink:0;`;
+          cd.innerHTML = makePieSVG(f.num, f.den, f.color, circSz, 1, false);
+          rowDiv.appendChild(cd);
+        }
+
+        attachDrag(rowDiv);
+        cmpWrap.appendChild(rowDiv);
+      });
+
+      const hint = document.createElement('div');
+      hint.style.cssText = `position:absolute;bottom:-24px;left:0;font-size:11px;color:#aaa;white-space:nowrap;pointer-events:none;`;
+      hint.textContent = '행을 드래그해서 이동 · 놓으면 복귀';
+      cmpWrap.appendChild(hint);
+    }
+
+  } else {
+    // ── 막대 ──
+    const rowH = 52, gap = 8;
+
+    if (!hasImproper) {
+      // 진분수: 가로 한 줄 막대
+      const bw = 300;
+      const totalH = state.count*rowH + (state.count-1)*gap;
+      cmpWrap.style.cssText = `width:${bw}px;height:${totalH}px;border-radius:12px;overflow:visible;background:transparent;border:none;position:relative;`;
+      cmpWrap.innerHTML = '';
+
+      parsed.forEach((f, i) => {
+        const div = document.createElement('div');
+        div.style.cssText = `position:absolute;left:0;top:${i*(rowH+gap)}px;width:${bw}px;height:${rowH}px;`;
+        div.innerHTML = makeBarSVG(f.num, f.den, f.color, bw, rowH);
+        cmpWrap.appendChild(div);
+      });
+
+    } else {
+      // 가분수 포함: 단위 막대 여러 개로 표시
+      const maxC   = Math.max(...parsed.map(f => f.circles));
+      const unitW  = Math.min(220, Math.max(60, Math.floor(440/maxC - 4)));
+      const gapX   = 4;
+      const totalW = maxC*(unitW+gapX) - gapX;
+      const totalH = state.count*rowH + (state.count-1)*gap;
+
+      cmpWrap.style.cssText = `width:${totalW}px;height:${totalH}px;border-radius:12px;overflow:visible;background:transparent;border:none;position:relative;`;
+      cmpWrap.innerHTML = '';
+
+      parsed.forEach((f, i) => {
+        const rowDiv = document.createElement('div');
+        rowDiv.style.cssText = `position:absolute;left:0;top:${i*(rowH+gap)}px;display:flex;gap:${gapX}px;align-items:center;`;
+
+        if (f.whole===0 && f.rem===0) {
+          // 진분수: 단위 너비 하나로 표시
+          const bd = document.createElement('div');
+          bd.style.cssText = `width:${unitW}px;height:${rowH}px;flex-shrink:0;`;
+          bd.innerHTML = makeBarSVG(f.num, f.den, f.color, unitW, rowH);
+          rowDiv.appendChild(bd);
+        } else {
+          // 온원 막대
+          for (let w=0; w<f.whole; w++) {
+            const bd = document.createElement('div');
+            bd.style.cssText = `width:${unitW}px;height:${rowH}px;flex-shrink:0;`;
+            bd.innerHTML = makeBarSVG(f.den, f.den, f.color, unitW, rowH);
+            rowDiv.appendChild(bd);
+          }
+          // 나머지 막대
+          if (f.rem > 0) {
+            const bd = document.createElement('div');
+            bd.style.cssText = `width:${unitW}px;height:${rowH}px;flex-shrink:0;`;
+            bd.innerHTML = makeBarSVG(f.rem, f.den, f.color, unitW, rowH);
+            rowDiv.appendChild(bd);
+          }
+        }
+
+        cmpWrap.appendChild(rowDiv);
+      });
+    }
+  }
+}
+
+function cleanupCmpListeners() {
+  const cmpWrap = document.getElementById('cmp-wrap');
+  if (!cmpWrap) return;
+  cmpWrap.querySelectorAll('*').forEach(d => { if (d._cleanup) d._cleanup(); });
+}
+
+// ── vizSize ───────────────────────────────────────────────
+function vizSize(count) {
+  if (count<=2) return 200;
+  if (count===3) return 170;
+  if (count===4) return 150;
+  return 130;
+}
+
+// ── 패널 빌드 ────────────────────────────────────────────
+let padTimers = {};
+
+function buildMain() {
+  const wrap = document.getElementById('main-wrap');
+  wrap.innerHTML = ''; padTimers = {};
+  const n = state.count;
+  const cmpPos = Math.floor(n/2);
+  for (let i = 0; i <= n; i++) {
+    if (i === cmpPos) wrap.appendChild(buildCmpCol());
+    if (i < n) wrap.appendChild(buildFracPanel(i));
+  }
+  renderAll();
+  attachPadEvents();
+}
+
+function buildCmpCol() {
+  const col = document.createElement('div');
+  col.className = 'cmp-col'; col.id = 'cmp-col';
+
+  const vizWrap = document.createElement('div');
+  vizWrap.className = 'cmp-viz-wrap'; vizWrap.id = 'cmp-wrap';
+
+  // 퀴즈 원형 드롭다운 (2개 분수용)
+  const quizRow = document.createElement('div');
+  quizRow.className = 'quiz-row'; quizRow.id = 'quiz-row';
+  const qDrop = document.createElement('div');
+  qDrop.className = 'quiz-dropdown'; qDrop.id = 'quiz-dropdown';
+  const qTrig = document.createElement('div');
+  qTrig.className = 'quiz-trigger'; qTrig.id = 'quiz-trigger';
+  const qOpts = document.createElement('div');
+  qOpts.className = 'quiz-options'; qOpts.id = 'quiz-options';
+  ['<', '=', '>'].forEach(s => {
+    const o = document.createElement('div');
+    o.className = 'quiz-option'; o.textContent = s;
+    o.addEventListener('click', e => { e.stopPropagation(); qOpts.classList.remove('open'); qTrig.textContent = s; onQuizClick(s); });
+    qOpts.appendChild(o);
+  });
+  qTrig.addEventListener('click', () => { if (qTrig.classList.contains('active')) qOpts.classList.toggle('open'); });
+  document.addEventListener('click', e => { if (!e.target.closest('#quiz-dropdown')) qOpts.classList.remove('open'); });
+  qDrop.appendChild(qTrig); qDrop.appendChild(qOpts);
+  quizRow.appendChild(qDrop);
+
+  // 3개 이상 분수용 순위 결과 표시
+  const sym = document.createElement('div');
+  sym.className = 'cmp-symbol'; sym.id = 'cmp-sym';
+
+  const btn = document.createElement('button');
+  btn.className = 'btn-compare'; btn.id = 'btn-compare';
+  btn.textContent = '비교하기';
+  btn.addEventListener('click', doCompare);
+
+  col.appendChild(vizWrap);
+  col.appendChild(quizRow);
+  col.appendChild(sym);
+  col.appendChild(btn);
+  return col;
+}
+
+function buildFracPanel(idx) {
+  const sz = vizSize(state.count);
+  const panel = document.createElement('div');
+  panel.className = 'frac-panel'; panel.id = `panel-${idx}`;
+
+  const vizWrap = document.createElement('div');
+  vizWrap.className = 'viz-wrap'; vizWrap.id = `viz-${idx}`;
+
+  const fracArea = document.createElement('div');
+  fracArea.className = 'frac-area';
+
+  const numCell = document.createElement('div');
+  numCell.className = 'frac-cell'; numCell.id = `num-${idx}`; numCell.tabIndex = 0;
+  numCell.textContent = state.fractions[idx].num || '?';
+
+  const line = document.createElement('div'); line.className = 'frac-line';
+
+  const denCell = document.createElement('div');
+  denCell.className = 'frac-cell'; denCell.id = `den-${idx}`; denCell.tabIndex = 0;
+  denCell.textContent = state.fractions[idx].den || '?';
+
+  const cmpPos = Math.floor(state.count/2);
+  const padSide = idx < cmpPos ? 'pad-right' : 'pad-left';
+  const pad = document.createElement('div');
+  pad.className = `numpad ${padSide}`; pad.id = `pad-${idx}`;
+  pad.innerHTML = [1,2,3,4,5,6,7,8,9].map(v =>
+    `<button class="np-btn" data-v="${v}" data-idx="${idx}">${v}</button>`
+  ).join('') +
+  `<button class="np-btn" data-v="0" data-idx="${idx}">0</button>` +
+  `<div></div>` +
+  `<button class="np-btn del" data-v="del" data-idx="${idx}">⌫</button>`;
+
+  fracArea.appendChild(numCell);
+  fracArea.appendChild(line);
+  fracArea.appendChild(denCell);
+  fracArea.appendChild(pad);
+  panel.appendChild(vizWrap);
+  panel.appendChild(fracArea);
+  padTimers[idx] = null;
+  return panel;
+}
+
+// ── 이벤트 ───────────────────────────────────────────────
+function attachPadEvents() {
+  for (let i = 0; i < state.count; i++) {
+    const panel = document.getElementById(`panel-${i}`);
+    const pad   = document.getElementById(`pad-${i}`);
+    const numEl = document.getElementById(`num-${i}`);
+    const denEl = document.getElementById(`den-${i}`);
+
+    panel.addEventListener('mouseenter', () => showPad(i));
+    panel.addEventListener('mouseleave', () => hidePad(i));
+    pad.addEventListener('mouseenter',   () => clearTimeout(padTimers[i]));
+    pad.addEventListener('mouseleave',   () => hidePad(i));
+    numEl.addEventListener('click', () => { setActive(i,'num'); showPad(i); });
+    denEl.addEventListener('click', () => { setActive(i,'den'); showPad(i); });
+
+    pad.querySelectorAll('.np-btn').forEach(btn => {
+      btn.addEventListener('mousedown', e => {
+        e.preventDefault();
+        const val = btn.dataset.v, fi = parseInt(btn.dataset.idx);
+        if (!state.active || state.active.idx !== fi) setActive(fi,'num');
+        const {part} = state.active;
+        const f = state.fractions[fi];
+        if (val==='del') f[part] = f[part].slice(0,-1);
+        else if (f[part].length < 2) f[part] += val;
+        state.compared = false; resetCmpWrap(); renderAll();
+      });
+    });
+  }
+}
+
+function showPad(idx) {
+  clearTimeout(padTimers[idx]);
+  const p = document.getElementById(`pad-${idx}`);
+  if (p) p.classList.add('visible');
+}
+function hidePad(idx) {
+  padTimers[idx] = setTimeout(() => {
+    const p = document.getElementById(`pad-${idx}`);
+    if (p) p.classList.remove('visible');
+  }, 220);
+}
+function setActive(idx, part) {
+  document.querySelectorAll('.frac-cell.active').forEach(c => c.classList.remove('active'));
+  const el = document.getElementById(`${part}-${idx}`);
+  if (el) el.classList.add('active');
+  state.active = {idx, part};
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('.frac-cell') && !e.target.closest('.numpad')) {
+    document.querySelectorAll('.frac-cell.active').forEach(c => c.classList.remove('active'));
+    state.active = null;
+  }
+});
+document.addEventListener('keydown', e => {
+  if (!state.active) return;
+  const {idx, part} = state.active;
+  const f = state.fractions[idx];
+  const order = [];
+  for (let i = 0; i < state.count; i++) { order.push({i,p:'num'}); order.push({i,p:'den'}); }
+  const cur = order.findIndex(o => o.i===idx && o.p===part);
+  if (e.key>='0'&&e.key<='9') {
+    if (f[part].length<2) { f[part]+=e.key; state.compared=false; resetCmpWrap(); renderAll(); }
+  } else if (e.key==='Backspace') {
+    f[part]=f[part].slice(0,-1); renderAll();
+  } else if (['Tab','Enter','ArrowRight','ArrowDown'].includes(e.key)) {
+    e.preventDefault();
+    if (cur<order.length-1) { const nx=order[cur+1]; setActive(nx.i,nx.p); }
+  } else if (['ArrowLeft','ArrowUp'].includes(e.key)) {
+    e.preventDefault();
+    if (cur>0) { const pv=order[cur-1]; setActive(pv.i,pv.p); }
+  }
+});
+
+// ── 렌더링 ───────────────────────────────────────────────
+function renderAll() {
+  const sz = vizSize(state.count);
+  for (let i = 0; i < state.count; i++) {
+    const f = state.fractions[i];
+    const vizEl = document.getElementById(`viz-${i}`);
+    if (!vizEl) continue;
+    renderFracViz(vizEl, f.num, f.den, COLORS[i], sz);
+    const numEl = document.getElementById(`num-${i}`);
+    const denEl = document.getElementById(`den-${i}`);
+    if (numEl) numEl.textContent = f.num||'?';
+    if (denEl) denEl.textContent = f.den||'?';
+  }
+  // 퀴즈 행 초기 가시성: 2개 분수일 때만 표시, 비교 전 비활성 상태
+  const quizRow = document.getElementById('quiz-row');
+  if (quizRow) quizRow.style.display = state.count === 2 ? 'flex' : 'none';
+  if (state.compared) renderCmpView();
+}
+
+function resetCmpWrap() {
+  cleanupCmpListeners();
+  const cmpWrap = document.getElementById('cmp-wrap');
+  const cmpSym  = document.getElementById('cmp-sym');
+  const quizRow = document.getElementById('quiz-row');
+  if (cmpWrap) {
+    cmpWrap.style.width = '90px'; cmpWrap.style.height = '90px';
+    cmpWrap.style.borderRadius = '50%'; cmpWrap.style.overflow = 'hidden';
+    cmpWrap.style.background = 'white'; cmpWrap.style.border = '2.5px solid #f0a060';
+    cmpWrap.innerHTML = '';
+  }
+  if (cmpSym) cmpSym.style.display = 'none';
+  const qTrig = document.getElementById('quiz-trigger');
+  const qOpts = document.getElementById('quiz-options');
+  if (qTrig) { qTrig.textContent=''; qTrig.classList.remove('active'); }
+  if (qOpts) qOpts.classList.remove('open');
+  if (quizRow) quizRow.style.display = state.count === 2 ? 'flex' : 'none';
+  state.correctSym = null;
+  state.quizAnswered = false;
+}
+
+// ── 효과음 ───────────────────────────────────────────────
+function playCorrectSound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [[523,.0],[659,.12],[784,.24],[1047,.4]].forEach(([freq, t]) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value = freq;
+      g.gain.setValueAtTime(0.28, ctx.currentTime + t);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.25);
+      o.start(ctx.currentTime + t); o.stop(ctx.currentTime + t + 0.25);
+    });
+  } catch(e) {}
+}
+function playWrongSound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'sawtooth'; o.connect(g); g.connect(ctx.destination);
+    o.frequency.setValueAtTime(320, ctx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(120, ctx.currentTime + 0.45);
+    g.gain.setValueAtTime(0.3, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+    o.start(); o.stop(ctx.currentTime + 0.5);
+  } catch(e) {}
+}
+
+// ── 퀴즈 클릭 ────────────────────────────────────────────
+function onQuizClick(sym) {
+  if (!state.compared || state.quizAnswered || !state.correctSym) return;
+  state.quizAnswered = true;
+
+  const correct = sym === state.correctSym;
+  if (correct) playCorrectSound(); else playWrongSound();
+
+  // O/X 피드백 오버레이
+  let overlay = document.getElementById('quiz-feedback-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'quiz-feedback-overlay';
+    overlay.className = 'quiz-feedback-overlay';
+    const mark = document.createElement('div');
+    mark.className = 'feedback-mark';
+    overlay.appendChild(mark);
+    document.body.appendChild(overlay);
+  }
+  const mark = overlay.querySelector('.feedback-mark');
+  if (correct) { mark.textContent = 'O'; mark.style.color = '#e06020'; }
+  else         { mark.textContent = 'X'; mark.style.color = '#d02020'; }
+
+  requestAnimationFrame(() => {
+    overlay.classList.add('show');
+    setTimeout(() => {
+      overlay.classList.remove('show');
+      // O/X 후 드롭다운 다시 활성화 (재시도 가능)
+      setTimeout(() => {
+        state.quizAnswered = false;
+        const qTrig = document.getElementById('quiz-trigger');
+        if (qTrig) qTrig.classList.add('active');
+      }, 300);
+    }, 1200);
+  });
+}
+
+// ── 비교하기 ─────────────────────────────────────────────
+function doCompare() {
+  const fracs = state.fractions.slice(0, state.count);
+  if (!fracs.every(f => f.num && f.den && parseInt(f.den)!==0)) {
+    alert('모든 분수를 입력해 주세요!'); return;
+  }
+  spawnGhosts(() => {
+    state.compared = true;
+    state.quizAnswered = false;
+    renderCmpView();
+
+    const cmpSym  = document.getElementById('cmp-sym');
+    const quizRow = document.getElementById('quiz-row');
+
+    if (state.count === 2) {
+      // 퀴즈 모드: 드롭다운 활성화
+      const lv = parseInt(fracs[0].num)/parseInt(fracs[0].den);
+      const rv = parseInt(fracs[1].num)/parseInt(fracs[1].den);
+      state.correctSym = lv>rv ? '>' : lv<rv ? '<' : '=';
+
+      if (quizRow) quizRow.style.display = 'flex';
+      const qTrig = document.getElementById('quiz-trigger');
+      if (qTrig) { qTrig.textContent=''; qTrig.classList.add('active'); }
+      if (cmpSym) cmpSym.style.display = 'none';
+    } else {
+      // 3개 이상: 순위 결과 표시
+      state.correctSym = null;
+      if (quizRow) quizRow.style.display = 'none';
+      if (cmpSym) {
+        const sorted = fracs
+          .map((f,i) => ({val: parseInt(f.num)/parseInt(f.den), idx: i+1}))
+          .sort((a,b) => b.val - a.val);
+        cmpSym.textContent = sorted.map(s => s.idx+'번').join(' > ');
+        cmpSym.style.color = '#555';
+        cmpSym.style.fontSize = state.count>3 ? '14px' : '20px';
+        cmpSym.style.display = 'block';
+      }
+    }
+  });
+}
+
+function spawnGhosts(onDone) {
+  const cmpWrap = document.getElementById('cmp-wrap');
+  if (!cmpWrap) { onDone(); return; }
+  const cmpRect = cmpWrap.getBoundingClientRect();
+  const tcx = cmpRect.left + cmpRect.width/2;
+  const tcy = cmpRect.top  + cmpRect.height/2;
+
+  const ghosts = [];
+  for (let i = 0; i < state.count; i++) {
+    const vizEl = document.getElementById(`viz-${i}`);
+    if (!vizEl) continue;
+    const r = vizEl.getBoundingClientRect();
+    const g = document.createElement('div');
+    g.className = 'ghost-el';
+    g.style.cssText = `left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;`;
+    g.innerHTML = vizEl.innerHTML;
+    document.body.appendChild(g);
+    ghosts.push(g);
+  }
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    ghosts.forEach(g => {
+      g.style.left = (tcx-50)+'px'; g.style.top = (tcy-50)+'px';
+      g.style.width = '100px'; g.style.height = '100px'; g.style.opacity = '0';
+    });
+  }));
+  setTimeout(() => { ghosts.forEach(g => g.remove()); onDone(); }, 560);
+}
+
+// ── 드롭다운 ─────────────────────────────────────────────
+document.getElementById('count-btn').addEventListener('click', e => {
+  e.stopPropagation();
+  document.getElementById('count-dropdown').classList.toggle('open');
+});
+document.querySelectorAll('.count-option').forEach(opt => {
+  opt.addEventListener('click', () => {
+    const n = parseInt(opt.dataset.n);
+    state.count = n; state.compared = false; state.active = null;
+    document.getElementById('count-btn').textContent = n;
+    document.querySelectorAll('.count-option').forEach(o => o.classList.remove('active'));
+    opt.classList.add('active');
+    document.getElementById('count-dropdown').classList.remove('open');
+    buildMain();
+  });
+});
+document.addEventListener('click', () => {
+  document.getElementById('count-dropdown').classList.remove('open');
+});
+
+// ── 탭 ───────────────────────────────────────────────────
+document.querySelectorAll('.vtab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.vtab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    state.viewMode = tab.dataset.tab;
+    state.compared = false; buildMain();
+  });
+});
+
+// ── 초기화 ───────────────────────────────────────────────
+document.getElementById('btn-reset').addEventListener('click', () => {
+  state.fractions = Array.from({length:5}, () => ({num:'',den:''}));
+  state.compared = false; state.active = null; buildMain();
+});
+
+buildMain();
+
+// ── 분수 개념 익히기 ──────────────────────────────────────
+const conceptState = {
+  count: 0,
+  split: false,
+  mode: 'pizza', // 'pizza' | 'bar'
+};
+
+function initConcept() {
+  conceptState.count = 0;
+  conceptState.split = false;
+  document.getElementById('concept-input').value = '';
+  const el = document.getElementById('concept-frac-display');
+  if (el) el.innerHTML = '';
+  if (conceptState.mode === 'pizza') {
+    renderPizza(0, false);
+  } else {
+    renderBar(0, false);
+  }
+}
+
+function renderPizza(n, split) {
+  const wrap = document.getElementById('pizza-wrap');
+  wrap.innerHTML = buildPizzaSVG(n, split);
+}
+
+function renderBar(n, highlighted) {
+  const track = document.getElementById('bar-track');
+  if (!track) return;
+  if (n <= 0) { track.innerHTML = '<div class="bar-seg"></div>'; return; }
+  let html = '';
+  for (let i = 0; i < n; i++) {
+    html += `<div class="bar-seg${i === 0 && highlighted ? ' bar-highlight' : ''}"></div>`;
+  }
+  track.innerHTML = html;
+}
+
+function setConceptMode(mode) {
+  conceptState.mode = mode;
+  const pizzaWrap = document.getElementById('pizza-wrap');
+  const barWrap = document.getElementById('bar-wrap');
+  const modeBtn = document.getElementById('concept-mode-btn');
+  if (mode === 'pizza') {
+    pizzaWrap.style.display = '';
+    barWrap.style.display = 'none';
+    modeBtn.textContent = '📊 막대';
+  } else {
+    pizzaWrap.style.display = 'none';
+    barWrap.style.display = '';
+    modeBtn.textContent = '🍕 피자';
+  }
+  initConcept();
+}
+
+document.getElementById('concept-mode-btn').addEventListener('click', () => {
+  setConceptMode(conceptState.mode === 'pizza' ? 'bar' : 'pizza');
+});
+
+function showRevealBox(val) {
+  const el = document.getElementById('concept-frac-display');
+  if (!el) return;
+  el.innerHTML = '<div class="cfd-box" id="cfd-reveal-box"></div>';
+  document.getElementById('cfd-reveal-box').addEventListener('click', () => {
+    renderConceptFraction(val);
+  }, { once: true });
+}
+
+function renderConceptFraction(n) {
+  const el = document.getElementById('concept-frac-display');
+  if (!el) return;
+  if (n <= 0) {
+    el.innerHTML = '';
+  } else {
+    el.innerHTML = `
+      <div class="cfd-num cfd-animate">1</div>
+      <div class="cfd-line cfd-animate" style="animation-delay:0.08s"></div>
+      <div class="cfd-den cfd-animate" style="animation-delay:0.16s">${n}</div>`;
+  }
+}
+
+function doConfirm() {
+  const val = parseInt(document.getElementById('concept-input').value);
+  if (!val || val < 1 || val > 12) { alert('1~12 사이 숫자를 입력해주세요'); return; }
+  conceptState.count = val;
+  conceptState.split = true;
+  if (conceptState.mode === 'pizza') {
+    renderPizza(val, true);
+  } else {
+    renderBar(val, true);
+  }
+  showRevealBox(val);
+}
+
+document.getElementById('concept-confirm').addEventListener('click', doConfirm);
+document.getElementById('concept-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doConfirm();
+});
+
+document.getElementById('concept-reset').addEventListener('click', initConcept);
+
+// ── 최상위 탭 전환 ────────────────────────────────────────
+// 권한 체크 없이 실제로 페이지 전환 (내부 전용)
+function _doSwitchPage(page) {
+  document.querySelectorAll('.top-tab').forEach(t => t.classList.remove('active'));
+  const activeTab = document.querySelector(`.top-tab[data-page="${page}"]`);
+  if (activeTab) activeTab.classList.add('active');
+  document.getElementById('page-waiting').style.display = 'none';
+  document.getElementById('page-concept').style.display = page === 'concept' ? 'flex' : 'none';
+  document.getElementById('page-compare').style.display = page === 'compare' ? 'flex' : 'none';
+  document.getElementById('view-tabs-bar').style.display = page === 'compare' ? 'flex' : 'none';
+  document.getElementById('page-game').style.display = page === 'game' ? 'flex' : 'none';
+  if (page === 'game') onGameTabOpen();
+}
+
+function switchPage(page) {
+  // 학생: 실제 권한 상태로 차단
+  if (session.role === 'student' && !studentTabPerms[page]) return;
+  _doSwitchPage(page);
+}
+
+document.querySelectorAll('.top-tab').forEach(tab => {
+  tab.addEventListener('click', e => {
+    if (e.target.classList.contains('tab-perm-badge')) return;
+    // 학생: 실제 권한 상태로 직접 차단 (CSS에 의존하지 않음)
+    if (session.role === 'student' && !studentTabPerms[tab.dataset.page]) return;
+    switchPage(tab.dataset.page);
+  });
+});
+
+setConceptMode('pizza');
+
+// ── Firebase 초기화 ───────────────────────────────────────
+const firebaseConfig = {
+  apiKey: "AIzaSyACk0Pjmr_l0hhozDN7bVf2o7J3N9g8qXs",
+  authDomain: "school-fraction.firebaseapp.com",
+  databaseURL: "https://school-fraction-default-rtdb.firebaseio.com",
+  projectId: "school-fraction",
+  storageBucket: "school-fraction.firebasestorage.app",
+  messagingSenderId: "786728377471",
+  appId: "1:786728377471:web:29883cc7fa25249d15f34a"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// ── 세션 상태 ────────────────────────────────────────────
+const session = {
+  role: null,       // 'teacher' | 'student'
+  name: null,       // 학생 이름
+  roomCode: null,   // 방 코드
+  studentId: null,  // 학생 고유 ID
+};
+
+// ── 로그인 화면 ──────────────────────────────────────────
+const TEACHER_PW = '1234';
+
+function showLoginScreen() {
+  document.getElementById('login-screen').style.display = 'flex';
+  document.querySelector('.header').style.display = 'none';
+  document.getElementById('role-bar').style.display = 'none';
+  document.getElementById('page-compare').style.display = 'none';
+  document.getElementById('view-tabs-bar').style.display = 'none';
+}
+
+function hideLoginScreen() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.querySelector('.header').style.display = 'flex';
+  document.getElementById('role-bar').style.display = 'flex';
+}
+
+function resetLoginBoxes() {
+  document.getElementById('login-pw-box').classList.remove('show');
+  document.getElementById('login-student-box').classList.remove('show');
+  document.getElementById('login-role-row').style.display = 'flex';
+  document.getElementById('login-pw-error').classList.remove('show');
+  document.getElementById('login-student-error').classList.remove('show');
+  document.getElementById('login-pw-input').value = '';
+}
+
+// 저장된 교사 비밀번호 확인
+(function checkSavedPw() {
+  if (localStorage.getItem('teacher_pw_saved') === '1') {
+    document.getElementById('login-pw-save').checked = true;
+  }
+})();
+
+document.getElementById('btn-teacher-role').addEventListener('click', () => {
+  // 저장된 비밀번호가 있으면 바로 입장
+  if (localStorage.getItem('teacher_pw_saved') === '1') {
+    enterAsTeacher();
+    return;
+  }
+  document.getElementById('login-role-row').style.display = 'none';
+  document.getElementById('login-pw-box').classList.add('show');
+  setTimeout(() => document.getElementById('login-pw-input').focus(), 50);
+});
+
+document.getElementById('btn-student-role').addEventListener('click', () => {
+  document.getElementById('login-role-row').style.display = 'none';
+  document.getElementById('login-student-box').classList.add('show');
+  setTimeout(() => document.getElementById('login-student-name').focus(), 50);
+});
+
+document.getElementById('login-pw-back').addEventListener('click', resetLoginBoxes);
+document.getElementById('login-student-back').addEventListener('click', resetLoginBoxes);
+
+document.getElementById('login-pw-submit').addEventListener('click', () => {
+  const pw = document.getElementById('login-pw-input').value.trim();
+  if (pw !== TEACHER_PW) {
+    document.getElementById('login-pw-error').classList.add('show');
+    document.getElementById('login-pw-input').value = '';
+    return;
+  }
+  if (document.getElementById('login-pw-save').checked) {
+    localStorage.setItem('teacher_pw_saved', '1');
+  } else {
+    localStorage.removeItem('teacher_pw_saved');
+  }
+  enterAsTeacher();
+});
+
+document.getElementById('login-pw-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('login-pw-submit').click();
+});
+
+document.getElementById('login-student-submit').addEventListener('click', async () => {
+  const name = document.getElementById('login-student-name').value.trim();
+  const code = document.getElementById('login-student-code').value.trim();
+  const errEl = document.getElementById('login-student-error');
+  errEl.classList.remove('show');
+  if (!name || code.length !== 5) { errEl.textContent = '이름과 방 코드(5자리)를 입력해 주세요'; errEl.classList.add('show'); return; }
+  // Firebase에서 방 코드 확인
+  const snap = await db.ref(`rooms/${code}`).once('value');
+  if (!snap.exists()) { errEl.textContent = '방 코드를 찾을 수 없습니다'; errEl.classList.add('show'); return; }
+  enterAsStudent(name, code);
+});
+
+['login-student-name','login-student-code'].forEach(id => {
+  document.getElementById(id).addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('login-student-submit').click();
+  });
+});
+
+let tabPermListener = null;
+let studentTabPerms = { concept: false, compare: false, game: false };
+
+async function checkPermsNow() {
+  if (!session.roomCode) { alert('방코드가 없습니다.'); return; }
+  try {
+    const snap = await db.ref('rooms/' + session.roomCode + '/tabs').once('value');
+    applyStudentPerms(snap.val() || {});
+  } catch(e) {
+    alert('Firebase 오류: ' + e.message);
+  }
+}
+
+function enterAsTeacher() {
+  session.role = 'teacher';
+  session.roomCode = genRoomCode();
+  db.ref(`rooms/${session.roomCode}`).set({
+    createdAt: firebase.database.ServerValue.TIMESTAMP,
+    tabs: { concept: false, compare: false, game: false }
+  });
+  hideLoginScreen();
+  document.getElementById('role-bar-code-val').textContent = session.roomCode;
+  document.getElementById('student-role-info').style.display = 'none';
+  // 교사 탭은 locked 없음 (혹시 남아있으면 제거)
+  document.querySelectorAll('.top-tab').forEach(t => t.classList.remove('locked'));
+  // O/X 배지 표시 및 클릭 이벤트
+  ['concept','compare','game'].forEach(tab => {
+    const badge = document.getElementById(`perm-badge-${tab}`);
+    if (!badge) return;
+    badge.style.display = 'inline-flex';
+    badge.textContent = '✕';
+    badge.classList.add('denied');
+    badge.onclick = e => {
+      e.stopPropagation();
+      const allowed = badge.classList.toggle('denied');
+      // toggle: denied 추가 = 비허용, denied 없음 = 허용
+      const isAllowed = !badge.classList.contains('denied');
+      badge.textContent = isAllowed ? '○' : '✕';
+      db.ref(`rooms/${session.roomCode}/tabs/${tab}`).set(isAllowed);
+    };
+  });
+  switchPage('concept');
+}
+
+function applyStudentPerms(perms) {
+  const tabs = ['concept','compare','game'];
+
+  // 디버그 패널 업데이트
+  const dbgEl = document.getElementById('waiting-debug');
+  if (dbgEl) {
+    dbgEl.textContent = '방코드:' + session.roomCode +
+      '  개념:' + (perms.concept?'O':'X') +
+      '  비교:' + (perms.compare?'O':'X') +
+      '  게임:' + (perms.game?'O':'X') +
+      '  (' + new Date().toLocaleTimeString() + ')';
+  }
+
+  // 실제 권한 상태 업데이트
+  studentTabPerms = {
+    concept: !!perms.concept,
+    compare: !!perms.compare,
+    game: !!perms.game
+  };
+
+  // 탭 locked 시각 표시
+  tabs.forEach(tab => {
+    const tabEl = document.querySelector(`.top-tab[data-page="${tab}"]`);
+    if (!tabEl) return;
+    if (perms[tab]) tabEl.classList.remove('locked');
+    else tabEl.classList.add('locked');
+  });
+
+  // 현재 보고 있는 페이지가 차단됐으면 대기 화면으로
+  const activePage = tabs.find(t => {
+    const el = document.getElementById('page-' + t);
+    return el && el.style.display !== 'none';
+  });
+  if (activePage && !perms[activePage]) {
+    ['page-concept','page-compare','page-game','view-tabs-bar'].forEach(id => {
+      document.getElementById(id).style.display = 'none';
+    });
+    document.getElementById('page-waiting').style.display = 'flex';
+  }
+
+  // 대기 화면이면 허용된 첫 탭으로 이동
+  const onWaiting = document.getElementById('page-waiting').style.display !== 'none';
+  if (onWaiting) {
+    const firstAllowed = tabs.find(t => perms[t]);
+    if (firstAllowed) _doSwitchPage(firstAllowed);
+  }
+}
+
+function enterAsStudent(name, code) {
+  session.role = 'student';
+  session.name = name;
+  session.roomCode = code;
+  session.studentId = 'std_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+  hideLoginScreen();
+  document.getElementById('student-debug-bar').style.display = 'block';
+  document.getElementById('role-bar-code-val').textContent = session.roomCode;
+  const teacherPermsEl = document.getElementById('teacher-tab-perms');
+  if (teacherPermsEl) teacherPermsEl.style.display = 'none';
+  const infoEl = document.getElementById('student-role-info');
+  infoEl.style.display = 'block';
+  infoEl.textContent = session.name + ' (학생)';
+
+  // 모든 탭 잠금
+  ['concept','compare','game'].forEach(tab => {
+    const tabEl = document.querySelector(`.top-tab[data-page="${tab}"]`);
+    if (tabEl) tabEl.classList.add('locked');
+  });
+
+  // 모든 페이지 숨기고 대기 화면 표시 (동기적으로 먼저 처리)
+  ['page-concept','page-compare','page-game','view-tabs-bar'].forEach(id => {
+    document.getElementById(id).style.display = 'none';
+  });
+  document.getElementById('page-waiting').style.display = 'flex';
+
+  // 이전 리스너 정리
+  if (tabPermListener) {
+    db.ref('rooms/' + session.roomCode + '/tabs').off('value', tabPermListener);
+    tabPermListener = null;
+  }
+  if (window._permPollTimer) {
+    clearInterval(window._permPollTimer);
+    window._permPollTimer = null;
+  }
+
+  // 폴링 방식으로 권한 체크 (2초마다) — 실시간 리스너 대신 안정적인 폴링 사용
+  let pollCount = 0;
+  async function pollPerms() {
+    if (session.role !== 'student' || !session.roomCode) return;
+    pollCount++;
+    const bar = document.getElementById('student-debug-bar');
+    if (bar) bar.textContent = '[디버그] 폴링#' + pollCount + ' 방:' + session.roomCode + ' 시각:' + new Date().toLocaleTimeString();
+    try {
+      const snap = await db.ref('rooms/' + session.roomCode + '/tabs').once('value');
+      const perms = snap.val() || {};
+      if (bar) bar.textContent = '[디버그] 폴링#' + pollCount + ' 방:' + session.roomCode +
+        ' 개념:' + (perms.concept?'O':'X') + ' 비교:' + (perms.compare?'O':'X') + ' 게임:' + (perms.game?'O':'X') +
+        ' ' + new Date().toLocaleTimeString();
+      applyStudentPerms(perms);
+    } catch(e) {
+      if (bar) bar.textContent = '[디버그] 오류: ' + e.message;
+    }
+  }
+
+  // 즉시 1회 실행 후 2초마다 반복
+  setTimeout(pollPerms, 100);
+  window._permPollTimer = setInterval(pollPerms, 2000);
+}
+
+// ── 게임 탭 진입 ─────────────────────────────────────────
+let rosterRef = null;
+let rosterListener = null;
+let studentPresenceRef = null;
+
+function onGameTabOpen() {
+  if (session.role === 'teacher') {
+    openTeacherGame();
+  } else if (session.role === 'student') {
+    openStudentGame();
+  }
+}
+
+// ── 교사 게임 ────────────────────────────────────────────
+function genRoomCode() {
+  return String(Math.floor(10000 + Math.random() * 90000));
+}
+
+let _teacherGameReady = false; // 설정 완료 전까지 false
+
+function openTeacherGame() {
+  // 처음 진입 시 채점 설정 화면 먼저 표시
+  if (!_teacherGameReady) {
+    document.getElementById('scoring-setup-screen').classList.add('open');
+    return;
+  }
+  const tv = document.getElementById('game-teacher-view');
+  tv.style.display = 'flex'; tv.style.flex = '1'; tv.style.flexDirection = 'column';
+  document.getElementById('game-student-view').style.display = 'none';
+
+  // roomCode already created in enterAsTeacher()
+
+  // 학생 목록 실시간 리스닝
+  if (rosterListener) rosterRef.off('value', rosterListener);
+  rosterRef = db.ref(`rooms/${session.roomCode}/students`);
+  rosterListener = rosterRef.on('value', snap => {
+    const listEl = document.getElementById('roster-list');
+    const emptyEl = document.getElementById('roster-empty');
+    const students = [];
+    snap.forEach(child => {
+      const d = child.val();
+      if (d.active) students.push(d.name);
+    });
+    if (students.length === 0) {
+      listEl.innerHTML = '<div class="roster-empty">접속한<br>학생 없음</div>';
+    } else {
+      listEl.innerHTML = students.map(name =>
+        `<div class="roster-item"><div class="roster-dot"></div><div class="roster-name-chip">${name}</div></div>`
+      ).join('');
+    }
+  });
+
+  // 분수 입력 → Firebase 저장
+  ['game-num-input','game-den-input'].forEach(id => {
+    document.getElementById(id).addEventListener('input', syncFractionToDb);
+  });
+
+  // 확인 버튼
+  document.getElementById('game-confirm-btn').addEventListener('click', revealFraction);
+
+  // 점수 실시간 배지
+  listenScores();
+
+  // 학생 제출 실시간 수신 → 그리드 렌더링
+  db.ref(`rooms/${session.roomCode}/submissions`).on('value', snap => {
+    const listEl = document.getElementById('answer-list');
+    if (!snap.exists()) {
+      listEl.className = 'answer-list';
+      listEl.innerHTML = '<div class="answer-empty" style="grid-column:1/-1">학생이 정답을<br>제출하면 표시됩니다</div>';
+      return;
+    }
+    const items = [];
+    snap.forEach(child => items.push({ sid: child.key, ...child.val() }));
+    // 5명 초과면 3열
+    listEl.className = 'answer-list' + (items.length > 4 ? ' cols3' : '');
+    const thumbSize = items.length > 4 ? 64 : 80;
+    // 현재 점수 가져오기
+    db.ref(`rooms/${session.roomCode}/scores`).once('value').then(scSnap => {
+      const scores = scSnap.val() || {};
+      listEl.innerHTML = items.map(d => {
+        const sc = scores[d.sid];
+        const badge = (sc && sc.total > 0) ? `<span class="answer-sub-score-inline">${sc.total}점</span>` : '';
+        return `<div class="answer-submission" data-sid="${escHtml(d.sid)}" onclick="openSubmissionModal('${escHtml(d.name)}','${d.num}','${d.den}','${(d.coloredSectors||[]).join(',')}')">
+          <div class="answer-sub-name" data-name="${escHtml(d.name)}">${escHtml(d.name)}${badge}</div>
+          <div class="answer-sub-frac">
+            <div class="answer-sub-num">${escHtml(d.num)}</div>
+            <div class="answer-sub-line"></div>
+            <div class="answer-sub-den">${escHtml(d.den)}</div>
+          </div>
+          ${makeSubmissionSVG(d.num, d.den, d.coloredSectors || [], thumbSize)}
+        </div>`;
+      }).join('');
+    });
+  });
+}
+
+function makeFracPieSVG(num, den) {
+  const S = 220, cx = 110, cy = 110, R = 96;
+  num = parseInt(num) || 0; den = parseInt(den) || 1;
+  const ratio = Math.min(Math.max(num / den, 0), 1);
+  const bg = `<circle cx="${cx}" cy="${cy}" r="${R}" fill="#f0f0f0" stroke="#ddd" stroke-width="2"/>`;
+  if (ratio <= 0) return `<svg width="${S}" height="${S}">${bg}</svg>`;
+  if (ratio >= 1) return `<svg width="${S}" height="${S}">
+    <circle cx="${cx}" cy="${cy}" r="${R}" fill="#e06020" stroke="#f0a060" stroke-width="3"/>
+  </svg>`;
+  const angle = ratio * 2 * Math.PI;
+  const x = cx + R * Math.sin(angle);
+  const y = cy - R * Math.cos(angle);
+  const large = ratio > 0.5 ? 1 : 0;
+  return `<svg width="${S}" height="${S}">
+    ${bg}
+    <path d="M${cx},${cy} L${cx},${cy-R} A${R},${R} 0 ${large},1 ${x.toFixed(2)},${y.toFixed(2)} Z"
+      fill="#e06020"/>
+    <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="#f0a060" stroke-width="3"/>
+  </svg>`;
+}
+
+function toggleAnswerPanel() {
+  const panel = document.getElementById('game-answer-panel');
+  const tab = document.getElementById('answer-open-tab');
+  if (!panel) return;
+  const isOpen = panel.classList.toggle('open');
+  if (tab) tab.style.display = isOpen ? 'none' : 'flex';
+}
+
+function toggleRoster() {
+  const roster = document.getElementById('game-roster');
+  const tab = document.getElementById('roster-open-tab');
+  if (!roster) return;
+  const isOpen = roster.classList.toggle('open');
+  if (tab) tab.style.display = isOpen ? 'none' : 'flex';
+}
+
+let fracRevealStep = 0;
+
+function revealFraction() {
+  const num = document.getElementById('game-num-input')?.value.trim();
+  const den = document.getElementById('game-den-input')?.value.trim();
+  if (!num || !den) return;
+
+  if (fracRevealStep === 0) {
+    // 1단계: 숫자만 검게
+    document.getElementById('game-num-input').classList.add('revealed');
+    document.getElementById('game-den-input').classList.add('revealed');
+    fracRevealStep = 1;
+  } else if (fracRevealStep === 1) {
+    // 2단계: 원그래프 공개
+    showFracWithCircle(num, den);
+    fracRevealStep = 2;
+  }
+}
+
+function makeFracPieDashed(num, den) {
+  const S = 280, cx = 140, cy = 140, R = 120;
+  num = Math.max(0, parseInt(num) || 0);
+  den = Math.max(1, parseInt(den) || 1);
+  let slices = '';
+  for (let i = 0; i < den; i++) {
+    const a1 = (i / den) * 2 * Math.PI - Math.PI / 2;
+    const a2 = ((i + 1) / den) * 2 * Math.PI - Math.PI / 2;
+    const x1 = cx + R * Math.cos(a1), y1 = cy + R * Math.sin(a1);
+    const x2 = cx + R * Math.cos(a2), y2 = cy + R * Math.sin(a2);
+    const large = (1 / den) > 0.5 ? 1 : 0;
+    const fill = i < num ? '#e06020' : '#f0f0f0';
+    slices += `<path d="M${cx},${cy} L${x1.toFixed(2)},${y1.toFixed(2)} A${R},${R} 0 ${large},1 ${x2.toFixed(2)},${y2.toFixed(2)} Z" fill="${fill}"/>`;
+  }
+  let dashes = '';
+  for (let i = 0; i < den; i++) {
+    const a = (i / den) * 2 * Math.PI - Math.PI / 2;
+    const x = cx + R * Math.cos(a), y = cy + R * Math.sin(a);
+    dashes += `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(2)}" y2="${y.toFixed(2)}" stroke="white" stroke-width="2.5" stroke-dasharray="7,5"/>`;
+  }
+  return `<svg width="${S}" height="${S}">
+    <circle cx="${cx}" cy="${cy}" r="${R}" fill="#f0f0f0" stroke="#ddd" stroke-width="2"/>
+    ${slices}${dashes}
+    <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="#f0a060" stroke-width="3"/>
+  </svg>`;
+}
+
+function showFracWithCircle(num, den) {
+  const area = document.getElementById('game-frac-area');
+  area.innerHTML = `
+    <div class="game-revealed-layout">
+      <div class="game-frac-widget frac-reveal-anim">
+        <div class="game-frac-cell">
+          <input type="text" value="${num}" readonly class="revealed"
+            style="pointer-events:none;">
+        </div>
+        <div class="game-frac-divider"></div>
+        <div class="game-frac-cell">
+          <input type="text" value="${den}" readonly class="revealed"
+            style="pointer-events:none;">
+        </div>
+      </div>
+      <div class="game-circle-wrap frac-reveal-anim" style="animation-delay:.12s">${makeFracPieDashed(num, den)}</div>
+    </div>
+    <button class="game-confirm-btn" id="game-confirm-btn" onclick="resetGameBoard()">↺ 초기화</button>
+  `;
+}
+
+function resetGameBoard() {
+  fracRevealStep = 0;
+  document.getElementById('game-frac-area').innerHTML = `
+    <div class="game-frac-widget" id="game-frac-widget">
+      <div class="game-frac-cell">
+        <input id="game-num-input" type="text" inputmode="numeric"
+          maxlength="3" placeholder="?" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="game-frac-divider"></div>
+      <div class="game-frac-cell">
+        <input id="game-den-input" type="text" inputmode="numeric"
+          maxlength="3" placeholder="?" autocomplete="off" spellcheck="false">
+      </div>
+    </div>
+    <button class="game-confirm-btn" id="game-confirm-btn">확인</button>
+  `;
+  document.getElementById('game-num-input').addEventListener('input', syncFractionToDb);
+  document.getElementById('game-den-input').addEventListener('input', syncFractionToDb);
+  document.getElementById('game-confirm-btn').addEventListener('click', revealFraction);
+  db.ref(`rooms/${session.roomCode}/fraction`).set({ num: '', den: '' });
+}
+
+function syncFractionToDb() {
+  if (!session.roomCode) return;
+  const num = document.getElementById('game-num-input').value;
+  const den = document.getElementById('game-den-input').value;
+  db.ref(`rooms/${session.roomCode}/fraction`).set({ num, den });
+}
+
+// ── 학생 게임 ────────────────────────────────────────────
+let stuColoredSectors = new Set();
+let stuCurrentDen = 0;
+
+function openStudentGame() {
+  document.getElementById('game-teacher-view').style.display = 'none';
+  const sv = document.getElementById('game-student-view');
+  sv.style.display = 'flex';
+
+  // Firebase에 학생 등록 (presence)
+  studentPresenceRef = db.ref(`rooms/${session.roomCode}/students/${session.studentId}`);
+  studentPresenceRef.set({ name: session.name, joinedAt: firebase.database.ServerValue.TIMESTAMP, active: true });
+  studentPresenceRef.onDisconnect().update({ active: false });
+
+  // 내 점수 실시간 수신
+  listenMyScore();
+
+  // 분모 입력 → 원 그래프 갱신
+  document.getElementById('stu-den-input').addEventListener('input', () => {
+    const den = parseInt(document.getElementById('stu-den-input').value) || 0;
+    if (den !== stuCurrentDen) {
+      stuColoredSectors = new Set();
+      stuCurrentDen = den;
+    }
+    renderStudentPie();
+  });
+  document.getElementById('stu-num-input').addEventListener('input', () => {});
+
+  // 제출 버튼
+  document.getElementById('student-submit-btn').addEventListener('click', submitStudentAnswer);
+}
+
+function renderStudentPie() {
+  const den = parseInt(document.getElementById('stu-den-input').value) || 0;
+  const container = document.getElementById('student-pie-container');
+  if (den < 1 || den > 50) {
+    container.innerHTML = '<div class="student-pie-hint">분모를 입력하면<br>원이 나타납니다</div>';
+    return;
+  }
+  const S = 260, cx = 130, cy = 130, R = 112;
+  let paths = '';
+  for (let i = 0; i < den; i++) {
+    const a1 = (i / den) * 2 * Math.PI - Math.PI / 2;
+    const a2 = ((i + 1) / den) * 2 * Math.PI - Math.PI / 2;
+    const x1 = cx + R * Math.cos(a1), y1 = cy + R * Math.sin(a1);
+    const x2 = cx + R * Math.cos(a2), y2 = cy + R * Math.sin(a2);
+    const large = (1 / den) > 0.5 ? 1 : 0;
+    const fill = stuColoredSectors.has(i) ? '#3cb371' : '#f0f0f0';
+    paths += `<path data-i="${i}" d="M${cx},${cy} L${x1.toFixed(2)},${y1.toFixed(2)} A${R},${R} 0 ${large},1 ${x2.toFixed(2)},${y2.toFixed(2)} Z" fill="${fill}" stroke="white" stroke-width="2"/>`;
+  }
+  // 점선 구분선
+  let dashes = '';
+  for (let i = 0; i < den; i++) {
+    const a = (i / den) * 2 * Math.PI - Math.PI / 2;
+    const x = cx + R * Math.cos(a), y = cy + R * Math.sin(a);
+    dashes += `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(2)}" y2="${y.toFixed(2)}" stroke="white" stroke-width="2.5" stroke-dasharray="7,5" pointer-events="none"/>`;
+  }
+  container.innerHTML = `<svg id="student-pie-svg" width="${S}" height="${S}">
+    <circle cx="${cx}" cy="${cy}" r="${R}" fill="#f0f0f0" stroke="#ddd" stroke-width="2"/>
+    ${paths}${dashes}
+    <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="#f0a060" stroke-width="3"/>
+  </svg>`;
+  document.getElementById('student-pie-svg').addEventListener('click', e => {
+    const path = e.target.closest('path[data-i]');
+    if (!path) return;
+    const i = parseInt(path.getAttribute('data-i'));
+    if (stuColoredSectors.has(i)) stuColoredSectors.delete(i);
+    else stuColoredSectors.add(i);
+    renderStudentPie();
+  });
+}
+
+function submitStudentAnswer() {
+  const num = document.getElementById('stu-num-input').value.trim();
+  const den = document.getElementById('stu-den-input').value.trim();
+  if (!den || parseInt(den) < 1) { alert('분모를 입력해 주세요'); return; }
+  const btn = document.getElementById('student-submit-btn');
+  btn.disabled = true;
+  btn.textContent = '제출 완료!';
+  db.ref(`rooms/${session.roomCode}/submissions/${session.studentId}`).set({
+    name: session.name,
+    num: num || '?',
+    den,
+    coloredSectors: [...stuColoredSectors],
+    submittedAt: firebase.database.ServerValue.TIMESTAMP
+  });
+  // 재제출 시 이전 채점 기록 초기화 (flashType, scoredSubmitTime)
+  db.ref(`rooms/${session.roomCode}/scores/${session.studentId}`).once('value').then(snap => {
+    const sc = snap.val();
+    if (sc) {
+      db.ref(`rooms/${session.roomCode}/scores/${session.studentId}`).update({
+        flashType: null,
+        scoredSubmitTime: null
+      });
+    }
+  });
+  setTimeout(() => { btn.disabled = false; btn.textContent = '제출하기'; }, 3000);
+}
+
+// ── 제출 SVG 생성 (교사 뷰 썸네일 & 모달 공용) ──────────
+function makeSubmissionSVG(num, den, coloredArr, size) {
+  den = parseInt(den) || 1;
+  const colored = new Set((coloredArr || []).map(Number));
+  const S = size, cx = S/2, cy = S/2, R = S/2 - 6;
+  let paths = '';
+  for (let i = 0; i < den; i++) {
+    const a1 = (i / den) * 2 * Math.PI - Math.PI / 2;
+    const a2 = ((i + 1) / den) * 2 * Math.PI - Math.PI / 2;
+    const x1 = cx + R * Math.cos(a1), y1 = cy + R * Math.sin(a1);
+    const x2 = cx + R * Math.cos(a2), y2 = cy + R * Math.sin(a2);
+    const large = (1 / den) > 0.5 ? 1 : 0;
+    const fill = colored.has(i) ? '#3cb371' : '#f0f0f0';
+    paths += `<path d="M${cx},${cy} L${x1.toFixed(2)},${y1.toFixed(2)} A${R},${R} 0 ${large},1 ${x2.toFixed(2)},${y2.toFixed(2)} Z" fill="${fill}" stroke="white" stroke-width="1.5"/>`;
+  }
+  let dashes = '';
+  for (let i = 0; i < den; i++) {
+    const a = (i / den) * 2 * Math.PI - Math.PI / 2;
+    const x = cx + R * Math.cos(a), y = cy + R * Math.sin(a);
+    dashes += `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(2)}" y2="${y.toFixed(2)}" stroke="white" stroke-width="1.5" stroke-dasharray="5,4"/>`;
+  }
+  return `<svg width="${S}" height="${S}">
+    <circle cx="${cx}" cy="${cy}" r="${R}" fill="#f0f0f0" stroke="#ddd" stroke-width="1.5"/>
+    ${paths}${dashes}
+    <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="#3cb371" stroke-width="2.5"/>
+  </svg>`;
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// 현재 모달에 열린 학생 데이터 캐시
+let _modalData = {};
+
+function openSubmissionModal(name, num, den, coloredStr) {
+  const colored = coloredStr ? coloredStr.split(',').filter(Boolean).map(Number) : [];
+  _modalData = { name, num, den, colored };
+  document.getElementById('modal-student-name').textContent = name;
+  document.getElementById('modal-content').innerHTML = `
+    <div class="submission-modal-frac">
+      <div class="submission-modal-num">${escHtml(num)}</div>
+      <div class="submission-modal-line"></div>
+      <div class="submission-modal-den">${escHtml(den)}</div>
+    </div>
+    ${makeSubmissionSVG(num, den, colored, 260)}
+  `;
+  // 비교하기 버튼 (교사만)
+  const existingBtn = document.getElementById('modal-compare-btn');
+  if (existingBtn) existingBtn.remove();
+  if (session.role === 'teacher') {
+    const btn = document.createElement('button');
+    btn.id = 'modal-compare-btn';
+    btn.className = 'modal-compare-btn';
+    btn.textContent = '비교하기';
+    btn.onclick = showCompareView;
+    document.querySelector('.submission-modal-box').appendChild(btn);
+  }
+  document.getElementById('submission-modal').classList.add('open');
+}
+
+function makeTeacherPieSVG(num, den, size) {
+  num = Math.max(0, parseInt(num) || 0);
+  den = Math.max(1, parseInt(den) || 1);
+  const S = size, cx = S/2, cy = S/2, R = S/2 - 6;
+  let paths = '';
+  for (let i = 0; i < den; i++) {
+    const a1 = (i / den) * 2 * Math.PI - Math.PI / 2;
+    const a2 = ((i + 1) / den) * 2 * Math.PI - Math.PI / 2;
+    const x1 = cx + R * Math.cos(a1), y1 = cy + R * Math.sin(a1);
+    const x2 = cx + R * Math.cos(a2), y2 = cy + R * Math.sin(a2);
+    const large = (1 / den) > 0.5 ? 1 : 0;
+    const fill = i < num ? '#e06020' : '#f0f0f0';
+    paths += `<path d="M${cx},${cy} L${x1.toFixed(2)},${y1.toFixed(2)} A${R},${R} 0 ${large},1 ${x2.toFixed(2)},${y2.toFixed(2)} Z" fill="${fill}" stroke="white" stroke-width="1.5"/>`;
+  }
+  let dashes = '';
+  for (let i = 0; i < den; i++) {
+    const a = (i / den) * 2 * Math.PI - Math.PI / 2;
+    const x = cx + R * Math.cos(a), y = cy + R * Math.sin(a);
+    dashes += `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(2)}" y2="${y.toFixed(2)}" stroke="white" stroke-width="1.5" stroke-dasharray="5,4"/>`;
+  }
+  return `<svg width="${S}" height="${S}">
+    <circle cx="${cx}" cy="${cy}" r="${R}" fill="#f0f0f0" stroke="#ddd" stroke-width="1.5"/>
+    ${paths}${dashes}
+    <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="#f0a060" stroke-width="2.5"/>
+  </svg>`;
+}
+
+async function showCompareView() {
+  // 선생님 분수 가져오기
+  const snap = await db.ref(`rooms/${session.roomCode}/fraction`).once('value');
+  const tf = snap.val() || {};
+  const tNum = parseInt(tf.num) || 0;
+  const tDen = parseInt(tf.den) || 1;
+
+  const { num: sNum, den: sDen, colored, name } = _modalData;
+  const sColoredCount = colored.length;
+  const sVal = sColoredCount / (parseInt(sDen) || 1);
+  const tVal = tNum / tDen;
+
+  let sym, symClass;
+  if (Math.abs(sVal - tVal) < 1e-9)      { sym = '='; symClass = 'eq'; }
+  else if (sVal > tVal) { sym = '>'; symClass = ''; }
+  else                  { sym = '<'; symClass = 'lt'; }
+
+  const descText = sym === '='
+    ? `${name}의 답과 선생님의 분수가 같아요!`
+    : sym === '>'
+      ? `${name}의 답이 선생님의 분수보다 커요`
+      : `${name}의 답이 선생님의 분수보다 작아요`;
+
+  document.getElementById('modal-content').innerHTML = `
+    <div class="compare-view">
+      <div class="compare-party">
+        <div class="compare-label">학생 (${escHtml(name)})</div>
+        <div class="compare-frac">
+          <div class="compare-frac-num">${sColoredCount}</div>
+          <div class="compare-frac-line"></div>
+          <div class="compare-frac-den">${escHtml(sDen)}</div>
+        </div>
+        ${makeSubmissionSVG(sNum, sDen, colored, 160)}
+      </div>
+      <div class="compare-symbol ${symClass}">${sym}</div>
+      <div class="compare-party">
+        <div class="compare-label">선생님</div>
+        <div class="compare-frac">
+          <div class="compare-frac-num">${tNum}</div>
+          <div class="compare-frac-line"></div>
+          <div class="compare-frac-den">${tDen}</div>
+        </div>
+        ${makeTeacherPieSVG(tNum, tDen, 160)}
+      </div>
+    </div>
+    <div style="font-size:13px;color:#888;font-weight:700;margin-top:4px;">${descText}</div>
+  `;
+  const btn = document.getElementById('modal-compare-btn');
+  if (btn) btn.style.display = 'none';
+}
+
+function closeSubmissionModal() {
+  document.getElementById('submission-modal').classList.remove('open');
+  const btn = document.getElementById('modal-compare-btn');
+  if (btn) btn.remove();
+}
+
+document.getElementById('submission-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('submission-modal')) closeSubmissionModal();
+});
+
+// ── 채점 설정 진입 화면 확인 ────────────────────────────
+function confirmScoringSetup() {
+  const eq = document.getElementById('setup-score-eq').value;
+  const gt = document.getElementById('setup-score-gt').value;
+  const lt = document.getElementById('setup-score-lt').value;
+  // 실제 채점 인풋에 값 반영
+  document.getElementById('score-eq').value = eq;
+  document.getElementById('score-gt').value = gt;
+  document.getElementById('score-lt').value = lt;
+  // 화면 닫고 게임 진입
+  document.getElementById('scoring-setup-screen').classList.remove('open');
+  _teacherGameReady = true;
+  openTeacherGame();
+}
+
+// ── 채점 설정 패널 ───────────────────────────────────────
+function toggleScoringPanel() {
+  const p = document.getElementById('scoring-panel');
+  if (!p) return;
+  p.style.display = p.style.display === 'none' ? 'block' : 'none';
+}
+// 패널 바깥 클릭 시 닫기
+document.addEventListener('click', e => {
+  const panel = document.getElementById('scoring-panel');
+  const btn = document.getElementById('scoring-gear-btn');
+  if (!panel || !btn) return;
+  if (panel.style.display !== 'none' && !panel.contains(e.target) && e.target !== btn) {
+    panel.style.display = 'none';
+  }
+});
+
+// ── 채점 실행 ────────────────────────────────────────────
+async function runScoring() {
+  if (!session.roomCode) return;
+  const scoreEq = parseInt(document.getElementById('score-eq').value) || 0;
+  const scoreGt = parseInt(document.getElementById('score-gt').value) || 0;
+  const scoreLt = parseInt(document.getElementById('score-lt').value) || 0;
+
+  // 선생님 분수 읽기
+  const fracSnap = await db.ref(`rooms/${session.roomCode}/fraction`).once('value');
+  const tf = fracSnap.val() || {};
+  const tNum = parseInt(tf.num) || 0;
+  const tDen = parseInt(tf.den) || 1;
+  const tVal = tNum / tDen;
+
+  // 제출 내역 읽기
+  const subSnap = await db.ref(`rooms/${session.roomCode}/submissions`).once('value');
+  if (!subSnap.exists()) return;
+
+  const updates = {};
+  let scoredAny = false;
+
+  // 기존 점수 읽기 (중복 채점 방지 + 누적 합산용)
+  const scoresSnap = await db.ref(`rooms/${session.roomCode}/scores`).once('value');
+  const existing = scoresSnap.val() || {};
+
+  subSnap.forEach(child => {
+    const d = child.val();
+    // 이미 이 제출 시각에 채점됐으면 건너뜀 (submittedAt 기준, 둘 다 유효한 숫자일 때만)
+    const prevScore = existing[child.key];
+    if (prevScore
+        && prevScore.scoredSubmitTime
+        && d.submittedAt
+        && prevScore.scoredSubmitTime === d.submittedAt) return;
+
+    const sVal = (d.coloredSectors || []).length / (parseInt(d.den) || 1);
+    let pts = 0;
+    let flashType = 'none';
+    const diff = sVal - tVal;
+    if (Math.abs(diff) < 1e-9)     { pts = scoreEq; flashType = 'eq'; }
+    else if (diff > 0)             { pts = scoreGt;  flashType = 'gt'; }
+    else                           { pts = scoreLt;  flashType = 'lt'; }
+
+    const prev = prevScore?.total || 0;
+    updates[`rooms/${session.roomCode}/scores/${child.key}`] = {
+      name: d.name,
+      round: pts,
+      flashType,
+      total: prev + pts,
+      scoredSubmitTime: d.submittedAt  // 이 제출이 채점됐음을 기록
+    };
+    scoredAny = true;
+  });
+
+  if (!scoredAny) {
+    alert('이미 채점된 제출입니다.\n학생들이 새로 제출하면 채점할 수 있습니다.');
+    return;
+  }
+
+  await db.ref().update(updates);
+  const sp = document.getElementById('scoring-panel');
+  if (sp) sp.style.display = 'none';
+}
+
+// ── 점수 초기화 ──────────────────────────────────────────
+async function resetAllScores() {
+  if (!session.roomCode) return;
+  if (!confirm('모든 학생 점수를 초기화할까요?')) return;
+  await db.ref(`rooms/${session.roomCode}/scores`).remove();
+}
+
+// ── 교사: 점수 실시간 반영 (카드 이름 옆 + 깜박임) ──────
+function listenScores() {
+  db.ref(`rooms/${session.roomCode}/scores`).on('value', snap => {
+    const scores = snap.val() || {};
+    document.querySelectorAll('.answer-submission[data-sid]').forEach(card => {
+      const sid = card.getAttribute('data-sid');
+      const sc = scores[sid];
+      const nameEl = card.querySelector('.answer-sub-name');
+      if (!nameEl) return;
+
+      // 이름 텍스트 (첫 텍스트 노드만)
+      const rawName = nameEl.getAttribute('data-name') || nameEl.textContent.replace(/\d+점/, '').trim();
+      nameEl.setAttribute('data-name', rawName);
+
+      // 점수 배지 업데이트
+      let badge = nameEl.querySelector('.answer-sub-score-inline');
+      if (sc && sc.total > 0) {
+        if (!badge) {
+          badge = document.createElement('span');
+          badge.className = 'answer-sub-score-inline';
+          nameEl.appendChild(badge);
+        }
+        badge.textContent = sc.total + '점';
+      } else if (badge) {
+        badge.remove();
+      }
+
+      // 채점 결과 깜박임 (flashType 기반)
+      card.classList.remove('flash-red', 'flash-green');
+      if (sc && sc.flashType) {
+        void card.offsetWidth; // reflow
+        if (sc.flashType === 'eq') card.classList.add('flash-green');
+        else if (sc.flashType === 'gt' || sc.flashType === 'lt') card.classList.add('flash-red');
+        // 애니메이션 끝나면 클래스 제거
+        setTimeout(() => { card.classList.remove('flash-red','flash-green'); }, 2500);
+      }
+    });
+  });
+}
+
+// ── 학생: 내 점수 실시간 수신 ────────────────────────────
+let _lastScoreTotal = -1;
+
+function listenMyScore() {
+  db.ref(`rooms/${session.roomCode}/scores/${session.studentId}`).on('value', snap => {
+    const sc = snap.val();
+    const bar = document.getElementById('student-score-bar');
+    const val = document.getElementById('student-score-val');
+    if (!bar || !val) return;
+
+    if (sc && typeof sc.total === 'number') {
+      bar.style.display = 'flex';
+      const prev = _lastScoreTotal;
+      _lastScoreTotal = sc.total;
+      val.textContent = sc.total;
+
+      // 점수가 새로 갱신됐을 때
+      if (prev !== sc.total && prev !== -1) {
+        val.classList.remove('bump');
+        void val.offsetWidth;
+        val.classList.add('bump');
+        setTimeout(() => val.classList.remove('bump'), 400);
+        // 가운데 팝업
+        showScorePopup(sc.round || 0);
+      }
+    } else {
+      bar.style.display = 'none';
+      val.textContent = '0';
+      _lastScoreTotal = -1;
+    }
+  });
+}
+
+function showScorePopup(pts) {
+  const popup = document.getElementById('student-score-popup');
+  const popVal = document.getElementById('score-popup-val');
+  if (!popup || !popVal) return;
+  popVal.textContent = '+' + pts;
+  popup.classList.add('show');
+  clearTimeout(popup._hideTimer);
+  popup._hideTimer = setTimeout(() => popup.classList.remove('show'), 3000);
+}
+
+// ── 최초 로그인 화면 표시 ────────────────────────────────
+showLoginScreen();
+</script>
+</body>
+</html>
