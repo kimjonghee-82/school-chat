@@ -505,7 +505,7 @@ body {
 
   <!-- Translate -->
   <div class="translate-wrap">
-    <button class="btn btn-orange" id="translateBtn" onclick="translate()" disabled>
+    <button class="btn btn-orange" id="translateBtn" onclick="doTranslate()" disabled>
       🔄 이 페이지 러시아어로 번역
     </button>
   </div>
@@ -903,7 +903,7 @@ function updateUI() {
 }
 
 // ──── Translation ────
-async function translate() {
+async function doTranslate() {
   const apiKey = localStorage.getItem('gemini_api_key') || document.getElementById('apiKeyInput').value.trim();
   if (!apiKey) { showError('Gemini API 키를 입력하고 저장해주세요.'); return; }
   if (!pages.length) return;
