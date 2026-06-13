@@ -1725,12 +1725,13 @@ async function translateSel(rect, popClientX, popClientY) {
     crop.getContext('2d').drawImage(full,cx,cy,cw,ch,0,0,cw,ch);
     const b64=crop.toDataURL('image/jpeg',.92).split(',')[1];
 
+    // 1단계: 번역
     const res=await fetch('https://api.groq.com/openai/v1/chat/completions',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},
       body:JSON.stringify({model:'meta-llama/llama-4-scout-17b-16e-instruct',max_tokens:2048,
         messages:[
-          {role:'system',content:`당신은 한국어 교과서 전문 번역가이자 발음 전문가입니다. 다음 규칙을 반드시 따르세요:
+          {role:'system',content:`당신은 한국어 교과서 전문 번역가입니다. 다음 규칙을 반드시 따르세요:
 
 1. 이미지에서 한국어 텍스트를 먼저 정확히 인식하세요.
 2. 인식한 텍스트가 단어(1~3어절)인 경우:
@@ -1743,16 +1744,9 @@ async function translateSel(rect, popClientX, popClientY) {
    - 문맥에 맞는 정확한 의미로만 번역하세요.
    - 교과서 문체에 맞게 자연스럽게 번역하세요.
 4. 번역하지 말고 그대로 둬야 할 것: 고유명사(지명·인명), 수식, 기호, 단위.
-5. [PRONOUNCE] 규칙 (절대 규칙):
-   - [TRANSLATED]의 번역문을 한국어 선생님이 소리내어 읽을 수 있도록 한글로만 발음 표기하세요.
-   - 오직 한글(가나다라...)만 사용. 로마자, 키릴문자, 몽골문자, 영어 등 어떤 외국 문자도 절대 금지.
-   - 모든 단어를 빠짐없이 한글로 변환하세요. 모르는 발음도 최대한 한글로 근사하세요.
-   - 러시아어 예시: "Привет" → "쁘리볫", "Вы можете" → "브이 모줴쩨"
-   - 영어 예시: "Hello" → "헬로우", "mathematics" → "매스매틱스"
-   - 몽골어 예시: "Үзсэн" → "으즈센", "агуулгатай" → "아굴가따이"
-6. 반드시 아래 형식으로만 답하세요. 다른 설명은 금지.`},
+5. 반드시 아래 형식으로만 답하세요. 다른 설명은 금지.`},
           {role:'user',content:[
-            {type:'text',text:`이미지의 한국어를 인식하고 ${LANG_FULL[targetLang]}로 번역하세요.\n반드시 아래 형식으로만 답하세요:\n[KOREAN]인식한 한국어 원문[/KOREAN]\n[TRANSLATED]${LANG_FULL[targetLang]} 번역문[/TRANSLATED]\n[PRONOUNCE]위 번역문 전체를 한글 발음으로만 표기. 한글 이외 문자 절대 사용 금지.[/PRONOUNCE]`},
+            {type:'text',text:`이미지의 한국어를 인식하고 ${LANG_FULL[targetLang]}로 번역하세요.\n형식:\n[KOREAN]인식한 한국어 원문[/KOREAN]\n[TRANSLATED]${LANG_FULL[targetLang]} 번역문[/TRANSLATED]`},
             {type:'image_url',image_url:{url:`data:image/jpeg;base64,${b64}`}}
           ]}
         ]})
@@ -1762,7 +1756,32 @@ async function translateSel(rect, popClientX, popClientY) {
     const text=json.choices?.[0]?.message?.content||'';
     const kor=(text.match(/\[KOREAN\]([\s\S]*?)\[\/KOREAN\]/)||[])[1]?.trim()||'인식 실패';
     const rus=(text.match(/\[TRANSLATED\]([\s\S]*?)\[\/TRANSLATED\]/)||[])[1]?.trim()||'번역 실패';
-    const pronounc=(text.match(/\[PRONOUNCE\]([\s\S]*?)\[\/PRONOUNCE\]/)||[])[1]?.trim()||'';
+
+    // 2단계: 발음 (별도 요청)
+    let pronounc = '';
+    if (rus && rus !== '번역 실패') {
+      try {
+        const res2=await fetch('https://api.groq.com/openai/v1/chat/completions',{
+          method:'POST',
+          headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},
+          body:JSON.stringify({model:'meta-llama/llama-4-scout-17b-16e-instruct',max_tokens:512,
+            messages:[
+              {role:'system',content:`You are a phonetic transcription expert. Your only job is to convert text into Korean phonetic pronunciation (한글 발음). Rules:
+- Output ONLY Korean characters (한글). No exceptions.
+- Do NOT output any foreign letters (Latin, Cyrillic, Arabic, Mongolian, etc.)
+- Transcribe every word phonetically into Korean syllables.
+- Examples: "Привет" → "쁘리볫", "Вы можете" → "브이 모줴쩨", "Hello" → "헬로우", "Тооцооллын" → "토오쪼올링", "дагавал" → "다가왈"`},
+              {role:'user',content:`Convert this ${LANG_FULL[targetLang]} text to Korean phonetic pronunciation. Output Korean only:\n\n${rus}`}
+            ]})
+        });
+        if(res2.ok){
+          const j2=await res2.json();
+          pronounc=(j2.choices?.[0]?.message?.content||'').trim();
+          // 한글 외 문자 포함 시 표시 안 함
+          if(/[^가-힣ㄱ-ㆎ\s.,!?·~\-]/.test(pronounc)) pronounc='';
+        }
+      } catch(_) {}
+    }
     document.getElementById('popKor').textContent=kor;
     document.getElementById('popRus').textContent=rus;
     const pEl=document.getElementById('popPronunc');
