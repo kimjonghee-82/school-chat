@@ -924,13 +924,15 @@ function drawSel() {
 }
 
 // ── Area translate ──
-let lastSelRect = null; // 마지막 선택 영역 저장
-let beforeApplyData = null; // 되돌리기용 원본 데이터
+let lastSelRect = null;
+let lastSelSlot = 0;
+let beforeApplyData = null;
 
 async function translateSel(rect, popClientX, popClientY) {
   const apiKey = localStorage.getItem('gemini_api_key') || document.getElementById('apiInput').value.trim();
   if (!apiKey) { openSettings(); return; }
-  const page = slots[currentSlot]; if (!page) return;
+  lastSelSlot = (getTwoPageMode() && activePane===1) ? currentSlot+1 : currentSlot;
+  const page = slots[lastSelSlot]; if (!page) return;
 
   lastSelRect = rect;
   const cx=Math.max(0,Math.round(rect.x)), cy=Math.max(0,Math.round(rect.y));
@@ -964,7 +966,7 @@ async function translateSel(rect, popClientX, popClientY) {
       headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},
       body:JSON.stringify({model:'meta-llama/llama-4-scout-17b-16e-instruct',max_tokens:1024,
         messages:[{role:'user',content:[
-          {type:'text',text:`이 이미지에서 한국어를 인식하고 ${LANG_FULL[targetLang]}로 번역하세요.\n형식: [KOREAN](한국어)[/KOREAN][RUSSIAN](번역)[/RUSSIAN]`},
+          {type:'text',text:`이 이미지에서 한국어 텍스트를 정확히 인식한 후 ${LANG_FULL[targetLang]}로 번역하세요.\n반드시 아래 형식으로만 답하세요:\n[KOREAN]인식한 한국어[/KOREAN]\n[TRANSLATED]${LANG_FULL[targetLang]} 번역[/TRANSLATED]`},
           {type:'image_url',image_url:{url:`data:image/jpeg;base64,${b64}`}}
         ]}]})
     });
@@ -972,7 +974,7 @@ async function translateSel(rect, popClientX, popClientY) {
     const json=await res.json();
     const text=json.choices?.[0]?.message?.content||'';
     const kor=(text.match(/\[KOREAN\]([\s\S]*?)\[\/KOREAN\]/)||[])[1]?.trim()||'인식 실패';
-    const rus=(text.match(/\[RUSSIAN\]([\s\S]*?)\[\/RUSSIAN\]/)||[])[1]?.trim()||'번역 실패';
+    const rus=(text.match(/\[TRANSLATED\]([\s\S]*?)\[\/TRANSLATED\]/)||[])[1]?.trim()||'번역 실패';
     document.getElementById('popKor').textContent=kor;
     document.getElementById('popRus').textContent=rus;
     if(kor !== '인식 실패') document.getElementById('popApply').classList.add('visible');
@@ -985,7 +987,7 @@ async function translateSel(rect, popClientX, popClientY) {
 
 // ── Apply translation to image ──
 function applyTranslationToImage() {
-  const page = slots[currentSlot]; if (!page || !lastSelRect) return;
+  const page = slots[lastSelSlot]; if (!page || !lastSelRect) return;
   const rus = document.getElementById('popRus').textContent;
   if (!rus || rus === '번역 실패') return;
 
@@ -1062,7 +1064,7 @@ function applyTranslationToImage() {
   // 두 이미지 모두 교체
   const newOriginal = drawOnCanvas(page.original);
   const newProcessed = drawOnCanvas(page.processed);
-  slots[currentSlot] = { original: newOriginal, processed: newProcessed, width: page.width, height: page.height };
+  slots[lastSelSlot] = { original: newOriginal, processed: newProcessed, width: page.width, height: page.height };
 
   renderCurrentPage();
   document.getElementById('popApply').classList.remove('visible');
@@ -1070,8 +1072,8 @@ function applyTranslationToImage() {
 }
 
 function undoApply() {
-  const page = slots[currentSlot]; if (!page || !beforeApplyData) return;
-  slots[currentSlot] = { original: beforeApplyData.original, processed: beforeApplyData.processed, width: page.width, height: page.height };
+  const page = slots[lastSelSlot]; if (!page || !beforeApplyData) return;
+  slots[lastSelSlot] = { original: beforeApplyData.original, processed: beforeApplyData.processed, width: page.width, height: page.height };
   beforeApplyData = null;
   renderCurrentPage();
   document.getElementById('popUndo').classList.remove('visible');
