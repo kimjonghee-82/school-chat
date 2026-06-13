@@ -421,9 +421,7 @@ async function loadBooks() {
 
 async function loadBookStructure(bookId, fbBase) {
   const container = document.getElementById('rangeTags');
-  const loading = document.getElementById('rangeLoading');
   container.innerHTML = '<span style="color:#8b949e;font-size:0.82rem">불러오는 중...</span>';
-  loading.style.display = 'none';
   try {
     const r = await fetch(`${fbBase}/books/${bookId}.json`);
     const data = await r.json();
