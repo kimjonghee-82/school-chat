@@ -910,6 +910,7 @@ async function translate() {
 
   showLoading('Gemini AI가 이미지를 분석 중...');
   hideError();
+  console.log('번역 시작, API 키:', apiKey.substring(0, 8) + '...');
 
   try {
     const page = pages[currentPage];
@@ -976,8 +977,8 @@ async function translate() {
     setTimeout(() => grid.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
 
   } catch (e) {
+    alert('번역 오류: ' + e.message);
     showError('오류: ' + e.message);
-    document.getElementById('errorMsg').scrollIntoView({ behavior: 'smooth', block: 'center' });
   } finally {
     hideLoading();
   }
