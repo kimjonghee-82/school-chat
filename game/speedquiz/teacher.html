@@ -442,83 +442,98 @@ async function loadBookStructure(bookId, fbBase) {
     const data = await r.json();
     if (!data || !data.text) { picker.innerHTML = '<p class="range-picker-msg">텍스트를 불러올 수 없습니다</p>'; return; }
     bookTextCache = data.text;
-    bookStructure = parseBookStructure(data.text);
+
+    if (cfg.claudeApiKey) {
+      picker.innerHTML = '<p class="range-picker-msg">AI가 목차를 분석하는 중... (5~10초)</p>';
+      bookStructure = await extractStructureWithAI(data.text, cfg.claudeApiKey);
+    }
+    if (!bookStructure || !bookStructure.units.length) {
+      bookStructure = { units: [] };
+    }
+    // Fill actual text spans for each unit/lesson using keyword search
+    fillStructureText(bookStructure, data.text);
     renderRangePicker(bookStructure);
-  } catch {
-    picker.innerHTML = '<p class="range-picker-msg">불러오기 실패</p>';
+  } catch(e) {
+    picker.innerHTML = `<p class="range-picker-msg">분석 실패: ${e.message}</p>`;
   }
 }
 
-function parseBookStructure(text) {
-  // Skip the first 8% of text (목차/머리말 구간)
-  const skipLen = Math.floor(text.length * 0.08);
-  const body = text.slice(skipLen);
-  const bodyOffset = skipLen;
+async function extractStructureWithAI(text, apiKey) {
+  // Send first 4000 chars — usually contains the table of contents
+  const sample = text.substring(0, 4000);
+  const prompt = `다음은 초등학교 교과서/지도서에서 추출한 텍스트입니다(PDF 추출이라 다소 지저분할 수 있음).
+목차 또는 내용에서 단원과 차시 구조를 파악해 JSON으로 반환하세요.
 
-  // Find unit headers by scanning lines — only short lines containing "N단원" count
-  // This avoids matching mid-sentence references like "3단원에서 배운 내용"
-  const lines = body.split('\n');
-  const allHits = {}; // num → first matching line position
-  let linePos = 0;
-  for (const line of lines) {
-    const trimmed = line.trim();
-    // Unit header line: ≤ 40 chars, starts with or primarily is "N단원"
-    if (trimmed.length <= 40) {
-      const hm = trimmed.match(/(?<!\d)([1-9])\s*단원/);
-      if (hm) {
-        const num = parseInt(hm[1]);
-        // Only record first occurrence (actual chapter start comes before inline refs)
-        if (!allHits[num]) allHits[num] = linePos + line.indexOf(hm[0]);
-      }
+규칙:
+- 단원은 보통 6개 이하
+- 차시는 "1차시", "2~3차시" 등의 형태
+- 확실하지 않으면 lessons를 빈 배열로
+- JSON만 반환 (설명 없이):
+{"units":[{"num":1,"name":"단원 제목","lessons":["1차시","2~3차시","4차시"]},{"num":2,"name":"...","lessons":["1차시",...]}]}
+
+텍스트:
+${sample}`;
+
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},
+    body: JSON.stringify({
+      model: 'llama-3.3-70b-versatile',
+      max_tokens: 1024,
+      messages: [
+        {role:'system', content:'초등학교 교과서 구조 분석 전문가입니다. JSON 형식으로만 응답하세요.'},
+        {role:'user', content: prompt}
+      ]
+    })
+  });
+  if (!res.ok) throw new Error('AI 분석 실패');
+  const d = await res.json();
+  const content = d.choices?.[0]?.message?.content?.trim() || '';
+  const match = content.match(/\{[\s\S]*\}/);
+  if (!match) return null;
+  const parsed = JSON.parse(match[0]);
+  if (!parsed.units?.length) return null;
+
+  return {
+    units: parsed.units.map(u => ({
+      id: `u${u.num}`,
+      num: u.num,
+      name: `${u.num}단원 ${u.name || ''}`.trim(),
+      text: '',
+      lessons: (u.lessons || []).map((l, j) => ({
+        id: `u${u.num}_l${j}`,
+        name: typeof l === 'string' ? l : String(l),
+        text: ''
+      }))
+    }))
+  };
+}
+
+function findInText(text, query, afterPos = 0) {
+  const idx = text.indexOf(query, afterPos);
+  return idx === -1 ? afterPos : idx;
+}
+
+function fillStructureText(structure, fullText) {
+  // Skip first 8% (목차 구간) when searching for actual unit content
+  const skipLen = Math.floor(fullText.length * 0.08);
+  const body = fullText;
+
+  for (let i = 0; i < structure.units.length; i++) {
+    const unit = structure.units[i];
+    const nextUnit = structure.units[i + 1];
+    const unitStart = findInText(body, `${unit.num}단원`, skipLen);
+    const unitEnd = nextUnit ? findInText(body, `${nextUnit.num}단원`, unitStart + 50) : body.length;
+    unit.text = body.slice(unitStart, unitEnd);
+
+    for (let j = 0; j < unit.lessons.length; j++) {
+      const lesson = unit.lessons[j];
+      const nextLesson = unit.lessons[j + 1];
+      const lStart = findInText(unit.text, lesson.name, 0);
+      const lEnd = nextLesson ? findInText(unit.text, nextLesson.name, lStart + 10) : unit.text.length;
+      lesson.text = unit.text.slice(lStart, lEnd);
     }
-    linePos += line.length + 1;
   }
-
-  const nums = Object.keys(allHits).map(Number).sort((a, b) => a - b);
-  if (!nums.length) return { units: [] };
-
-  // Use chosen positions as-is (first short-line occurrence per unit)
-  const chosen = {};
-  nums.forEach(n => { chosen[n] = allHits[n]; });
-
-  // Build unit spans using chosen positions (sorted)
-  const sortedNums = nums.sort((a, b) => chosen[a] - chosen[b]);
-  const units = [];
-
-  for (let i = 0; i < sortedNums.length; i++) {
-    const num = sortedNums[i];
-    const start = chosen[num];
-    const end = i + 1 < sortedNums.length ? chosen[sortedNums[i + 1]] : body.length;
-    const unitText = body.slice(start, end);
-
-    // Find lessons within this unit
-    const lessonRegex = /(?<!\d)(\d{1,2})(?:~(\d{1,2}))?\s*차시/g;
-    const lessonHits = [];
-    let lm;
-    while ((lm = lessonRegex.exec(unitText)) !== null) {
-      const n1 = parseInt(lm[1]);
-      const n2 = lm[2] ? parseInt(lm[2]) : null;
-      const name = n2 ? `${n1}~${n2}차시` : `${n1}차시`;
-      if (!lessonHits.find(l => l.name === name)) {
-        lessonHits.push({ name, index: lm.index });
-      }
-    }
-
-    const lessons = lessonHits.map((lh, j) => ({
-      id: `u${num}_l${j}`,
-      name: lh.name,
-      text: unitText.slice(lh.index, j + 1 < lessonHits.length ? lessonHits[j + 1].index : unitText.length)
-    }));
-
-    units.push({
-      id: `u${num}`,
-      num,
-      name: `${num}단원`,
-      text: unitText,
-      lessons
-    });
-  }
-  return { units };
 }
 
 function renderRangePicker(structure) {
