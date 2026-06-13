@@ -69,7 +69,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
 }
 .shelf-books {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(7, 1fr);
   gap: 10px;
   align-items: flex-end;
   padding: 20px 16px 6px;
@@ -758,7 +758,7 @@ function dbDelete(id) {
 let bookList = [];       // [{id, title, thumbnail, addedAt, pdfData}]
 let deleteTargetId = null;
 let currentBookId = null;
-const BOOKS_PER_SHELF = 5;
+const BOOKS_PER_SHELF = 7;
 
 async function initLibrary() {
   try {
