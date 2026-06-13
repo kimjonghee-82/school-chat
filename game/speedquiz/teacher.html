@@ -456,12 +456,12 @@ function parseBookStructure(text) {
   const bodyOffset = skipLen;
 
   // Collect ALL positions of each unit number in the body
-  const unitRegex = /(\d{1,2})\s*단원/g;
+  // Use negative lookbehind to avoid matching "23단원" from page-number artifacts
+  const unitRegex = /(?<!\d)([1-9])\s*단원/g;
   const allHits = {};
   let m;
   while ((m = unitRegex.exec(body)) !== null) {
     const num = parseInt(m[1]);
-    if (num < 1 || num > 15) continue;
     if (!allHits[num]) allHits[num] = [];
     allHits[num].push(m.index);
   }
@@ -503,7 +503,7 @@ function parseBookStructure(text) {
     const unitText = body.slice(start, end);
 
     // Find lessons within this unit
-    const lessonRegex = /(\d{1,2})(?:~(\d{1,2}))?\s*차시/g;
+    const lessonRegex = /(?<!\d)(\d{1,2})(?:~(\d{1,2}))?\s*차시/g;
     const lessonHits = [];
     let lm;
     while ((lm = lessonRegex.exec(unitText)) !== null) {
