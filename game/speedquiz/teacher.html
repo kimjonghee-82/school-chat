@@ -466,17 +466,29 @@ async function loadBookStructure(bookId, fbBase) {
     const data = await r.json();
     if (!data) { container.innerHTML = '<span style="color:#f47067">지도서를 불러올 수 없습니다</span>'; return; }
 
-    if (data.type === 'pdf') {
-      const pc = data.pageCount || '?';
-      container.innerHTML = `<span style="color:#4caf50;font-size:0.85rem">📄 PDF — 총 ${pc}페이지 (${data.pdfSize || '?'}MB)</span>`;
-      pageRangeGroup.style.display = 'block';
-      document.getElementById('pageTotal').textContent = `총 ${pc}페이지`;
-      if (!document.getElementById('endPage').value && pc) {
-        document.getElementById('startPage').value = cfg.startPage || 1;
-        document.getElementById('endPage').value = cfg.endPage || Math.min(10, pc);
+    if (data.type === 'pdf' || data.pageCount > 0 && !data.text) {
+      // Check PDF chunks exist (also handles books uploaded before type field was added)
+      let hasPdfChunks = data.type === 'pdf';
+      if (!hasPdfChunks) {
+        try {
+          const cr = await fetch(`${fbBase}/books/${bookId}/pdf/chunks.json`);
+          const cc = await cr.json();
+          hasPdfChunks = cc && cc > 0;
+        } catch {}
       }
-      cfg.bookType = 'pdf';
-      cfg.bookText = '';
+      if (hasPdfChunks) {
+        const pc = data.pageCount || '?';
+        container.innerHTML = `<span style="color:#4caf50;font-size:0.85rem">📄 PDF — 총 ${pc}페이지${data.pdfSize ? ' (' + data.pdfSize + 'MB)' : ''}</span>`;
+        pageRangeGroup.style.display = 'block';
+        document.getElementById('pageTotal').textContent = `총 ${pc}페이지`;
+        document.getElementById('startPage').value = cfg.startPage || 1;
+        document.getElementById('endPage').value = cfg.endPage || Math.min(10, typeof pc === 'number' ? pc : 10);
+        cfg.bookType = 'pdf';
+        cfg.bookText = '';
+      } else {
+        container.innerHTML = '<span style="color:#f47067">PDF 데이터 없음 — index.html에서 다시 업로드해주세요</span>';
+        pageRangeGroup.style.display = 'none';
+      }
     } else if (data.text) {
       bookTextCache = data.text;
       cfg.bookType = 'text';
@@ -484,7 +496,23 @@ async function loadBookStructure(bookId, fbBase) {
       container.innerHTML = '<span style="color:#8b949e;font-size:0.82rem">📝 텍스트 기반 지도서 — 페이지 설정 없이 바로 문제 생성 가능합니다</span>';
       pageRangeGroup.style.display = 'none';
     } else {
-      container.innerHTML = '<span style="color:#f47067">내용 없음 — 지도서를 다시 업로드해주세요</span>';
+      // Try fetching PDF chunks as last resort
+      try {
+        const cr = await fetch(`${fbBase}/books/${bookId}/pdf/chunks.json`);
+        const cc = await cr.json();
+        if (cc && cc > 0) {
+          const pc = data.pageCount || '?';
+          container.innerHTML = `<span style="color:#4caf50;font-size:0.85rem">📄 PDF — 총 ${pc}페이지</span>`;
+          pageRangeGroup.style.display = 'block';
+          document.getElementById('pageTotal').textContent = `총 ${pc}페이지`;
+          document.getElementById('startPage').value = cfg.startPage || 1;
+          document.getElementById('endPage').value = cfg.endPage || Math.min(10, typeof pc === 'number' ? pc : 10);
+          cfg.bookType = 'pdf';
+          cfg.bookText = '';
+          return;
+        }
+      } catch {}
+      container.innerHTML = '<span style="color:#f47067">내용 없음 — index.html에서 다시 업로드해주세요</span>';
       pageRangeGroup.style.display = 'none';
     }
   } catch(e) {
