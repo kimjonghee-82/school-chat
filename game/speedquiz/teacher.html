@@ -9,31 +9,42 @@
 body { min-height:100vh; background:#0d1117; color:#fff; font-family:'Segoe UI',sans-serif; }
 
 header {
-  display:grid;
-  grid-template-columns:6fr 2fr 2fr;
+  display:flex;
   align-items:center;
   padding:14px 24px;
   background:#161b22;
   border-bottom:2px solid #30363d;
-  gap:12px;
+  gap:16px;
   position:sticky;
   top:0;
   z-index:10;
 }
-.room-code-area { display:flex; align-items:center; gap:12px; }
+.room-code-area { display:flex; align-items:center; gap:12px; flex:1; }
 .room-code-label { color:#8b949e; font-size:0.85rem; white-space:nowrap; }
 .room-code-value {
   font-size:2.2rem; font-weight:700; letter-spacing:8px;
   color:#4caf50; font-family:monospace;
+  cursor:pointer; user-select:none;
+  transition:opacity 0.15s;
 }
-.btn-copy {
-  background:transparent; border:1px solid #30363d; color:#8b949e;
-  padding:4px 10px; border-radius:6px; cursor:pointer; font-size:0.8rem;
-  white-space:nowrap;
-}
-.btn-copy:hover { border-color:#4caf50; color:#4caf50; }
+.room-code-value:hover { opacity:0.75; }
 
-.game-controls { display:flex; gap:8px; justify-content:center; }
+/* Room code popup */
+.room-popup-overlay {
+  position:fixed; inset:0; background:rgba(0,0,0,0.85);
+  display:flex; align-items:center; justify-content:center;
+  z-index:500; cursor:pointer;
+}
+.room-popup-code {
+  font-size:clamp(5rem, 18vw, 12rem);
+  font-weight:900; letter-spacing:16px;
+  color:#4caf50; font-family:monospace;
+  text-shadow:0 0 60px rgba(76,175,80,0.5);
+  user-select:none;
+}
+.room-popup-hint { color:#8b949e; font-size:1rem; margin-top:16px; text-align:center; }
+
+.game-controls { display:flex; gap:8px; }
 .btn-start {
   background:#4caf50; color:#fff; border:none;
   padding:10px 18px; border-radius:8px; font-size:0.95rem;
@@ -49,7 +60,6 @@ header {
 .btn-end:hover:not(:disabled) { background:#e53935; }
 .btn-end:disabled { background:#4a1515; color:#666; cursor:not-allowed; }
 
-.settings-area { display:flex; justify-content:flex-end; }
 .btn-settings {
   background:transparent; border:1px solid #30363d; color:#8b949e;
   width:44px; height:44px; border-radius:8px; font-size:1.3rem;
@@ -176,19 +186,24 @@ main { padding:24px; max-width:1400px; margin:0 auto; }
 <body>
 
 <header>
+  <button class="btn-settings" onclick="openSettings()" title="설정">⚙️</button>
   <div class="room-code-area">
     <span class="room-code-label">룸코드</span>
-    <span class="room-code-value" id="roomCode">------</span>
-    <button class="btn-copy" onclick="copyRoomCode()">📋 복사</button>
+    <span class="room-code-value" id="roomCode" onclick="showRoomPopup()" title="클릭하면 크게 보기">------</span>
   </div>
   <div class="game-controls">
     <button class="btn-start" id="startBtn" onclick="startGame()">▶ 게임 시작</button>
     <button class="btn-end" id="endBtn" onclick="endGame()" disabled>■ 종료</button>
   </div>
-  <div class="settings-area">
-    <button class="btn-settings" onclick="openSettings()" title="설정">⚙️</button>
-  </div>
 </header>
+
+<!-- Room code popup -->
+<div class="room-popup-overlay" id="roomPopup" style="display:none" onclick="closeRoomPopup()">
+  <div style="text-align:center">
+    <div class="room-popup-code" id="popupCode"></div>
+    <div class="room-popup-hint">클릭하면 닫힙니다</div>
+  </div>
+</div>
 
 <main>
   <div class="status-bar" id="statusBar"></div>
@@ -423,9 +438,13 @@ function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-// ── Copy room code ─────────────────────────────────────────────────
-function copyRoomCode() {
-  navigator.clipboard.writeText(roomCode).then(() => showStatus('룸코드가 복사되었습니다!','success'));
+// ── Room code popup ────────────────────────────────────────────────
+function showRoomPopup() {
+  document.getElementById('popupCode').textContent = roomCode;
+  document.getElementById('roomPopup').style.display = 'flex';
+}
+function closeRoomPopup() {
+  document.getElementById('roomPopup').style.display = 'none';
 }
 
 // ── Game Start ─────────────────────────────────────────────────────
