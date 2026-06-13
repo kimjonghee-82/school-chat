@@ -175,18 +175,23 @@ main { padding:24px; max-width:1400px; margin:0 auto; }
 
 .hidden { display:none !important; }
 
-.ru { margin-bottom:3px; }
-.ru-header { display:flex; align-items:center; justify-content:space-between; padding:5px 8px; border-radius:6px; background:#161b22; cursor:pointer; user-select:none; }
-.ru-header:hover { background:#1c2128; }
-.ru-label { display:flex; align-items:center; gap:7px; font-size:0.84rem; color:#e6edf3; }
-.ru-label input[type=checkbox] { accent-color:#4caf50; cursor:pointer; }
-.ru-arrow { color:#8b949e; font-size:0.7rem; transition:transform 0.15s; }
-.ru-arrow.open { transform:rotate(90deg); }
-.ru-lessons { display:none; padding:3px 8px 3px 22px; }
-.ru-lessons.open { display:block; }
-.rl { display:flex; align-items:center; gap:7px; padding:4px 6px; border-radius:4px; color:#c9d1d9; cursor:pointer; }
-.rl:hover { background:#1c2128; }
-.rl input[type=checkbox] { accent-color:#5c6bc0; cursor:pointer; }
+.range-tag {
+  display:inline-flex; align-items:center; gap:5px;
+  background:#1a2a3a; border:1px solid #5c6bc0;
+  color:#a0c0f0; border-radius:20px;
+  padding:4px 10px; font-size:0.8rem; cursor:default;
+  user-select:none;
+}
+.range-tag.active { background:#1a3a1a; border-color:#4caf50; color:#80e080; }
+.range-tag .rt-x { cursor:pointer; opacity:0.6; font-size:0.85rem; }
+.range-tag .rt-x:hover { opacity:1; }
+.range-tag-btn {
+  display:inline-flex; align-items:center;
+  background:transparent; border:1px dashed #30363d;
+  color:#8b949e; border-radius:20px;
+  padding:4px 10px; font-size:0.8rem; cursor:pointer;
+}
+.range-tag-btn:hover { border-color:#5c6bc0; color:#a0c0f0; }
 
 
 .final-banner {
@@ -264,11 +269,17 @@ main { padding:24px; max-width:1400px; margin:0 auto; }
     </div>
 
     <div class="form-group">
-      <label>출제 범위 <span id="rangeLoading" style="color:#e3b341;font-size:0.75rem;display:none">분석 중...</span></label>
-      <div id="rangePicker" style="background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:10px;max-height:230px;overflow-y:auto;font-size:0.84rem;">
-        <span style="color:#8b949e">지도서를 선택하면 단원/차시가 표시됩니다</span>
+      <label>출제 범위 <span id="rangeLoading" style="color:#e3b341;font-size:0.75rem;display:none">AI 분석 중...</span></label>
+      <!-- Tag chips -->
+      <div id="rangeTags" style="display:flex;flex-wrap:wrap;gap:6px;min-height:36px;background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:8px;margin-bottom:6px;">
+        <span style="color:#8b949e;font-size:0.82rem;align-self:center">지도서를 선택하면 단원/차시가 표시됩니다</span>
       </div>
-      <div id="rangeSummary" style="font-size:0.75rem;color:#58a6ff;margin-top:6px;"></div>
+      <!-- Manual add -->
+      <div style="display:flex;gap:6px;">
+        <input type="text" id="rangeManual" placeholder="직접 추가: 예) 3단원 2~3차시" style="flex:1;font-size:0.85rem;">
+        <button type="button" onclick="addManualRange()" style="background:#30363d;border:none;color:#e6edf3;padding:0 12px;border-radius:8px;cursor:pointer;font-size:0.85rem;white-space:nowrap">추가</button>
+      </div>
+      <small style="color:#8b949e;font-size:0.75rem;margin-top:4px;display:block">선택 없으면 전체 내용으로 출제</small>
     </div>
 
     <div class="form-group">
@@ -459,79 +470,68 @@ async function extractStructureWithAI(text, apiKey) {
   };
 }
 
+// selectedRanges is now a Set of label strings like "3단원 2~3차시"
 function renderRangePicker() {
-  const picker = document.getElementById('rangePicker');
-  picker.innerHTML = bookStructure.units.map(unit => `
-    <div class="ru">
-      <div class="ru-header" onclick="toggleRU('${unit.id}')">
-        <label class="ru-label" onclick="event.stopPropagation()">
-          <input type="checkbox" id="chk_${unit.id}" onchange="onUnitChk('${unit.id}')">
-          <span>${unit.name} 전체</span>
-        </label>
-        <span class="ru-arrow" id="arr_${unit.id}">▸</span>
-      </div>
-      <div class="ru-lessons" id="les_${unit.id}">
-        ${unit.lessons.length ? unit.lessons.map(l=>`
-          <label class="rl">
-            <input type="checkbox" id="chk_${l.id}" onchange="onLessonChk('${unit.id}','${l.id}')">
-            <span>${l.name}</span>
-          </label>`).join('') : '<span style="color:#8b949e;font-size:0.78rem;padding:2px 0;display:block">차시 정보 없음</span>'}
-      </div>
-    </div>`).join('');
-  // Restore selections
-  selectedRanges.forEach(id => { const el = document.getElementById('chk_'+id); if(el) el.checked=true; });
-  updateRangeSummary();
-}
-
-function toggleRU(uid) {
-  document.getElementById('les_'+uid).classList.toggle('open');
-  document.getElementById('arr_'+uid).classList.toggle('open');
-}
-function onUnitChk(uid) {
-  const unit = bookStructure.units.find(u=>u.id===uid);
-  const on = document.getElementById('chk_'+uid).checked;
-  if (on) { selectedRanges.add(uid); unit.lessons.forEach(l=>{ selectedRanges.delete(l.id); const el=document.getElementById('chk_'+l.id); if(el) el.checked=false; }); }
-  else selectedRanges.delete(uid);
-  updateRangeSummary();
-}
-function onLessonChk(uid, lid) {
-  const on = document.getElementById('chk_'+lid).checked;
-  if (on) { selectedRanges.add(lid); selectedRanges.delete(uid); const el=document.getElementById('chk_'+uid); if(el) el.checked=false; }
-  else selectedRanges.delete(lid);
-  updateRangeSummary();
-}
-function updateRangeSummary() {
-  const el = document.getElementById('rangeSummary');
-  if (!el||!bookStructure) return;
-  if (!selectedRanges.size) { el.textContent='선택 없음 (전체 내용으로 출제)'; return; }
-  const names=[];
-  bookStructure.units.forEach(u=>{
-    if(selectedRanges.has(u.id)){names.push(u.name+' 전체');return;}
-    u.lessons.forEach(l=>{if(selectedRanges.has(l.id))names.push(u.name+' '+l.name);});
-  });
-  el.textContent='선택: '+names.join(', ');
-}
-function getSelectedText() {
-  if (!bookStructure||!bookTextCache||!selectedRanges.size) return bookTextCache||'';
-  // Use unit/lesson names as search markers in the full text
-  const parts=[];
-  const body=bookTextCache;
-  const skip=Math.floor(body.length*0.08);
-  bookStructure.units.forEach(u=>{
-    const uIdx=body.indexOf(`${u.num}단원`,skip);
-    if(uIdx===-1) return;
-    const nextU=bookStructure.units.find(nu=>nu.num>u.num);
-    const uEnd=nextU?(body.indexOf(`${nextU.num}단원`,uIdx+10)||body.length):body.length;
-    if(selectedRanges.has(u.id)){parts.push(body.slice(uIdx,uEnd));return;}
-    u.lessons.forEach((l,j)=>{
-      if(!selectedRanges.has(l.id)) return;
-      const lIdx=body.indexOf(l.name,uIdx);
-      const nextL=u.lessons[j+1];
-      const lEnd=nextL?(body.indexOf(nextL.name,lIdx>-1?lIdx+5:uIdx)||uEnd):uEnd;
-      parts.push(body.slice(lIdx>-1?lIdx:uIdx,lEnd));
+  const container = document.getElementById('rangeTags');
+  container.innerHTML = '';
+  // Unit buttons → click to add whole unit or expand lessons
+  bookStructure.units.forEach(unit => {
+    // Unit tag button
+    const unitBtn = document.createElement('button');
+    unitBtn.className = 'range-tag-btn';
+    unitBtn.textContent = unit.name + ' 전체';
+    unitBtn.onclick = () => addRangeTag(unit.name + ' 전체');
+    container.appendChild(unitBtn);
+    // Lesson tag buttons
+    unit.lessons.forEach(l => {
+      const lBtn = document.createElement('button');
+      lBtn.className = 'range-tag-btn';
+      lBtn.textContent = unit.name.replace(/ .*/,'') + ' ' + l.name; // "3단원 2차시"
+      lBtn.onclick = () => addRangeTag(unit.name.replace(/ .*/,'') + ' ' + l.name);
+      container.appendChild(lBtn);
     });
   });
-  return parts.join('\n\n')||bookTextCache;
+  renderSelectedTags();
+}
+
+function renderSelectedTags() {
+  // Remove existing active tags
+  document.querySelectorAll('.range-tag').forEach(el => el.remove());
+  const container = document.getElementById('rangeTags');
+  selectedRanges.forEach(label => {
+    const tag = document.createElement('span');
+    tag.className = 'range-tag active';
+    tag.innerHTML = `${label} <span class="rt-x" onclick="removeRangeTag('${label.replace(/'/g,"\\'")}')">✕</span>`;
+    container.insertBefore(tag, container.firstChild);
+  });
+  if (!container.children.length) {
+    container.innerHTML = '<span style="color:#8b949e;font-size:0.82rem;align-self:center">선택 없음 — 아래 버튼을 클릭하거나 직접 입력하세요</span>';
+  }
+}
+
+function addRangeTag(label) {
+  if (!label || selectedRanges.has(label)) return;
+  selectedRanges.add(label);
+  renderSelectedTags();
+}
+
+function removeRangeTag(label) {
+  selectedRanges.delete(label);
+  renderSelectedTags();
+}
+
+function addManualRange() {
+  const input = document.getElementById('rangeManual');
+  const val = input.value.trim();
+  if (val) { addRangeTag(val); input.value = ''; }
+}
+
+function getSelectedText() {
+  if (!bookTextCache) return '';
+  if (!selectedRanges.size) return bookTextCache;
+  // Pass the range labels directly into the question prompt instead of slicing text
+  // (text slicing is unreliable with PDF extraction)
+  return bookTextCache;
 }
 
 
@@ -703,9 +703,10 @@ function loadScript(src) {
 
 async function generateQuestions(content, count, diff, apiKey) {
   const diffMap = { '하':'쉬움(초등 저학년 수준)', '중':'보통(초등 고학년 수준)', '상':'어려움(중학생 수준)', '종합':'쉬움~어려움 골고루' };
+  const rangeHint = selectedRanges.size ? `\n출제 범위: ${[...selectedRanges].join(', ')} — 이 단원/차시 관련 내용 위주로 출제` : '';
   const prompt = `다음 교과서/지도서 내용을 바탕으로 학습 퀴즈 ${count}개를 만들어주세요.
 
-난이도: ${diff} - ${diffMap[diff]||'보통'}
+난이도: ${diff} - ${diffMap[diff]||'보통'}${rangeHint}
 객관식(4지선다) ${Math.round(count*0.7)}개 + 단답형 ${count - Math.round(count*0.7)}개
 
 규칙:
@@ -808,6 +809,11 @@ function showStatus(msg, type) {
   el.className = 'status-bar ' + type;
   if (type === 'success') setTimeout(() => { el.style.display='none'; }, 3000);
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+  const mi = document.getElementById('rangeManual');
+  if (mi) mi.addEventListener('keydown', e => { if(e.key==='Enter') addManualRange(); });
+});
 
 // ── Init ───────────────────────────────────────────────────────────
 (async () => {
