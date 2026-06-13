@@ -157,13 +157,16 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
 /* 삭제 오버레이 */
 .book-delete-overlay {
   position: absolute; inset: 0;
-  background: rgba(220,50,50,.85);
+  background: rgba(180,20,20,.88);
   border-radius: 3px 8px 8px 3px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 1.5rem;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px;
+  font-size: 2rem;
   opacity: 0; pointer-events: none;
-  transition: opacity .15s;
+  transition: opacity .2s;
+  cursor: pointer;
 }
+.book-delete-overlay span { font-size: .7rem; color: #fff; font-weight: 700; }
 .book-item.confirm-delete .book-delete-overlay { opacity: 1; pointer-events: auto; }
 
 /* 삭제 확인 팝업 */
@@ -816,29 +819,44 @@ function createBookEl(book) {
   }
 
   el.innerHTML = `
-    <div class="book-cover">${coverHtml}<div class="book-delete-overlay">🗑️</div></div>
+    <div class="book-cover">${coverHtml}<div class="book-delete-overlay">🗑️<span>삭제</span></div></div>
     <div class="book-title">${book.title}</div>
   `;
 
-  // 클릭: 책 열기
-  el.addEventListener('click', () => openBook(book.id));
+  const overlay = el.querySelector('.book-delete-overlay');
 
-  // 우클릭: 삭제 팝업
-  el.addEventListener('contextmenu', e => {
-    e.preventDefault();
-    showDeletePopup(book.id, e.clientX, e.clientY);
+  // 휴지통 클릭 → 바로 삭제
+  overlay.addEventListener('click', e => {
+    e.stopPropagation();
+    deleteTargetId = book.id;
+    confirmDelete();
   });
 
-  // 길게 누르기 (터치)
+  // 클릭: 책 열기 (오버레이 표시 중이면 닫기)
+  el.addEventListener('click', () => {
+    if (el.classList.contains('confirm-delete')) {
+      el.classList.remove('confirm-delete');
+      document.querySelectorAll('.book-item.confirm-delete').forEach(b => b.classList.remove('confirm-delete'));
+    } else {
+      openBook(book.id);
+    }
+  });
+
+  // 길게 누르기: 마우스 + 터치 공통
   let longPressTimer = null;
-  el.addEventListener('touchstart', e => {
+  const startLong = () => {
     longPressTimer = setTimeout(() => {
-      const t = e.touches[0];
-      showDeletePopup(book.id, t.clientX, t.clientY);
+      document.querySelectorAll('.book-item.confirm-delete').forEach(b => b.classList.remove('confirm-delete'));
+      el.classList.add('confirm-delete');
     }, 600);
-  });
-  el.addEventListener('touchend',   () => clearTimeout(longPressTimer));
-  el.addEventListener('touchmove',  () => clearTimeout(longPressTimer));
+  };
+  const cancelLong = () => clearTimeout(longPressTimer);
+
+  el.addEventListener('pointerdown', startLong);
+  el.addEventListener('pointerup', cancelLong);
+  el.addEventListener('pointerleave', cancelLong);
+  el.addEventListener('pointermove', cancelLong);
+  el.addEventListener('contextmenu', e => e.preventDefault());
 
   return el;
 }
