@@ -245,9 +245,8 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
 @keyframes spin { to { transform: rotate(360deg); } }
 .loading p { color: white; font-size: .9rem; font-weight: 600; }
 
-/* Flip animation */
-.flip-anim { animation: flip .3s ease; }
-@keyframes flip { 0%{opacity:1;transform:perspective(600px) rotateY(0)} 50%{opacity:.2;transform:perspective(600px) rotateY(90deg)} 100%{opacity:1;transform:perspective(600px) rotateY(0)} }
+/* Page turn overlay canvas */
+#pageTurnCanvas { position:fixed; top:0; left:0; pointer-events:none; z-index:500; display:none; }
 </style>
 </head>
 <body>
@@ -558,19 +557,127 @@ function goPage(dir) {
     }
   }
 
-  document.getElementById('viewer').classList.add('flip-anim');
-  document.getElementById('viewer').addEventListener('animationend', () =>
-    document.getElementById('viewer').classList.remove('flip-anim'), {once: true});
-
+  // 현재 화면을 캡처해서 page turn 애니메이션 실행
+  const fromSlot = currentSlot;
   currentSlot = Math.max(0, Math.min(next, slots.length - 1));
   closePopup();
 
-  if (slots[currentSlot]?.pdfRef) {
-    renderPdfSlot(currentSlot, true);
-  } else {
-    renderSlot(true);
-    updateNav();
+  const doRender = () => {
+    if (slots[currentSlot]?.pdfRef) renderPdfSlot(currentSlot, true);
+    else { renderSlot(true); updateNav(); }
+  };
+
+  // 캡처용 스냅샷
+  const snap = document.createElement('canvas');
+  const wrap = document.getElementById('canvasWrap');
+  snap.width = wrap.offsetWidth; snap.height = wrap.offsetHeight;
+  const sx = snap.getContext('2d');
+  sx.drawImage(canvas, panX, panY, canvas.width * zoom, canvas.height * zoom);
+  if (canvas2.style.display !== 'none') {
+    const r2x = parseFloat(canvas2.style.transform.match(/translate\(([^,]+)/)?.[1]) || 0;
+    sx.drawImage(canvas2, r2x, panY, canvas2.width * zoom, canvas2.height * zoom);
   }
+
+  doRender();
+  pageTurnAnim(snap, dir > 0 ? 'left' : 'right');
+}
+
+function pageTurnAnim(fromSnap, direction) {
+  const ptc = document.getElementById('pageTurnCanvas');
+  ptc.width = window.innerWidth; ptc.height = window.innerHeight;
+  ptc.style.display = 'block';
+  const pc = ptc.getContext('2d');
+  const W = ptc.width, H = ptc.height;
+  const FRAMES = 30, DURATION = 400;
+  let frame = 0;
+  const startTime = performance.now();
+
+  function draw(ts) {
+    const elapsed = ts - startTime;
+    const t = Math.min(elapsed / DURATION, 1);
+    const ease = t < 0.5 ? 2*t*t : -1+(4-2*t)*t; // easeInOut
+
+    pc.clearRect(0, 0, W, H);
+
+    // 뒤쪽 페이지(새 페이지) — 이미 렌더된 상태
+    // 앞쪽 페이지(이전 페이지) — fromSnap에서 말리는 효과
+
+    const foldX = direction === 'left'
+      ? W * (1 - ease)   // 오른쪽→왼쪽으로 말림
+      : W * ease;         // 왼쪽→오른쪽으로 말림
+
+    if (direction === 'left') {
+      // 왼쪽 부분: 이전 페이지 그대로
+      if (foldX > 0) {
+        pc.save();
+        pc.beginPath();
+        pc.rect(0, 0, foldX, H);
+        pc.clip();
+        pc.drawImage(fromSnap, 0, 0);
+        pc.restore();
+      }
+
+      // 오른쪽 접히는 부분: 원근감 + 그라디언트
+      const foldW = Math.min(W - foldX, W * 0.15 + (1-ease)*W*0.1);
+      if (foldX < W) {
+        pc.save();
+        pc.beginPath();
+        pc.rect(foldX, 0, foldW, H);
+        pc.clip();
+
+        // 말리는 페이지 — 가로로 압축해서 입체감
+        const scaleX = Math.max(0.01, 1 - ease);
+        pc.transform(scaleX, 0, 0, 1, foldX * (1 - scaleX), 0);
+        pc.drawImage(fromSnap, 0, 0, W, H, foldX, 0, W - foldX, H);
+
+        // 그림자
+        const grad = pc.createLinearGradient(foldX, 0, foldX + foldW, 0);
+        grad.addColorStop(0, `rgba(0,0,0,${0.4 * ease})`);
+        grad.addColorStop(1, 'rgba(0,0,0,0)');
+        pc.fillStyle = grad;
+        pc.fillRect(foldX, 0, foldW, H);
+        pc.restore();
+      }
+
+    } else {
+      // 반대 방향
+      const revX = foldX;
+      if (revX < W) {
+        pc.save();
+        pc.beginPath();
+        pc.rect(revX, 0, W - revX, H);
+        pc.clip();
+        pc.drawImage(fromSnap, 0, 0);
+        pc.restore();
+      }
+
+      const foldW = Math.min(revX, W * 0.15 + (1-ease)*W*0.1);
+      if (revX > 0) {
+        pc.save();
+        pc.beginPath();
+        pc.rect(revX - foldW, 0, foldW, H);
+        pc.clip();
+
+        const scaleX = Math.max(0.01, 1 - ease);
+        pc.transform(scaleX, 0, 0, 1, revX - revX * scaleX, 0);
+        pc.drawImage(fromSnap, 0, 0, W, H, 0, 0, revX, H);
+
+        const grad = pc.createLinearGradient(revX, 0, revX - foldW, 0);
+        grad.addColorStop(0, `rgba(0,0,0,${0.4 * ease})`);
+        grad.addColorStop(1, 'rgba(0,0,0,0)');
+        pc.fillStyle = grad;
+        pc.fillRect(revX - foldW, 0, foldW, H);
+        pc.restore();
+      }
+    }
+
+    if (t < 1) {
+      requestAnimationFrame(draw);
+    } else {
+      ptc.style.display = 'none';
+    }
+  }
+  requestAnimationFrame(draw);
 }
 
 function updateNav() {
@@ -993,5 +1100,6 @@ document.addEventListener('drop', e=>{
   else handleFiles(e.dataTransfer.files);
 });
 </script>
+<canvas id="pageTurnCanvas"></canvas>
 </body>
 </html>
