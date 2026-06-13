@@ -175,39 +175,6 @@ main { padding:24px; max-width:1400px; margin:0 auto; }
 
 .hidden { display:none !important; }
 
-/* Range picker */
-.range-picker {
-  margin-top:10px;
-  background:#0d1117;
-  border:1px solid #30363d;
-  border-radius:8px;
-  padding:10px;
-  max-height:220px;
-  overflow-y:auto;
-}
-.range-picker-msg { color:#8b949e; font-size:0.8rem; padding:4px; }
-.range-unit { margin-bottom:4px; }
-.range-unit-header {
-  display:flex; align-items:center; justify-content:space-between;
-  padding:6px 8px; border-radius:6px; cursor:pointer;
-  background:#161b22;
-  user-select:none;
-}
-.range-unit-header:hover { background:#1c2128; }
-.range-check-wrap { display:flex; align-items:center; gap:8px; font-size:0.85rem; color:#e6edf3; }
-.range-check-wrap input[type=checkbox] { width:14px; height:14px; accent-color:#4caf50; cursor:pointer; }
-.range-expand { color:#8b949e; font-size:0.75rem; transition:transform 0.15s; }
-.range-expand.open { transform:rotate(90deg); }
-.range-lessons { padding:4px 8px 4px 24px; display:none; }
-.range-lessons.open { display:block; }
-.range-lesson {
-  display:flex; align-items:center; gap:8px;
-  padding:5px 6px; border-radius:4px; font-size:0.82rem;
-  color:#c9d1d9; cursor:pointer;
-}
-.range-lesson:hover { background:#1c2128; }
-.range-lesson input[type=checkbox] { width:13px; height:13px; accent-color:#5c6bc0; cursor:pointer; }
-.range-summary { font-size:0.75rem; color:#58a6ff; margin-top:6px; }
 
 .final-banner {
   text-align:center; padding:20px; background:#1a2a1a;
@@ -284,11 +251,9 @@ main { padding:24px; max-width:1400px; margin:0 auto; }
     </div>
 
     <div class="form-group">
-      <label>범위 선택</label>
-      <div class="range-picker" id="rangePicker">
-        <p class="range-picker-msg">지도서를 선택하면 단원/차시 목록이 표시됩니다</p>
-      </div>
-      <div class="range-summary" id="rangeSummary"></div>
+      <label>출제 범위</label>
+      <input type="text" id="rangeInput" placeholder="예) 3단원 1~2차시 / 2단원 전체 / 4단원 날씨와 우리 생활">
+      <small style="color:#8b949e;font-size:0.75rem;margin-top:4px;display:block">단원명, 차시를 직접 입력 — AI가 해당 내용에 집중해서 문제를 냅니다</small>
     </div>
 
     <div class="form-group">
@@ -343,9 +308,7 @@ let pollInterval = null;
 let totalMs = 0;
 let endTime = 0;
 let selectedDiff = cfg.difficulty || '중';
-let bookStructure = null;
 let bookTextCache = '';
-let selectedRanges = new Set(cfg.selectedRanges || []);
 
 localStorage.setItem('sq_room', roomCode);
 document.getElementById('roomCode').textContent = roomCode;
@@ -369,6 +332,7 @@ function loadCfgToForm() {
   if (cfg.gameTime) document.getElementById('gameTime').value = cfg.gameTime;
   if (cfg.claudeApiKey) document.getElementById('claudeApiKey').value = cfg.claudeApiKey;
   if (cfg.firebaseUrl) document.getElementById('firebaseUrl').value = cfg.firebaseUrl;
+  if (cfg.range) document.getElementById('rangeInput').value = cfg.range;
   selectedDiff = cfg.difficulty || '중';
   document.querySelectorAll('.diff-btn').forEach(b => {
     b.classList.toggle('active', b.textContent === selectedDiff);
@@ -382,12 +346,12 @@ function setDiff(btn, val) {
 function saveSettings() {
   cfg = {
     book: document.getElementById('bookSelect').value,
+    range: document.getElementById('rangeInput').value.trim(),
     questionCount: parseInt(document.getElementById('questionCount').value) || 20,
     gameTime: parseInt(document.getElementById('gameTime').value) || 5,
     difficulty: selectedDiff,
     claudeApiKey: document.getElementById('claudeApiKey').value.trim(),
     firebaseUrl: document.getElementById('firebaseUrl').value.trim().replace(/\/$/, ''),
-    selectedRanges: [...selectedRanges],
   };
   localStorage.setItem('sq_cfg', JSON.stringify(cfg));
   closeSettings();
@@ -416,221 +380,12 @@ async function loadBooks() {
       if (cfg.book === id) o.selected = true;
       sel.appendChild(o);
     });
-    // Load structure for currently selected book
-    if (cfg.book) loadBookStructure(cfg.book, fbBase);
   } catch {
     sel.innerHTML = '<option value="">Firebase 연결 실패</option>';
   }
-  sel.addEventListener('change', () => {
-    const bookId = sel.value;
-    selectedRanges.clear();
-    if (bookId) {
-      const fbBase2 = (cfg.firebaseUrl || '').replace(/\/$/, '') || fbBase;
-      loadBookStructure(bookId, fbBase2);
-    } else {
-      document.getElementById('rangePicker').innerHTML = '<p class="range-picker-msg">지도서를 선택하면 단원/차시 목록이 표시됩니다</p>';
-      document.getElementById('rangeSummary').textContent = '';
-    }
-  });
+  sel.addEventListener('change', () => { bookTextCache = ''; });
 }
 
-async function loadBookStructure(bookId, fbBase) {
-  const picker = document.getElementById('rangePicker');
-  picker.innerHTML = '<p class="range-picker-msg">단원/차시 분석 중...</p>';
-  try {
-    const r = await fetch(`${fbBase}/books/${bookId}.json`);
-    const data = await r.json();
-    if (!data || !data.text) { picker.innerHTML = '<p class="range-picker-msg">텍스트를 불러올 수 없습니다</p>'; return; }
-    bookTextCache = data.text;
-
-    if (cfg.claudeApiKey) {
-      picker.innerHTML = '<p class="range-picker-msg">AI가 목차를 분석하는 중... (5~10초)</p>';
-      bookStructure = await extractStructureWithAI(data.text, cfg.claudeApiKey);
-    }
-    if (!bookStructure || !bookStructure.units.length) {
-      bookStructure = { units: [] };
-    }
-    // Fill actual text spans for each unit/lesson using keyword search
-    fillStructureText(bookStructure, data.text);
-    renderRangePicker(bookStructure);
-  } catch(e) {
-    picker.innerHTML = `<p class="range-picker-msg">분석 실패: ${e.message}</p>`;
-  }
-}
-
-async function extractStructureWithAI(text, apiKey) {
-  // Send first 8000 chars — covers cover page + TOC in most Korean textbooks
-  const sample = text.substring(0, 8000);
-  const prompt = `다음은 초등학교 교과서/지도서에서 PDF로 추출한 텍스트입니다. 텍스트가 지저분할 수 있습니다.
-
-【중요 규칙】
-- 텍스트에 실제로 존재하는 단원과 차시만 추출하세요. 절대 추측하거나 만들어내지 마세요.
-- 단원 번호와 차시 번호는 텍스트에서 직접 찾은 것만 사용하세요.
-- 단원별로 차시 수가 다를 수 있습니다 (어떤 단원은 1차시만, 어떤 단원은 1~2차시, 3~4차시 등).
-- 차시를 찾을 수 없으면 lessons를 빈 배열로 두세요.
-- JSON만 반환 (다른 텍스트 없이):
-{"units":[{"num":1,"name":"실제 단원 제목","lessons":["1차시","2~3차시"]},{"num":2,"name":"실제 단원 제목","lessons":["1~2차시","3차시","4~5차시"]}]}
-
-텍스트:
-${sample}`;
-
-  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},
-    body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
-      max_tokens: 1024,
-      messages: [
-        {role:'system', content:'초등학교 교과서 구조 분석 전문가입니다. JSON 형식으로만 응답하세요.'},
-        {role:'user', content: prompt}
-      ]
-    })
-  });
-  if (!res.ok) throw new Error('AI 분석 실패');
-  const d = await res.json();
-  const content = d.choices?.[0]?.message?.content?.trim() || '';
-  const match = content.match(/\{[\s\S]*\}/);
-  if (!match) return null;
-  const parsed = JSON.parse(match[0]);
-  if (!parsed.units?.length) return null;
-
-  return {
-    units: parsed.units.map(u => ({
-      id: `u${u.num}`,
-      num: u.num,
-      name: `${u.num}단원 ${u.name || ''}`.trim(),
-      text: '',
-      lessons: (u.lessons || []).map((l, j) => ({
-        id: `u${u.num}_l${j}`,
-        name: typeof l === 'string' ? l : String(l),
-        text: ''
-      }))
-    }))
-  };
-}
-
-function findInText(text, query, afterPos = 0) {
-  const idx = text.indexOf(query, afterPos);
-  return idx === -1 ? afterPos : idx;
-}
-
-function fillStructureText(structure, fullText) {
-  // Skip first 8% (목차 구간) when searching for actual unit content
-  const skipLen = Math.floor(fullText.length * 0.08);
-  const body = fullText;
-
-  for (let i = 0; i < structure.units.length; i++) {
-    const unit = structure.units[i];
-    const nextUnit = structure.units[i + 1];
-    const unitStart = findInText(body, `${unit.num}단원`, skipLen);
-    const unitEnd = nextUnit ? findInText(body, `${nextUnit.num}단원`, unitStart + 50) : body.length;
-    unit.text = body.slice(unitStart, unitEnd);
-
-    for (let j = 0; j < unit.lessons.length; j++) {
-      const lesson = unit.lessons[j];
-      const nextLesson = unit.lessons[j + 1];
-      const lStart = findInText(unit.text, lesson.name, 0);
-      const lEnd = nextLesson ? findInText(unit.text, nextLesson.name, lStart + 10) : unit.text.length;
-      lesson.text = unit.text.slice(lStart, lEnd);
-    }
-  }
-}
-
-function renderRangePicker(structure) {
-  const picker = document.getElementById('rangePicker');
-  if (!structure.units.length) {
-    picker.innerHTML = '<p class="range-picker-msg">단원 구조를 인식할 수 없습니다 (전체 내용으로 문제 출제)</p>';
-    return;
-  }
-  picker.innerHTML = structure.units.map(unit => `
-    <div class="range-unit">
-      <div class="range-unit-header" onclick="toggleUnit('${unit.id}')">
-        <label class="range-check-wrap" onclick="event.stopPropagation()">
-          <input type="checkbox" id="chk_${unit.id}" onchange="onUnitCheck('${unit.id}')">
-          <span>${unit.name} 전체</span>
-        </label>
-        <span class="range-expand" id="exp_${unit.id}">▸</span>
-      </div>
-      <div class="range-lessons" id="lessons_${unit.id}">
-        ${unit.lessons.length ? unit.lessons.map(l => `
-          <label class="range-lesson">
-            <input type="checkbox" id="chk_${l.id}" onchange="onLessonCheck('${unit.id}','${l.id}')">
-            <span>${l.name}</span>
-          </label>
-        `).join('') : '<p class="range-picker-msg">차시 없음</p>'}
-      </div>
-    </div>
-  `).join('');
-
-  // Restore saved selections
-  selectedRanges.forEach(id => {
-    const el = document.getElementById('chk_' + id);
-    if (el) el.checked = true;
-  });
-  updateRangeSummary();
-}
-
-function toggleUnit(unitId) {
-  const lessons = document.getElementById('lessons_' + unitId);
-  const exp = document.getElementById('exp_' + unitId);
-  lessons.classList.toggle('open');
-  exp.classList.toggle('open');
-}
-
-function onUnitCheck(unitId) {
-  const unit = bookStructure.units.find(u => u.id === unitId);
-  const checked = document.getElementById('chk_' + unitId).checked;
-  if (checked) {
-    selectedRanges.add(unitId);
-    // Uncheck individual lessons (unit全体 takes over)
-    unit.lessons.forEach(l => {
-      selectedRanges.delete(l.id);
-      const el = document.getElementById('chk_' + l.id);
-      if (el) el.checked = false;
-    });
-  } else {
-    selectedRanges.delete(unitId);
-  }
-  updateRangeSummary();
-}
-
-function onLessonCheck(unitId, lessonId) {
-  const checked = document.getElementById('chk_' + lessonId).checked;
-  if (checked) {
-    selectedRanges.add(lessonId);
-    // Uncheck parent unit
-    selectedRanges.delete(unitId);
-    const uEl = document.getElementById('chk_' + unitId);
-    if (uEl) uEl.checked = false;
-  } else {
-    selectedRanges.delete(lessonId);
-  }
-  updateRangeSummary();
-}
-
-function updateRangeSummary() {
-  const el = document.getElementById('rangeSummary');
-  if (!el) return;
-  if (selectedRanges.size === 0) { el.textContent = '선택 없음 (전체 내용으로 문제 출제)'; return; }
-  const names = [];
-  if (bookStructure) {
-    bookStructure.units.forEach(unit => {
-      if (selectedRanges.has(unit.id)) { names.push(unit.name + ' 전체'); return; }
-      unit.lessons.forEach(l => { if (selectedRanges.has(l.id)) names.push(`${unit.name} ${l.name}`); });
-    });
-  }
-  el.textContent = '선택: ' + names.join(', ');
-}
-
-function getSelectedText() {
-  if (!bookStructure || !bookTextCache || selectedRanges.size === 0) return bookTextCache || '';
-  const parts = [];
-  bookStructure.units.forEach(unit => {
-    if (selectedRanges.has(unit.id)) { parts.push(unit.text); return; }
-    unit.lessons.forEach(l => { if (selectedRanges.has(l.id)) parts.push(l.text); });
-  });
-  return parts.join('\n\n') || bookTextCache;
-}
 
 async function loadFbUrl() {
   try {
@@ -717,16 +472,14 @@ async function startGame() {
 
   try {
     setGenProgress('지도서 불러오는 중...');
-    // Use cached text if available, otherwise fetch
-    if (!bookTextCache || bookStructure === null) {
+    if (!bookTextCache) {
       const fbBase = cfg.firebaseUrl.replace(/\/$/, '');
       const r = await fetch(`${fbBase}/books/${cfg.book}.json`);
       const data = await r.json();
       if (!data || !data.text) throw new Error('지도서 텍스트가 없습니다. 다시 업로드해주세요.');
       bookTextCache = data.text;
-      bookStructure = parseBookStructure(data.text);
     }
-    const content = getSelectedText();
+    const content = bookTextCache;
     setGenProgress('AI가 문제를 생성하는 중... (20~40초 소요)');
     const questions = await generateQuestions(content, cfg.questionCount||20, cfg.difficulty||'중', cfg.claudeApiKey);
 
@@ -802,9 +555,10 @@ function loadScript(src) {
 
 async function generateQuestions(content, count, diff, apiKey) {
   const diffMap = { '하':'쉬움(초등 저학년 수준)', '중':'보통(초등 고학년 수준)', '상':'어려움(중학생 수준)', '종합':'쉬움~어려움 골고루' };
+  const rangeNote = cfg.range ? `\n출제 범위: ${cfg.range} (이 범위에 해당하는 내용 위주로 출제)` : '';
   const prompt = `다음 교과서/지도서 내용을 바탕으로 학습 퀴즈 ${count}개를 만들어주세요.
 
-난이도: ${diff} - ${diffMap[diff]||'보통'}
+난이도: ${diff} - ${diffMap[diff]||'보통'}${rangeNote}
 객관식(4지선다) ${Math.round(count*0.7)}개 + 단답형 ${count - Math.round(count*0.7)}개
 
 규칙:
