@@ -40,10 +40,6 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
 .icon-btn:hover { background: var(--border); }
 .icon-btn.active { background: var(--primary); border-color: var(--primary); }
 
-.mode-label {
-  font-size: .72rem; color: var(--sub); padding: 4px 10px;
-  background: var(--card); border: 1px solid var(--border); border-radius: 20px;
-}
 
 /* ── Main viewer ── */
 .viewer {
@@ -144,8 +140,9 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
 .z-btn:hover { background: var(--primary); }
 .z-label { font-size: .75rem; color: var(--sub); min-width: 38px; text-align: center; }
 
-/* Translate button */
+/* (translate-fab removed) */
 .translate-fab {
+  display: none !important;
   position: fixed; bottom: 16px; left: 16px;
   background: #fb8c00; color: white; border: none; border-radius: 12px;
   padding: 10px 18px; font-size: .85rem; font-weight: 700; cursor: pointer;
@@ -221,9 +218,9 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
 .pop-undo:hover { background: #e53935; color: white; }
 .pop-undo.visible { display:block; }
 
-/* Results panel */
+/* Results panel (unused) */
 .results-panel {
-  display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 300;
+  display: none !important; position: fixed; bottom: 0; left: 0; right: 0; z-index: 300;
   background: var(--card); border-top: 1px solid var(--border);
   border-radius: 20px 20px 0 0;
   padding: 16px; max-height: 45vh; overflow-y: auto;
@@ -261,9 +258,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
     <span>📚</span> 교과서 번역기
   </div>
   <div class="header-actions">
-    <span class="mode-label" id="modeLabel">이동 모드</span>
-    <button class="icon-btn" id="btnPan" title="이동/확대" onclick="setMode('pan')">✋</button>
-    <button class="icon-btn" id="btnSelect" title="영역 선택 번역" onclick="setMode('select')">🔲</button>
+    <button class="icon-btn" id="btnDownload" title="현재 페이지 다운로드" onclick="downloadPage()" style="display:none">⬇️</button>
     <button class="icon-btn" title="설정" onclick="openSettings()">⚙️</button>
   </div>
 </div>
@@ -279,7 +274,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
   </div>
 
   <!-- Canvas -->
-  <div class="canvas-wrap mode-pan" id="canvasWrap">
+  <div class="canvas-wrap mode-select" id="canvasWrap">
     <canvas id="viewerCanvas"></canvas>
     <canvas id="selCanvas"></canvas>
     <div class="trans-popup" id="transPopup" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()">
@@ -317,30 +312,6 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
   <button class="z-btn" onclick="resetZoom()" title="맞춤">⊙</button>
 </div>
 
-<!-- Translate FAB -->
-<button class="translate-fab" id="translateFab" onclick="doTranslate()">🔄 전체 번역</button>
-
-<!-- Results panel -->
-<div class="results-panel" id="resultsPanel">
-  <div class="drag-handle" onclick="closeResults()"></div>
-  <button class="close-results" onclick="closeResults()">✕</button>
-  <div class="results-grid">
-    <div class="res-card">
-      <h4>🇰🇷 인식된 한국어</h4>
-      <textarea id="korText" readonly></textarea>
-      <div class="res-actions">
-        <button class="btn-sm" onclick="copyText('korText')">📋 복사</button>
-      </div>
-    </div>
-    <div class="res-card">
-      <h4>🇷🇺 러시아어 번역</h4>
-      <textarea id="rusText" readonly></textarea>
-      <div class="res-actions">
-        <button class="btn-sm" onclick="copyText('rusText')">📋 복사</button>
-      </div>
-    </div>
-  </div>
-</div>
 
 <!-- Settings modal -->
 <div class="modal-overlay" id="settingsModal" onclick="closeSettingsOutside(event)">
@@ -390,7 +361,7 @@ let currentSlot = 0;
 let zoom = 1, panX = 0, panY = 0;
 let isPanning = false, panStart = {x:0,y:0};
 let lastPinchDist = null;
-let viewMode = 'pan';
+let viewMode = 'select';
 let isSelecting = false, selStart = {x:0,y:0}, selEnd = {x:0,y:0};
 
 const canvas = document.getElementById('viewerCanvas');
@@ -565,21 +536,22 @@ function renderSlot(fitToView) {
   const page = slots[currentSlot];
   const emptySlot = document.getElementById('emptySlot');
   const canvasWrap = document.getElementById('canvasWrap');
-  const fab = document.getElementById('translateFab');
   const zoomBar = document.getElementById('zoomBar');
+  const dlBtn = document.getElementById('btnDownload');
 
   if (!page) {
     emptySlot.style.display = 'flex';
     canvasWrap.classList.remove('visible');
-    fab.classList.remove('visible');
     zoomBar.classList.add('hidden');
+    if (dlBtn) dlBtn.style.display = 'none';
     return;
   }
 
   emptySlot.style.display = 'none';
   canvasWrap.classList.add('visible');
-  fab.classList.add('visible');
+  canvasWrap.className = 'canvas-wrap visible mode-select';
   zoomBar.classList.remove('hidden');
+  if (dlBtn) dlBtn.style.display = '';
 
   // 레이아웃 정착 후 렌더링
   requestAnimationFrame(() => requestAnimationFrame(() => renderCurrentPage(fitToView)));
@@ -634,14 +606,11 @@ function setZoom(nz,cx,cy){
   applyTransform();
 }
 
-// ── Mode ──
+// 항상 영역 선택 모드
 function setMode(m) {
-  viewMode = m;
-  document.getElementById('btnPan').classList.toggle('active', m==='pan');
-  document.getElementById('btnSelect').classList.toggle('active', m==='select');
-  document.getElementById('modeLabel').textContent = m==='pan' ? '이동 모드' : '영역 선택';
+  viewMode = 'select';
   const wrap = document.getElementById('canvasWrap');
-  wrap.className = 'canvas-wrap visible mode-' + m;
+  wrap.className = 'canvas-wrap visible mode-select';
   selCtx.clearRect(0,0,selCanvas.width,selCanvas.height);
   closePopup();
 }
@@ -911,49 +880,17 @@ function closePopup() {
   selCtx.clearRect(0,0,selCanvas.width,selCanvas.height);
 }
 
-// ── Full translate ──
-async function doTranslate() {
-  const apiKey=localStorage.getItem('gemini_api_key')||document.getElementById('apiInput').value.trim();
-  if(!apiKey){openSettings();return;}
-  const page=slots[currentSlot]; if(!page) return;
-
-  showLoading('AI가 번역 중...');
-  try {
-    const scanOn=document.getElementById('scanToggle').checked;
-    const tmp=document.createElement('canvas'); tmp.width=page.width; tmp.height=page.height;
-    tmp.getContext('2d').putImageData(scanOn?page.processed:page.original,0,0);
-    const b64=tmp.toDataURL('image/jpeg',.92).split(',')[1];
-
-    const res=await fetch('https://api.groq.com/openai/v1/chat/completions',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},
-      body:JSON.stringify({model:'meta-llama/llama-4-scout-17b-16e-instruct',max_tokens:4096,
-        messages:[{role:'user',content:[
-          {type:'text',text:`교과서 이미지의 한국어를 러시아어로 번역하세요.\n\n[KOREAN]\n(한국어 전체)\n[/KOREAN]\n\n[RUSSIAN]\n(러시아어 번역)\n[/RUSSIAN]`},
-          {type:'image_url',image_url:{url:`data:image/jpeg;base64,${b64}`}}
-        ]}]})
-    });
-    if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(`[${res.status}] ${e.error?.message||''}`);}
-    const json=await res.json();
-    const text=json.choices?.[0]?.message?.content||'';
-    const kor=(text.match(/\[KOREAN\]([\s\S]*?)\[\/KOREAN\]/)||[])[1]?.trim()||'인식 실패';
-    const rus=(text.match(/\[RUSSIAN\]([\s\S]*?)\[\/RUSSIAN\]/)||[])[1]?.trim()||'번역 실패';
-    document.getElementById('korText').value=kor;
-    document.getElementById('rusText').value=rus;
-    document.getElementById('resultsPanel').classList.add('visible');
-  } catch(e) {
-    alert('번역 오류: '+e.message);
-  } finally {
-    hideLoading();
-  }
-}
-
-function closeResults() { document.getElementById('resultsPanel').classList.remove('visible'); }
-
-function copyText(id) {
-  const el=document.getElementById(id); el.select(); document.execCommand('copy');
-  const btn=el.closest('.res-card').querySelector('.btn-sm');
-  const o=btn.textContent; btn.textContent='✅ 복사됨!'; setTimeout(()=>btn.textContent=o,1500);
+// ── Download current page ──
+function downloadPage() {
+  const page = slots[currentSlot]; if (!page) return;
+  const scanOn = document.getElementById('scanToggle').checked;
+  const tmp = document.createElement('canvas');
+  tmp.width = page.width; tmp.height = page.height;
+  tmp.getContext('2d').putImageData(scanOn ? page.processed : page.original, 0, 0);
+  const a = document.createElement('a');
+  a.href = tmp.toDataURL('image/png');
+  a.download = `page_${currentSlot + 1}.png`;
+  a.click();
 }
 
 function showLoading(t){document.getElementById('loadingText').textContent=t;document.getElementById('loading').classList.add('visible');}
