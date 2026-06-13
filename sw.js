@@ -1,4 +1,4 @@
-const CACHE = 'textbook-translator-v1';
+const CACHE = 'textbook-translator-v3';
 const ASSETS = [
   '/school-chat/translator.html',
   '/school-chat/manifest.json',
