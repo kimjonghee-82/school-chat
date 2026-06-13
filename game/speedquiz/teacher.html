@@ -450,27 +450,59 @@ async function loadBookStructure(bookId, fbBase) {
 }
 
 function parseBookStructure(text) {
-  const units = [];
-  // Find all "N단원" occurrences (1~15)
+  // Skip the first 8% of text (목차/머리말 구간)
+  const skipLen = Math.floor(text.length * 0.08);
+  const body = text.slice(skipLen);
+  const bodyOffset = skipLen;
+
+  // Collect ALL positions of each unit number in the body
   const unitRegex = /(\d{1,2})\s*단원/g;
-  const unitHits = [];
+  const allHits = {};
   let m;
-  while ((m = unitRegex.exec(text)) !== null) {
+  while ((m = unitRegex.exec(body)) !== null) {
     const num = parseInt(m[1]);
-    if (!unitHits.find(u => u.num === num)) {
-      unitHits.push({ num, index: m.index });
-    }
+    if (num < 1 || num > 15) continue;
+    if (!allHits[num]) allHits[num] = [];
+    allHits[num].push(m.index);
   }
-  if (!unitHits.length) return { units: [] };
 
-  // Determine text span for each unit (start of unit N to start of unit N+1)
-  // Skip content before first unit and after last unit
-  for (let i = 0; i < unitHits.length; i++) {
-    const start = unitHits[i].index;
-    const end = i + 1 < unitHits.length ? unitHits[i + 1].index : text.length;
-    const unitText = text.slice(start, end);
+  const nums = Object.keys(allHits).map(Number).sort((a, b) => a - b);
+  if (!nums.length) return { units: [] };
 
-    // Find lessons within this unit's text
+  // For each unit number, pick the occurrence where distance to next unit is largest
+  // (TOC occurrences are clustered; actual unit pages are far apart)
+  const chosen = {};
+  for (let i = 0; i < nums.length; i++) {
+    const num = nums[i];
+    const hits = allHits[num];
+    const nextNum = nums[i + 1];
+    const nextHits = nextNum ? allHits[nextNum] : null;
+
+    let best = hits[0];
+    let bestGap = 0;
+    for (const pos of hits) {
+      // gap = distance to nearest occurrence of next unit that is AFTER this position
+      let gap = body.length - pos;
+      if (nextHits) {
+        const after = nextHits.filter(p => p > pos);
+        if (after.length) gap = Math.min(...after) - pos;
+      }
+      if (gap > bestGap) { bestGap = gap; best = pos; }
+    }
+    chosen[num] = best;
+  }
+
+  // Build unit spans using chosen positions (sorted)
+  const sortedNums = nums.sort((a, b) => chosen[a] - chosen[b]);
+  const units = [];
+
+  for (let i = 0; i < sortedNums.length; i++) {
+    const num = sortedNums[i];
+    const start = chosen[num];
+    const end = i + 1 < sortedNums.length ? chosen[sortedNums[i + 1]] : body.length;
+    const unitText = body.slice(start, end);
+
+    // Find lessons within this unit
     const lessonRegex = /(\d{1,2})(?:~(\d{1,2}))?\s*차시/g;
     const lessonHits = [];
     let lm;
@@ -484,15 +516,15 @@ function parseBookStructure(text) {
     }
 
     const lessons = lessonHits.map((lh, j) => ({
-      id: `u${unitHits[i].num}_l${j}`,
+      id: `u${num}_l${j}`,
       name: lh.name,
       text: unitText.slice(lh.index, j + 1 < lessonHits.length ? lessonHits[j + 1].index : unitText.length)
     }));
 
     units.push({
-      id: `u${unitHits[i].num}`,
-      num: unitHits[i].num,
-      name: `${unitHits[i].num}단원`,
+      id: `u${num}`,
+      num,
+      name: `${num}단원`,
       text: unitText,
       lessons
     });
