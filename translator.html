@@ -4,432 +4,175 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>교과서 번역기</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-
 :root {
   --primary: #5c6bc0;
-  --primary-dark: #3949ab;
   --green: #43a047;
   --orange: #fb8c00;
   --red: #e53935;
   --gray: #607d8b;
   --bg: #eceff1;
-  --card: #ffffff;
+  --card: #fff;
   --text: #263238;
   --sub: #78909c;
   --border: #cfd8dc;
 }
+body { font-family: 'Segoe UI','Apple SD Gothic Neo',sans-serif; background:var(--bg); min-height:100vh; color:var(--text); overflow-x:hidden; }
 
-body {
-  font-family: 'Segoe UI', 'Apple SD Gothic Neo', sans-serif;
-  background: var(--bg);
-  min-height: 100vh;
-  color: var(--text);
-  overflow-x: hidden;
-}
+.header { background:var(--primary); color:white; padding:14px 18px; display:flex; align-items:center; gap:10px; box-shadow:0 2px 8px rgba(0,0,0,.2); position:sticky; top:0; z-index:100; }
+.header h1 { font-size:1.1rem; font-weight:700; flex:1; }
+.badge { background:rgba(255,255,255,.2); border-radius:20px; padding:3px 10px; font-size:.75rem; }
 
-/* ── Header ── */
-.header {
-  background: var(--primary);
-  color: white;
-  padding: 16px 20px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,.2);
-  position: sticky;
-  top: 0;
-  z-index: 100;
-}
-.header h1 { font-size: 1.15rem; font-weight: 700; flex: 1; }
-.header .badge {
-  background: rgba(255,255,255,.2);
-  border-radius: 20px;
-  padding: 3px 10px;
-  font-size: 0.75rem;
-}
+.main { max-width:900px; margin:0 auto; padding:14px; }
 
-/* ── Main ── */
-.main { max-width: 860px; margin: 0 auto; padding: 16px; }
+.card { background:var(--card); border-radius:14px; padding:14px 16px; box-shadow:0 1px 6px rgba(0,0,0,.08); margin-bottom:12px; }
+.card-title { font-size:.78rem; font-weight:700; color:var(--sub); text-transform:uppercase; letter-spacing:.5px; margin-bottom:8px; }
 
-/* ── API Key ── */
-.card {
-  background: var(--card);
-  border-radius: 14px;
-  padding: 16px 18px;
-  box-shadow: 0 1px 6px rgba(0,0,0,.08);
-  margin-bottom: 14px;
-}
-.card-title {
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: var(--sub);
-  text-transform: uppercase;
-  letter-spacing: .5px;
-  margin-bottom: 10px;
-}
-.api-row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-.api-row input {
-  flex: 1;
-  min-width: 180px;
-  padding: 9px 12px;
-  border: 1.5px solid var(--border);
-  border-radius: 8px;
-  font-size: 0.88rem;
-  outline: none;
-  transition: border .2s;
-}
-.api-row input:focus { border-color: var(--primary); }
-.btn {
-  padding: 9px 16px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 0.85rem;
-  font-weight: 600;
-  transition: filter .15s, transform .1s;
-  white-space: nowrap;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-.btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
-.btn:active { transform: translateY(0); }
-.btn-primary { background: var(--primary); color: white; }
-.btn-green { background: var(--green); color: white; }
-.btn-orange { background: var(--orange); color: white; font-size: .95rem; padding: 11px 24px; }
-.btn-red { background: var(--red); color: white; }
-.btn-gray { background: var(--gray); color: white; }
-.btn-sm { padding: 7px 13px; font-size: 0.8rem; }
-.btn:disabled { background: #b0bec5; cursor: not-allowed; transform: none; filter: none; }
+.api-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.api-row input { flex:1; min-width:180px; padding:8px 12px; border:1.5px solid var(--border); border-radius:8px; font-size:.88rem; outline:none; transition:border .2s; }
+.api-row input:focus { border-color:var(--primary); }
 
-.status-chip {
-  padding: 5px 12px;
-  border-radius: 20px;
-  font-size: 0.78rem;
-  font-weight: 600;
-}
-.status-chip.ok { background: #e8f5e9; color: #2e7d32; }
-.status-chip.no { background: #ffebee; color: #c62828; }
+.btn { padding:8px 14px; border:none; border-radius:8px; cursor:pointer; font-size:.85rem; font-weight:600; transition:filter .15s,transform .1s; white-space:nowrap; display:inline-flex; align-items:center; gap:5px; }
+.btn:hover { filter:brightness(1.08); transform:translateY(-1px); }
+.btn:active { transform:translateY(0); }
+.btn-primary { background:var(--primary); color:white; }
+.btn-green { background:var(--green); color:white; }
+.btn-red { background:var(--red); color:white; }
+.btn-gray { background:var(--gray); color:white; }
+.btn-sm { padding:6px 12px; font-size:.78rem; }
+.btn:disabled { background:#b0bec5; cursor:not-allowed; transform:none; filter:none; }
 
-.hint {
-  background: #e3f2fd;
-  border-left: 3px solid var(--primary);
-  border-radius: 0 8px 8px 0;
-  padding: 10px 14px;
-  font-size: 0.82rem;
-  color: #1565c0;
-  line-height: 1.7;
-  margin-bottom: 14px;
-}
-.hint a { color: var(--primary); font-weight: 600; }
+.status-chip { padding:4px 10px; border-radius:20px; font-size:.75rem; font-weight:600; }
+.status-chip.ok { background:#e8f5e9; color:#2e7d32; }
+.status-chip.no { background:#ffebee; color:#c62828; }
 
-/* ── Upload ── */
-.upload-zone {
-  border: 2.5px dashed var(--border);
-  border-radius: 14px;
-  padding: 32px 20px;
-  text-align: center;
-  cursor: pointer;
-  transition: border-color .2s, background .2s;
-  background: var(--card);
-  margin-bottom: 14px;
-}
-.upload-zone:hover, .upload-zone.drag-over {
-  border-color: var(--primary);
-  background: #f3f4ff;
-}
-.upload-zone .icon { font-size: 2.8rem; margin-bottom: 8px; }
-.upload-zone p { color: var(--sub); font-size: 0.9rem; margin-bottom: 14px; }
-.btn-group { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.hint { background:#e3f2fd; border-left:3px solid var(--primary); border-radius:0 8px 8px 0; padding:10px 14px; font-size:.82rem; color:#1565c0; line-height:1.7; margin-bottom:12px; }
+.hint a { color:var(--primary); font-weight:600; }
 
-/* ── Pages Strip ── */
-.pages-section { margin-bottom: 14px; display: none; }
-.pages-section.visible { display: block; }
-.pages-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-.pages-header span { font-weight: 700; color: var(--text); font-size: 0.9rem; }
-.pages-strip {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 6px;
-  scrollbar-width: thin;
-}
-.page-thumb {
-  flex-shrink: 0;
-  width: 80px;
-  height: 100px;
-  border-radius: 8px;
-  overflow: hidden;
-  border: 2.5px solid transparent;
-  cursor: pointer;
-  position: relative;
-  background: #eceff1;
-  transition: border-color .2s;
-}
-.page-thumb.active { border-color: var(--primary); }
-.page-thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-.page-thumb .del-btn {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  background: rgba(229,57,53,.85);
-  color: white;
-  border: none;
-  border-radius: 50%;
-  width: 20px;
-  height: 20px;
-  font-size: 12px;
-  cursor: pointer;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-}
-.page-thumb:hover .del-btn { display: flex; }
-.page-num {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: rgba(0,0,0,.5);
-  color: white;
-  font-size: 0.7rem;
-  text-align: center;
-  padding: 2px 0;
-}
-.add-page-btn {
-  flex-shrink: 0;
-  width: 80px;
-  height: 100px;
-  border-radius: 8px;
-  border: 2px dashed var(--border);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: var(--sub);
-  font-size: 0.75rem;
-  gap: 4px;
-  background: white;
-  transition: border-color .2s, color .2s;
-}
-.add-page-btn:hover { border-color: var(--primary); color: var(--primary); }
+.upload-zone { border:2.5px dashed var(--border); border-radius:14px; padding:28px 20px; text-align:center; cursor:pointer; transition:border-color .2s,background .2s; background:var(--card); margin-bottom:12px; }
+.upload-zone:hover,.upload-zone.drag-over { border-color:var(--primary); background:#f3f4ff; }
+.upload-zone .icon { font-size:2.6rem; margin-bottom:8px; }
+.upload-zone p { color:var(--sub); font-size:.88rem; margin-bottom:12px; }
+.btn-group { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
 
-/* ── Viewer ── */
-.viewer-section { margin-bottom: 14px; display: none; }
-.viewer-section.visible { display: block; }
-.viewer-card {
-  background: var(--card);
-  border-radius: 14px;
-  box-shadow: 0 1px 6px rgba(0,0,0,.08);
-  overflow: hidden;
-}
-.viewer-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--border);
-  flex-wrap: wrap;
-}
-.viewer-toolbar .page-indicator {
-  flex: 1;
-  font-size: 0.85rem;
-  color: var(--sub);
-  font-weight: 600;
-  text-align: center;
-}
-.viewer-wrap {
-  position: relative;
-  background: #37474f;
-  overflow: hidden;
-  height: 380px;
-  cursor: grab;
-  user-select: none;
-  touch-action: none;
-}
-.viewer-wrap.grabbing { cursor: grabbing; }
-#viewerCanvas {
-  display: block;
-  position: absolute;
-  transform-origin: 0 0;
-  image-rendering: -webkit-optimize-contrast;
-  image-rendering: crisp-edges;
-}
-.viewer-nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 14px;
-  border-top: 1px solid var(--border);
-}
-.nav-btn {
-  background: var(--primary);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  padding: 8px 18px;
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: filter .15s;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.nav-btn:hover { filter: brightness(1.1); }
-.nav-btn:disabled { background: #b0bec5; cursor: not-allowed; }
-.zoom-controls { display: flex; gap: 6px; align-items: center; }
-.zoom-btn {
-  background: #eceff1;
-  border: none;
-  border-radius: 6px;
-  width: 32px;
-  height: 32px;
-  font-size: 1.1rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background .15s;
-}
-.zoom-btn:hover { background: #cfd8dc; }
-.zoom-label { font-size: 0.82rem; color: var(--sub); min-width: 42px; text-align: center; }
+/* Pages strip */
+.pages-section { margin-bottom:12px; display:none; }
+.pages-section.visible { display:block; }
+.pages-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+.pages-header span { font-weight:700; font-size:.88rem; }
+.pages-strip { display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; scrollbar-width:thin; }
+.page-thumb { flex-shrink:0; width:72px; height:90px; border-radius:8px; overflow:hidden; border:2.5px solid transparent; cursor:pointer; position:relative; background:#eceff1; transition:border-color .2s; }
+.page-thumb.active { border-color:var(--primary); }
+.page-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+.page-thumb .del-btn { position:absolute; top:2px; right:2px; background:rgba(229,57,53,.85); color:white; border:none; border-radius:50%; width:18px; height:18px; font-size:11px; cursor:pointer; display:none; align-items:center; justify-content:center; }
+.page-thumb:hover .del-btn { display:flex; }
+.page-num { position:absolute; bottom:0; left:0; right:0; background:rgba(0,0,0,.5); color:white; font-size:.65rem; text-align:center; padding:2px 0; }
+.add-page-btn { flex-shrink:0; width:72px; height:90px; border-radius:8px; border:2px dashed var(--border); display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; color:var(--sub); font-size:.7rem; gap:3px; background:white; transition:border-color .2s,color .2s; }
+.add-page-btn:hover { border-color:var(--primary); color:var(--primary); }
 
-/* ── Scan effect toggle ── */
-.scan-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  border-top: 1px solid var(--border);
-}
-.scan-row label { font-size: 0.85rem; color: var(--text); flex: 1; }
-.toggle {
-  position: relative;
-  width: 44px;
-  height: 24px;
-}
-.toggle input { opacity: 0; width: 0; height: 0; }
-.toggle-slider {
-  position: absolute;
-  inset: 0;
-  background: #b0bec5;
-  border-radius: 24px;
-  cursor: pointer;
-  transition: background .2s;
-}
-.toggle-slider::before {
-  content: '';
-  position: absolute;
-  width: 18px;
-  height: 18px;
-  background: white;
-  border-radius: 50%;
-  top: 3px;
-  left: 3px;
-  transition: transform .2s;
-  box-shadow: 0 1px 3px rgba(0,0,0,.3);
-}
-.toggle input:checked + .toggle-slider { background: var(--primary); }
-.toggle input:checked + .toggle-slider::before { transform: translateX(20px); }
+/* Viewer */
+.viewer-section { margin-bottom:12px; display:none; }
+.viewer-section.visible { display:block; }
+.viewer-card { background:var(--card); border-radius:14px; box-shadow:0 1px 6px rgba(0,0,0,.08); overflow:hidden; }
+.viewer-toolbar { display:flex; align-items:center; gap:8px; padding:10px 14px; border-bottom:1px solid var(--border); flex-wrap:wrap; }
+.page-indicator { flex:1; font-size:.82rem; color:var(--sub); font-weight:600; text-align:center; }
 
-/* ── Translate btn ── */
-.translate-wrap { text-align: center; margin-bottom: 14px; }
+/* Mode toggle */
+.mode-row { display:flex; gap:8px; padding:10px 14px; border-bottom:1px solid var(--border); }
+.mode-btn { flex:1; padding:8px; border:2px solid var(--border); border-radius:8px; background:white; cursor:pointer; font-size:.82rem; font-weight:600; color:var(--sub); transition:all .2s; text-align:center; }
+.mode-btn.active { border-color:var(--primary); background:#f0f1ff; color:var(--primary); }
 
-/* ── Results ── */
-.result-grid {
-  display: none;
-  gap: 14px;
-}
-.result-grid.visible { display: grid; grid-template-columns: 1fr 1fr; }
-@media(max-width:580px) { .result-grid.visible { grid-template-columns: 1fr; } }
+.viewer-wrap { position:relative; background:#37474f; overflow:hidden; height:420px; touch-action:none; }
+.viewer-wrap.mode-pan { cursor:grab; }
+.viewer-wrap.mode-pan.grabbing { cursor:grabbing; }
+.viewer-wrap.mode-select { cursor:crosshair; }
 
-.result-card { background: var(--card); border-radius: 14px; padding: 16px; box-shadow: 0 1px 6px rgba(0,0,0,.08); }
-.result-card h3 { font-size: 0.88rem; color: var(--sub); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
-.result-card textarea {
-  width: 100%;
-  min-height: 180px;
-  border: 1.5px solid var(--border);
-  border-radius: 8px;
-  padding: 10px 12px;
-  font-size: 0.88rem;
-  line-height: 1.65;
-  resize: vertical;
-  outline: none;
-  color: var(--text);
-  transition: border .2s;
-}
-.result-card textarea:focus { border-color: var(--primary); }
-.char-count { font-size: 0.72rem; color: var(--sub); text-align: right; margin-top: 4px; }
-.result-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+#viewerCanvas { display:block; position:absolute; transform-origin:0 0; }
 
-/* ── Loading overlay ── */
-.loading {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,.55);
-  z-index: 9999;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  gap: 14px;
-}
-.loading.visible { display: flex; }
-.spinner {
-  width: 48px; height: 48px;
-  border: 4px solid rgba(255,255,255,.25);
-  border-top-color: white;
-  border-radius: 50%;
-  animation: spin .7s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-.loading p { color: white; font-size: 1rem; font-weight: 600; }
+/* Selection overlay */
+#selectionCanvas { display:block; position:absolute; top:0; left:0; pointer-events:none; }
 
-/* ── Error ── */
-.error { display: none; background: #ffebee; border: 1px solid #ef9a9a; border-radius: 8px; padding: 10px 14px; color: #b71c1c; font-size: 0.85rem; margin-bottom: 12px; }
-.error.visible { display: block; }
+/* Translation popup */
+.trans-popup {
+  display:none;
+  position:absolute;
+  background:white;
+  border-radius:12px;
+  box-shadow:0 4px 24px rgba(0,0,0,.25);
+  padding:14px 16px;
+  max-width:320px;
+  min-width:200px;
+  z-index:50;
+  border:2px solid var(--primary);
+}
+.trans-popup.visible { display:block; }
+.trans-popup .pop-title { font-size:.72rem; color:var(--sub); font-weight:700; margin-bottom:6px; text-transform:uppercase; }
+.trans-popup .pop-kor { font-size:.82rem; color:var(--text); margin-bottom:8px; border-bottom:1px solid var(--border); padding-bottom:8px; line-height:1.6; }
+.trans-popup .pop-rus { font-size:.88rem; color:var(--primary); font-weight:600; line-height:1.6; }
+.trans-popup .pop-close { position:absolute; top:8px; right:10px; background:none; border:none; cursor:pointer; font-size:1rem; color:var(--sub); }
+.trans-popup .pop-loading { text-align:center; color:var(--sub); font-size:.82rem; padding:8px 0; }
 
-/* ── Page flip animation ── */
-.flip-anim {
-  animation: flipPage .35s ease;
-}
-@keyframes flipPage {
-  0% { opacity: 1; transform: perspective(800px) rotateY(0deg); }
-  50% { opacity: .4; transform: perspective(800px) rotateY(90deg); }
-  100% { opacity: 1; transform: perspective(800px) rotateY(0deg); }
-}
+.viewer-nav { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-top:1px solid var(--border); }
+.nav-btn { background:var(--primary); color:white; border:none; border-radius:8px; padding:7px 16px; font-size:.82rem; cursor:pointer; display:flex; align-items:center; gap:5px; }
+.nav-btn:hover { filter:brightness(1.1); }
+.nav-btn:disabled { background:#b0bec5; cursor:not-allowed; }
+.zoom-controls { display:flex; gap:5px; align-items:center; }
+.zoom-btn { background:#eceff1; border:none; border-radius:6px; width:30px; height:30px; font-size:1rem; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.zoom-btn:hover { background:#cfd8dc; }
+.zoom-label { font-size:.78rem; color:var(--sub); min-width:40px; text-align:center; }
+
+.scan-row { display:flex; align-items:center; gap:10px; padding:8px 14px; border-top:1px solid var(--border); }
+.scan-row label { font-size:.82rem; flex:1; }
+.toggle { position:relative; width:42px; height:22px; }
+.toggle input { opacity:0; width:0; height:0; }
+.toggle-slider { position:absolute; inset:0; background:#b0bec5; border-radius:22px; cursor:pointer; transition:background .2s; }
+.toggle-slider::before { content:''; position:absolute; width:16px; height:16px; background:white; border-radius:50%; top:3px; left:3px; transition:transform .2s; box-shadow:0 1px 3px rgba(0,0,0,.3); }
+.toggle input:checked + .toggle-slider { background:var(--primary); }
+.toggle input:checked + .toggle-slider::before { transform:translateX(20px); }
+
+/* Full page translate button */
+.translate-wrap { text-align:center; margin-bottom:12px; }
+.btn-orange { background:var(--orange); color:white; font-size:.95rem; padding:11px 28px; }
+.btn-orange:hover { filter:brightness(1.08); transform:translateY(-1px); }
+
+/* Results */
+.result-grid { display:none; gap:12px; margin-bottom:12px; }
+.result-grid.visible { display:grid; grid-template-columns:1fr 1fr; }
+@media(max-width:560px) { .result-grid.visible { grid-template-columns:1fr; } }
+.result-card { background:var(--card); border-radius:14px; padding:14px; box-shadow:0 1px 6px rgba(0,0,0,.08); }
+.result-card h3 { font-size:.85rem; color:var(--sub); margin-bottom:8px; display:flex; align-items:center; gap:6px; }
+.result-card textarea { width:100%; min-height:160px; border:1.5px solid var(--border); border-radius:8px; padding:10px 12px; font-size:.85rem; line-height:1.65; resize:vertical; outline:none; color:var(--text); }
+.result-card textarea:focus { border-color:var(--primary); }
+.char-count { font-size:.7rem; color:var(--sub); text-align:right; margin-top:3px; }
+.result-actions { display:flex; gap:6px; margin-top:6px; }
+
+.error { display:none; background:#ffebee; border:1px solid #ef9a9a; border-radius:8px; padding:10px 14px; color:#b71c1c; font-size:.82rem; margin-bottom:10px; }
+.error.visible { display:block; }
+
+.loading { display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:9999; align-items:center; justify-content:center; flex-direction:column; gap:14px; }
+.loading.visible { display:flex; }
+.spinner { width:46px; height:46px; border:4px solid rgba(255,255,255,.25); border-top-color:white; border-radius:50%; animation:spin .7s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.loading p { color:white; font-size:.95rem; font-weight:600; }
+
+.flip-anim { animation:flipPage .3s ease; }
+@keyframes flipPage { 0%{opacity:1;transform:perspective(600px) rotateY(0)} 50%{opacity:.3;transform:perspective(600px) rotateY(90deg)} 100%{opacity:1;transform:perspective(600px) rotateY(0)} }
+
+.select-hint { font-size:.78rem; color:var(--sub); text-align:center; padding:6px; background:#f8f9fa; }
 </style>
 </head>
 <body>
 
 <div class="header">
-  <span style="font-size:1.4rem">📚</span>
+  <span style="font-size:1.3rem">📚</span>
   <h1>교과서 번역기</h1>
   <span class="badge">한국어 → 러시아어</span>
 </div>
 
 <div class="main">
 
-  <!-- API Key -->
   <div class="card">
     <div class="card-title">🔑 Groq API 키</div>
     <div class="api-row">
@@ -440,27 +183,25 @@ body {
   </div>
 
   <div class="hint">
-    📌 <strong>처음 사용한다면:</strong>
-    <a href="https://console.groq.com/keys" target="_blank">Groq Console</a>에서
-    무료 API 키를 발급받아 위에 입력해주세요. (카드 불필요, 완전 무료)<br>
-    교과서를 사진 찍으면 한국어를 인식하고 러시아어로 번역합니다.
+    📌 <a href="https://console.groq.com/keys" target="_blank">console.groq.com</a>에서 무료 API 키 발급 (카드 불필요)<br>
+    🖱️ <strong>영역 선택 모드</strong>: 번역할 부분을 드래그하면 해당 부분만 번역됩니다
   </div>
 
   <div class="error" id="errorMsg"></div>
 
-  <!-- Upload zone -->
   <div class="upload-zone" id="uploadZone">
     <div class="icon">📷</div>
-    <p>교과서 사진을 끌어다 놓거나 아래 버튼을 눌러 추가하세요</p>
+    <p>교과서 사진이나 PDF를 끌어다 놓거나 아래 버튼을 눌러 추가하세요</p>
     <div class="btn-group">
-      <button class="btn btn-green" onclick="triggerCamera()">📸 카메라 촬영</button>
-      <button class="btn btn-primary" onclick="triggerFile()">📁 파일 선택</button>
+      <button class="btn btn-green" onclick="triggerCamera()">📸 카메라</button>
+      <button class="btn btn-primary" onclick="triggerFile()">📁 사진 선택</button>
+      <button class="btn btn-gray" onclick="triggerPdf()">📄 PDF 선택</button>
     </div>
   </div>
   <input type="file" id="fileInput" accept="image/*" multiple onchange="handleFiles(this.files)">
   <input type="file" id="cameraInput" accept="image/*" capture="environment" onchange="handleFiles(this.files)">
+  <input type="file" id="pdfInput" accept="application/pdf" onchange="handlePdf(this.files[0])">
 
-  <!-- Pages strip -->
   <div class="pages-section" id="pagesSection">
     <div class="pages-header">
       <span id="pagesTitle">페이지 목록</span>
@@ -469,7 +210,6 @@ body {
     <div class="pages-strip" id="pagesStrip"></div>
   </div>
 
-  <!-- Viewer -->
   <div class="viewer-section" id="viewerSection">
     <div class="viewer-card">
       <div class="viewer-toolbar">
@@ -477,52 +217,67 @@ body {
           <button class="zoom-btn" onclick="zoomOut()">−</button>
           <span class="zoom-label" id="zoomLabel">100%</span>
           <button class="zoom-btn" onclick="zoomIn()">+</button>
-          <button class="zoom-btn" onclick="resetZoom()" title="원래 크기">⊙</button>
+          <button class="zoom-btn" onclick="resetZoom()" title="맞춤">⊙</button>
         </div>
         <div class="page-indicator" id="pageIndicator">1 / 1</div>
-        <button class="btn btn-sm btn-primary" onclick="triggerCamera()">+ 추가</button>
+        <button class="btn btn-sm btn-primary" onclick="triggerFile()">+ 추가</button>
       </div>
 
-      <div class="viewer-wrap" id="viewerWrap">
+      <!-- Mode toggle -->
+      <div class="mode-row">
+        <div class="mode-btn active" id="modePan" onclick="setMode('pan')">✋ 이동/확대</div>
+        <div class="mode-btn" id="modeSelect" onclick="setMode('select')">🔲 영역 선택 번역</div>
+      </div>
+
+      <div class="select-hint" id="selectHint" style="display:none">드래그하여 번역할 영역을 선택하세요</div>
+
+      <div class="viewer-wrap mode-pan" id="viewerWrap">
         <canvas id="viewerCanvas"></canvas>
+        <canvas id="selectionCanvas"></canvas>
+        <div class="trans-popup" id="transPopup">
+          <button class="pop-close" onclick="closePopup()">✕</button>
+          <div class="pop-title">🇰🇷 인식된 한국어</div>
+          <div class="pop-kor" id="popKor"></div>
+          <div class="pop-title">🇷🇺 러시아어 번역</div>
+          <div class="pop-rus" id="popRus"></div>
+          <div class="pop-loading" id="popLoading">번역 중...</div>
+        </div>
       </div>
 
       <div class="scan-row">
-        <label>🔲 스캔 보정 (문서처럼 평평하게)</label>
+        <label>🔲 스캔 보정</label>
         <label class="toggle">
-          <input type="checkbox" id="scanToggle" checked onchange="applyScanEffect()">
+          <input type="checkbox" id="scanToggle" checked onchange="renderCurrentPage()">
           <span class="toggle-slider"></span>
         </label>
       </div>
 
       <div class="viewer-nav">
         <button class="nav-btn" id="prevBtn" onclick="goPage(-1)" disabled>◀ 이전</button>
-        <span style="font-size:.85rem;color:var(--sub)" id="navLabel">1 / 1페이지</span>
+        <span style="font-size:.82rem;color:var(--sub)" id="navLabel">1 / 1페이지</span>
         <button class="nav-btn" id="nextBtn" onclick="goPage(1)" disabled>다음 ▶</button>
       </div>
     </div>
   </div>
 
-  <!-- Translate -->
   <div class="translate-wrap">
     <button class="btn btn-orange" id="translateBtn" onclick="doTranslate()" disabled>
-      🔄 이 페이지 러시아어로 번역
+      🔄 전체 페이지 번역
     </button>
   </div>
 
-  <!-- Results -->
   <div class="result-grid" id="resultGrid">
     <div class="result-card">
-      <h3><span>🇰🇷</span> 인식된 한국어</h3>
-      <textarea id="koreanText" placeholder="인식된 한국어가 여기에 표시됩니다..."></textarea>
+      <h3>🇰🇷 인식된 한국어</h3>
+      <textarea id="koreanText" placeholder="인식된 한국어..."></textarea>
       <div class="char-count" id="korCount">0자</div>
       <div class="result-actions">
         <button class="btn btn-gray btn-sm" onclick="copyText('koreanText')">📋 복사</button>
       </div>
     </div>
     <div class="result-card">
-      <h3><span>🇷🇺</span> 러시아어 번역</h3>
-      <textarea id="russianText" placeholder="러시아어 번역이 여기에 표시됩니다..."></textarea>
+      <h3>🇷🇺 러시아어 번역</h3>
+      <textarea id="russianText" placeholder="러시아어 번역..."></textarea>
       <div class="char-count" id="rusCount">0자</div>
       <div class="result-actions">
         <button class="btn btn-gray btn-sm" onclick="copyText('russianText')">📋 복사</button>
@@ -538,24 +293,33 @@ body {
 </div>
 
 <script>
-// ──── State ────
-const pages = []; // { original: ImageData, processed: ImageData, base64: string, mime: string }
-let currentPage = 0;
-let zoom = 1;
-let panX = 0, panY = 0;
-let isPanning = false;
-let panStart = { x: 0, y: 0 };
-let lastPinchDist = null;
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-// ──── Init ────
+// ── State ──
+const pages = [];
+let currentPage = 0;
+let zoom = 1, panX = 0, panY = 0;
+let isPanning = false, panStart = {x:0,y:0};
+let lastPinchDist = null;
+let viewMode = 'pan'; // 'pan' | 'select'
+
+// Selection state
+let isSelecting = false;
+let selStart = {x:0,y:0}, selEnd = {x:0,y:0};
+
+const canvas = document.getElementById('viewerCanvas');
+const ctx = canvas.getContext('2d');
+const selCanvas = document.getElementById('selectionCanvas');
+const selCtx = selCanvas.getContext('2d');
+
+// ── Init ──
 window.onload = () => {
   const k = localStorage.getItem('gemini_api_key');
   if (k) { document.getElementById('apiKeyInput').value = k; updateApiStatus(true); }
-
   initViewer();
 };
 
-// ──── API Key ────
+// ── API Key ──
 function saveApiKey() {
   const k = document.getElementById('apiKeyInput').value.trim();
   if (!k) { showError('API 키를 입력해주세요.'); return; }
@@ -569,34 +333,57 @@ function updateApiStatus(ok) {
   el.className = 'status-chip ' + (ok ? 'ok' : 'no');
 }
 
-// ──── File handling ────
+// ── File handling ──
 function triggerCamera() { document.getElementById('cameraInput').click(); }
 function triggerFile() { document.getElementById('fileInput').click(); }
+function triggerPdf() { document.getElementById('pdfInput').click(); }
 
 function handleFiles(files) {
   if (!files?.length) return;
   Array.from(files).forEach(f => {
     if (!f.type.startsWith('image/')) return;
     const reader = new FileReader();
-    reader.onload = e => addPage(e.target.result, f.type);
+    reader.onload = e => addPageFromDataUrl(e.target.result);
     reader.readAsDataURL(f);
   });
 }
 
-function addPage(dataUrl, mime) {
+async function handlePdf(file) {
+  if (!file) return;
+  showLoading('PDF 변환 중...');
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    for (let i = 1; i <= pdf.numPages; i++) {
+      document.getElementById('loadingText').textContent = `PDF 변환 중... (${i}/${pdf.numPages})`;
+      const page = await pdf.getPage(i);
+      const scale = 2;
+      const viewport = page.getViewport({ scale });
+      const offCanvas = document.createElement('canvas');
+      offCanvas.width = viewport.width;
+      offCanvas.height = viewport.height;
+      const offCtx = offCanvas.getContext('2d');
+      await page.render({ canvasContext: offCtx, viewport }).promise;
+      addPageFromDataUrl(offCanvas.toDataURL('image/jpeg', 0.92));
+    }
+  } catch(e) {
+    showError('PDF 오류: ' + e.message);
+  } finally {
+    hideLoading();
+  }
+}
+
+function addPageFromDataUrl(dataUrl) {
   const img = new Image();
   img.onload = () => {
-    const canvas = document.createElement('canvas');
-    canvas.width = img.naturalWidth;
-    canvas.height = img.naturalHeight;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(img, 0, 0);
-    const original = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-    pages.push({ original, processed: null, dataUrl, mime, width: img.naturalWidth, height: img.naturalHeight });
-    const idx = pages.length - 1;
-    pages[idx].processed = scanEffect(original, canvas.width, canvas.height);
-
+    const c = document.createElement('canvas');
+    c.width = img.naturalWidth; c.height = img.naturalHeight;
+    const cx = c.getContext('2d');
+    cx.drawImage(img, 0, 0);
+    const original = cx.getImageData(0, 0, c.width, c.height);
+    const processed = scanEffect(original, c.width, c.height);
+    const idx = pages.length;
+    pages.push({ original, processed, dataUrl, width: c.width, height: c.height });
     renderThumb(idx);
     selectPage(idx);
     updateUI();
@@ -604,324 +391,386 @@ function addPage(dataUrl, mime) {
   img.src = dataUrl;
 }
 
-// ──── Scan / document correction effect ────
+// ── Scan effect ──
 function scanEffect(imageData, w, h) {
   const src = imageData.data;
   const out = new Uint8ClampedArray(src.length);
-
   for (let i = 0; i < src.length; i += 4) {
-    const r = src[i], g = src[i+1], b = src[i+2], a = src[i+3];
-
-    // Convert to grayscale-ish with enhanced contrast (document look)
-    const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-
-    // Adaptive threshold-like: boost whites, deepen blacks
-    const factor = 1.3;
-    const bias = 15;
-    let nr = Math.min(255, r * factor + bias);
-    let ng = Math.min(255, g * factor + bias);
-    let nb = Math.min(255, b * factor + bias);
-
-    // Slight desaturation to reduce shadow colors
-    const avg = (nr + ng + nb) / 3;
-    const desat = 0.4;
-    nr = nr * (1 - desat) + avg * desat;
-    ng = ng * (1 - desat) + avg * desat;
-    nb = nb * (1 - desat) + avg * desat;
-
-    // If very bright, push to pure white (paper)
-    if (nr > 200 && ng > 200 && nb > 200) {
-      const w2 = Math.min(1, (Math.min(nr,ng,nb) - 180) / 40);
-      nr = nr + (255 - nr) * w2;
-      ng = ng + (255 - ng) * w2;
-      nb = nb + (255 - nb) * w2;
-    }
-
-    out[i]   = Math.round(nr);
-    out[i+1] = Math.round(ng);
-    out[i+2] = Math.round(nb);
-    out[i+3] = a;
+    const r = src[i], g = src[i+1], b = src[i+2];
+    const avg = (r+g+b)/3;
+    let nr = Math.min(255, r*1.3+15), ng = Math.min(255, g*1.3+15), nb = Math.min(255, b*1.3+15);
+    nr = nr*.6+avg*.4; ng = ng*.6+avg*.4; nb = nb*.6+avg*.4;
+    if (nr>200&&ng>200&&nb>200) { const w2=Math.min(1,(Math.min(nr,ng,nb)-180)/40); nr+=(255-nr)*w2; ng+=(255-ng)*w2; nb+=(255-nb)*w2; }
+    out[i]=Math.round(nr); out[i+1]=Math.round(ng); out[i+2]=Math.round(nb); out[i+3]=src[i+3];
   }
   return new ImageData(out, w, h);
 }
 
-function applyScanEffect() { renderCurrentPage(); }
-
-// ──── Thumbnails ────
+// ── Thumbnails ──
 function renderThumb(idx) {
-  const strip = document.getElementById('pagesStrip');
-  // Check if thumb already exists
-  const existing = document.getElementById('thumb-' + idx);
-  if (existing) return;
-
+  if (document.getElementById('thumb-'+idx)) return;
   const page = pages[idx];
-  const thumbCanvas = document.createElement('canvas');
-  const tw = 80, th = 100;
-  thumbCanvas.width = tw;
-  thumbCanvas.height = th;
-  const ctx = thumbCanvas.getContext('2d');
-
-  const tmpCanvas = document.createElement('canvas');
-  tmpCanvas.width = page.width;
-  tmpCanvas.height = page.height;
-  tmpCanvas.getContext('2d').putImageData(page.processed, 0, 0);
-
-  // Crop to fit thumbnail
-  const ratio = page.width / page.height;
-  const targetRatio = tw / th;
-  let sx, sy, sw, sh;
-  if (ratio > targetRatio) {
-    sh = page.height; sw = sh * targetRatio;
-    sx = (page.width - sw) / 2; sy = 0;
-  } else {
-    sw = page.width; sh = sw / targetRatio;
-    sx = 0; sy = (page.height - sh) / 2;
-  }
-  ctx.drawImage(tmpCanvas, sx, sy, sw, sh, 0, 0, tw, th);
-
-  const div = document.createElement('div');
-  div.className = 'page-thumb';
-  div.id = 'thumb-' + idx;
-  div.onclick = () => selectPage(idx);
-  div.innerHTML = `
-    <img src="${thumbCanvas.toDataURL()}" alt="페이지 ${idx+1}">
-    <div class="page-num">${idx + 1}</div>
-    <button class="del-btn" onclick="deletePage(event, ${idx})">×</button>
-  `;
-  // Insert before add button if exists
-  const addBtn = document.getElementById('addPageBtn');
-  if (addBtn) strip.insertBefore(div, addBtn);
-  else strip.appendChild(div);
+  const tc = document.createElement('canvas'); tc.width=72; tc.height=90;
+  const tx = tc.getContext('2d');
+  const tmp = document.createElement('canvas'); tmp.width=page.width; tmp.height=page.height;
+  tmp.getContext('2d').putImageData(page.processed,0,0);
+  const ratio=page.width/page.height, tr=72/90;
+  let sx,sy,sw,sh;
+  if(ratio>tr){sh=page.height;sw=sh*tr;sx=(page.width-sw)/2;sy=0;}
+  else{sw=page.width;sh=sw/tr;sx=0;sy=(page.height-sh)/2;}
+  tx.drawImage(tmp,sx,sy,sw,sh,0,0,72,90);
+  const div=document.createElement('div');
+  div.className='page-thumb'; div.id='thumb-'+idx;
+  div.onclick=()=>selectPage(idx);
+  div.innerHTML=`<img src="${tc.toDataURL()}" alt="p${idx+1}"><div class="page-num">${idx+1}</div><button class="del-btn" onclick="deletePage(event,${idx})">×</button>`;
+  const addBtn=document.getElementById('addPageBtn');
+  if(addBtn) document.getElementById('pagesStrip').insertBefore(div,addBtn);
+  else document.getElementById('pagesStrip').appendChild(div);
 }
 
 function rebuildThumbs() {
-  const strip = document.getElementById('pagesStrip');
-  strip.innerHTML = '';
-  pages.forEach((_, i) => renderThumb(i));
-  const addBtn = document.createElement('div');
-  addBtn.className = 'add-page-btn';
-  addBtn.id = 'addPageBtn';
-  addBtn.innerHTML = '<span style="font-size:1.5rem">+</span><span>페이지 추가</span>';
-  addBtn.onclick = () => triggerFile();
+  const strip=document.getElementById('pagesStrip'); strip.innerHTML='';
+  pages.forEach((_,i)=>renderThumb(i));
+  const addBtn=document.createElement('div');
+  addBtn.className='add-page-btn'; addBtn.id='addPageBtn';
+  addBtn.innerHTML='<span style="font-size:1.4rem">+</span><span>추가</span>';
+  addBtn.onclick=()=>triggerFile();
   strip.appendChild(addBtn);
 }
 
-function deletePage(e, idx) {
+function deletePage(e,idx) {
   e.stopPropagation();
-  pages.splice(idx, 1);
-  if (currentPage >= pages.length) currentPage = Math.max(0, pages.length - 1);
+  pages.splice(idx,1);
+  if(currentPage>=pages.length) currentPage=Math.max(0,pages.length-1);
   rebuildThumbs();
-  if (pages.length > 0) selectPage(currentPage);
+  if(pages.length>0) selectPage(currentPage);
   updateUI();
 }
 
 function clearAll() {
-  pages.length = 0;
-  currentPage = 0;
-  document.getElementById('pagesStrip').innerHTML = '';
+  pages.length=0; currentPage=0;
+  document.getElementById('pagesStrip').innerHTML='';
   document.getElementById('pagesSection').classList.remove('visible');
   document.getElementById('viewerSection').classList.remove('visible');
-  document.getElementById('translateBtn').disabled = true;
+  document.getElementById('translateBtn').disabled=true;
   document.getElementById('resultGrid').classList.remove('visible');
-  resetZoom();
   updateUI();
 }
 
-// ──── Page navigation ────
+// ── Page navigation ──
 function selectPage(idx) {
-  currentPage = idx;
-  // Update thumb highlight
-  document.querySelectorAll('.page-thumb').forEach((el, i) => {
-    el.classList.toggle('active', i === idx);
-  });
-  resetZoom();
+  currentPage=idx;
+  document.querySelectorAll('.page-thumb').forEach((el,i)=>el.classList.toggle('active',i===idx));
+  closePopup();
   renderCurrentPage(true);
   updateNavButtons();
 }
 
 function goPage(dir) {
-  const next = currentPage + dir;
-  if (next < 0 || next >= pages.length) return;
-  // Flip animation
-  const wrap = document.getElementById('viewerWrap');
+  const next=currentPage+dir;
+  if(next<0||next>=pages.length) return;
+  const wrap=document.getElementById('viewerWrap');
   wrap.classList.add('flip-anim');
-  wrap.addEventListener('animationend', () => wrap.classList.remove('flip-anim'), { once: true });
+  wrap.addEventListener('animationend',()=>wrap.classList.remove('flip-anim'),{once:true});
   selectPage(next);
 }
 
 function updateNavButtons() {
-  document.getElementById('prevBtn').disabled = currentPage <= 0;
-  document.getElementById('nextBtn').disabled = currentPage >= pages.length - 1;
-  document.getElementById('pageIndicator').textContent = `${currentPage + 1} / ${pages.length}`;
-  document.getElementById('navLabel').textContent = `${currentPage + 1} / ${pages.length}페이지`;
+  document.getElementById('prevBtn').disabled=currentPage<=0;
+  document.getElementById('nextBtn').disabled=currentPage>=pages.length-1;
+  document.getElementById('pageIndicator').textContent=`${currentPage+1} / ${pages.length}`;
+  document.getElementById('navLabel').textContent=`${currentPage+1} / ${pages.length}페이지`;
 }
 
-// ──── Viewer / Canvas ────
-const canvas = document.getElementById('viewerCanvas');
-const ctx = canvas.getContext('2d');
+// ── Mode ──
+function setMode(mode) {
+  viewMode=mode;
+  document.getElementById('modePan').classList.toggle('active',mode==='pan');
+  document.getElementById('modeSelect').classList.toggle('active',mode==='select');
+  const wrap=document.getElementById('viewerWrap');
+  wrap.className='viewer-wrap mode-'+mode;
+  document.getElementById('selectHint').style.display=mode==='select'?'block':'none';
+  selCtx.clearRect(0,0,selCanvas.width,selCanvas.height);
+  closePopup();
+}
 
+// ── Viewer ──
 function initViewer() {
-  const wrap = document.getElementById('viewerWrap');
+  const wrap=document.getElementById('viewerWrap');
 
-  // Mouse pan
+  // Pan: mouse
   wrap.addEventListener('mousedown', e => {
-    isPanning = true;
-    panStart = { x: e.clientX - panX, y: e.clientY - panY };
-    wrap.classList.add('grabbing');
+    if(viewMode==='pan') {
+      isPanning=true; panStart={x:e.clientX-panX,y:e.clientY-panY};
+      wrap.classList.add('grabbing');
+    } else {
+      const pos=canvasPos(e);
+      isSelecting=true; selStart=pos; selEnd=pos;
+      closePopup();
+    }
   });
   window.addEventListener('mousemove', e => {
-    if (!isPanning) return;
-    panX = e.clientX - panStart.x;
-    panY = e.clientY - panStart.y;
-    clampPan();
-    applyTransform();
+    if(viewMode==='pan'&&isPanning) {
+      panX=e.clientX-panStart.x; panY=e.clientY-panStart.y;
+      clampPan(); applyTransform();
+    } else if(viewMode==='select'&&isSelecting) {
+      selEnd=canvasPos(e);
+      drawSelection();
+    }
   });
-  window.addEventListener('mouseup', () => { isPanning = false; document.getElementById('viewerWrap').classList.remove('grabbing'); });
+  window.addEventListener('mouseup', e => {
+    document.getElementById('viewerWrap').classList.remove('grabbing');
+    if(viewMode==='pan') { isPanning=false; }
+    else if(viewMode==='select'&&isSelecting) {
+      isSelecting=false;
+      selEnd=canvasPos(e);
+      drawSelection();
+      const rect=getSelectionRect();
+      if(rect.w>20&&rect.h>20) translateSelection(rect);
+    }
+  });
 
-  // Mouse wheel zoom
-  wrap.addEventListener('wheel', e => {
-    e.preventDefault();
-    const delta = e.deltaY > 0 ? -0.15 : 0.15;
-    setZoom(zoom + delta, e.clientX, e.clientY);
-  }, { passive: false });
-
-  // Touch
+  // Pan: touch
   wrap.addEventListener('touchstart', e => {
-    if (e.touches.length === 1) {
-      isPanning = true;
-      panStart = { x: e.touches[0].clientX - panX, y: e.touches[0].clientY - panY };
-    } else if (e.touches.length === 2) {
-      lastPinchDist = pinchDist(e);
+    if(e.touches.length===1) {
+      if(viewMode==='pan') {
+        isPanning=true; panStart={x:e.touches[0].clientX-panX,y:e.touches[0].clientY-panY};
+      } else {
+        const pos=canvasPosTouch(e.touches[0]);
+        isSelecting=true; selStart=pos; selEnd=pos; closePopup();
+      }
+    } else if(e.touches.length===2) {
+      lastPinchDist=pinchDist(e);
     }
     e.preventDefault();
-  }, { passive: false });
+  },{passive:false});
 
   wrap.addEventListener('touchmove', e => {
-    if (e.touches.length === 1 && isPanning) {
-      panX = e.touches[0].clientX - panStart.x;
-      panY = e.touches[0].clientY - panStart.y;
-      clampPan();
-      applyTransform();
-    } else if (e.touches.length === 2 && lastPinchDist) {
-      const d = pinchDist(e);
-      const ratio = d / lastPinchDist;
-      setZoom(zoom * ratio);
-      lastPinchDist = d;
+    if(e.touches.length===1) {
+      if(viewMode==='pan'&&isPanning) {
+        panX=e.touches[0].clientX-panStart.x; panY=e.touches[0].clientY-panStart.y;
+        clampPan(); applyTransform();
+      } else if(viewMode==='select'&&isSelecting) {
+        selEnd=canvasPosTouch(e.touches[0]); drawSelection();
+      }
+    } else if(e.touches.length===2&&lastPinchDist) {
+      const d=pinchDist(e); setZoom(zoom*(d/lastPinchDist)); lastPinchDist=d;
     }
     e.preventDefault();
-  }, { passive: false });
+  },{passive:false});
 
   wrap.addEventListener('touchend', e => {
-    if (e.touches.length < 2) lastPinchDist = null;
-    if (e.touches.length === 0) isPanning = false;
+    if(e.touches.length<2) lastPinchDist=null;
+    if(e.touches.length===0) {
+      if(viewMode==='select'&&isSelecting) {
+        isSelecting=false; drawSelection();
+        const rect=getSelectionRect();
+        if(rect.w>20&&rect.h>20) translateSelection(rect);
+      }
+      isPanning=false;
+    }
   });
+
+  // Wheel zoom
+  wrap.addEventListener('wheel', e => {
+    e.preventDefault();
+    setZoom(zoom+(e.deltaY>0?-0.15:0.15), e.clientX, e.clientY);
+  },{passive:false});
 }
 
-function pinchDist(e) {
-  const dx = e.touches[0].clientX - e.touches[1].clientX;
-  const dy = e.touches[0].clientY - e.touches[1].clientY;
-  return Math.sqrt(dx*dx + dy*dy);
+// ── Canvas coordinate helpers ──
+function canvasPos(e) {
+  const wrap=document.getElementById('viewerWrap');
+  const rect=wrap.getBoundingClientRect();
+  return { x:(e.clientX-rect.left-panX)/zoom, y:(e.clientY-rect.top-panY)/zoom };
+}
+function canvasPosTouch(t) {
+  const wrap=document.getElementById('viewerWrap');
+  const rect=wrap.getBoundingClientRect();
+  return { x:(t.clientX-rect.left-panX)/zoom, y:(t.clientY-rect.top-panY)/zoom };
+}
+function getSelectionRect() {
+  const x=Math.min(selStart.x,selEnd.x), y=Math.min(selStart.y,selEnd.y);
+  const w=Math.abs(selEnd.x-selStart.x), h=Math.abs(selEnd.y-selStart.y);
+  return {x,y,w,h};
 }
 
-function renderCurrentPage(resetPan) {
-  if (!pages.length) return;
-  const page = pages[currentPage];
-  const scanOn = document.getElementById('scanToggle').checked;
-  const data = scanOn ? page.processed : page.original;
+// ── Selection drawing ──
+function drawSelection() {
+  const wrap=document.getElementById('viewerWrap');
+  selCanvas.width=wrap.offsetWidth; selCanvas.height=wrap.offsetHeight;
+  selCtx.clearRect(0,0,selCanvas.width,selCanvas.height);
 
-  canvas.width = page.width;
-  canvas.height = page.height;
-  ctx.putImageData(data, 0, 0);
+  const sx=(selStart.x*zoom+panX), sy=(selStart.y*zoom+panY);
+  const ex=(selEnd.x*zoom+panX), ey=(selEnd.y*zoom+panY);
+  const x=Math.min(sx,ex), y=Math.min(sy,ey);
+  const w=Math.abs(ex-sx), h=Math.abs(ey-sy);
 
-  const wrap = document.getElementById('viewerWrap');
-  const ww = wrap.clientWidth || wrap.offsetWidth;
-  const wh = wrap.clientHeight || 380;
+  selCtx.fillStyle='rgba(92,107,192,0.15)';
+  selCtx.fillRect(x,y,w,h);
+  selCtx.strokeStyle='#5c6bc0';
+  selCtx.lineWidth=2;
+  selCtx.setLineDash([6,3]);
+  selCtx.strokeRect(x,y,w,h);
+}
 
-  if (resetPan) {
-    // Fit to viewer
-    const scale = Math.min(ww / page.width, wh / page.height, 1);
-    zoom = scale;
-    panX = (ww - page.width * zoom) / 2;
-    panY = (wh - page.height * zoom) / 2;
+// ── Selection translate ──
+async function translateSelection(rect) {
+  const apiKey=localStorage.getItem('gemini_api_key')||document.getElementById('apiKeyInput').value.trim();
+  if(!apiKey) { showError('API 키를 입력하고 저장해주세요.'); return; }
+  if(!pages.length) return;
+
+  const page=pages[currentPage];
+  const cx=Math.max(0,Math.round(rect.x)), cy=Math.max(0,Math.round(rect.y));
+  const cw=Math.min(Math.round(rect.w),page.width-cx);
+  const ch=Math.min(Math.round(rect.h),page.height-cy);
+  if(cw<=0||ch<=0) return;
+
+  // Show popup with loading
+  const popup=document.getElementById('transPopup');
+  const wrap=document.getElementById('viewerWrap');
+  const wRect=wrap.getBoundingClientRect();
+  const popX=Math.min(selEnd.x*zoom+panX+10, wrap.offsetWidth-330);
+  const popY=Math.min(selEnd.y*zoom+panY+10, wrap.offsetHeight-200);
+  popup.style.left=Math.max(5,popX)+'px';
+  popup.style.top=Math.max(5,popY)+'px';
+  document.getElementById('popKor').textContent='';
+  document.getElementById('popRus').textContent='';
+  document.getElementById('popLoading').style.display='block';
+  popup.classList.add('visible');
+
+  try {
+    const scanOn=document.getElementById('scanToggle').checked;
+    const srcData=scanOn?page.processed:page.original;
+    const tmp=document.createElement('canvas'); tmp.width=cw; tmp.height=ch;
+    const tmpCtx=tmp.getContext('2d');
+    const full=document.createElement('canvas'); full.width=page.width; full.height=page.height;
+    full.getContext('2d').putImageData(srcData,0,0);
+    tmpCtx.drawImage(full,cx,cy,cw,ch,0,0,cw,ch);
+    const base64=tmp.toDataURL('image/jpeg',0.92).split(',')[1];
+
+    const prompt=`이 이미지에서 한국어 텍스트를 인식하고 러시아어로 번역하세요.
+
+형식:
+[KOREAN](인식된 한국어)[/KOREAN]
+[RUSSIAN](러시아어 번역)[/RUSSIAN]
+
+한국어가 없으면 [KOREAN]없음[/KOREAN][RUSSIAN]없음[/RUSSIAN]`;
+
+    const res=await fetch('https://api.groq.com/openai/v1/chat/completions',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},
+      body:JSON.stringify({
+        model:'meta-llama/llama-4-scout-17b-16e-instruct',
+        max_tokens:1024,
+        messages:[{role:'user',content:[
+          {type:'text',text:prompt},
+          {type:'image_url',image_url:{url:`data:image/jpeg;base64,${base64}`}}
+        ]}]
+      })
+    });
+
+    if(!res.ok) {
+      const err=await res.json().catch(()=>({}));
+      throw new Error(`[${res.status}] ${err.error?.message||''}`);
+    }
+
+    const json=await res.json();
+    const text=json.choices?.[0]?.message?.content||'';
+    const kor=(text.match(/\[KOREAN\]([\s\S]*?)\[\/KOREAN\]/)||[])[1]?.trim()||'인식 실패';
+    const rus=(text.match(/\[RUSSIAN\]([\s\S]*?)\[\/RUSSIAN\]/)||[])[1]?.trim()||'번역 실패';
+
+    document.getElementById('popKor').textContent=kor;
+    document.getElementById('popRus').textContent=rus;
+  } catch(e) {
+    document.getElementById('popKor').textContent='오류: '+e.message;
+    document.getElementById('popRus').textContent='';
+  } finally {
+    document.getElementById('popLoading').style.display='none';
+  }
+}
+
+function closePopup() {
+  document.getElementById('transPopup').classList.remove('visible');
+  selCtx.clearRect(0,0,selCanvas.width,selCanvas.height);
+}
+
+// ── Render ──
+function renderCurrentPage(fitToView) {
+  if(!pages.length) return;
+  const page=pages[currentPage];
+  const scanOn=document.getElementById('scanToggle').checked;
+  canvas.width=page.width; canvas.height=page.height;
+  ctx.putImageData(scanOn?page.processed:page.original,0,0);
+
+  const wrap=document.getElementById('viewerWrap');
+  selCanvas.width=wrap.offsetWidth||wrap.clientWidth;
+  selCanvas.height=wrap.offsetHeight||420;
+
+  if(fitToView) {
+    const ww=wrap.clientWidth||wrap.offsetWidth||400;
+    const wh=wrap.clientHeight||420;
+    zoom=Math.min(ww/page.width,wh/page.height,1);
+    panX=(ww-page.width*zoom)/2;
+    panY=(wh-page.height*zoom)/2;
     clampPan();
   }
   applyTransform();
 }
 
 function applyTransform() {
-  canvas.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
-  document.getElementById('zoomLabel').textContent = Math.round(zoom * 100) + '%';
+  canvas.style.transform=`translate(${panX}px,${panY}px) scale(${zoom})`;
+  document.getElementById('zoomLabel').textContent=Math.round(zoom*100)+'%';
 }
 
 function clampPan() {
-  if (!pages.length) return;
-  const page = pages[currentPage];
-  const wrap = document.getElementById('viewerWrap');
-  const ww = wrap.clientWidth || wrap.offsetWidth;
-  const wh = wrap.clientHeight || 380;
-  const pw = page.width * zoom;
-  const ph = page.height * zoom;
-  const minX = ww - pw - 20, maxX = 20;
-  const minY = wh - ph - 20, maxY = 20;
-  panX = Math.max(Math.min(panX, maxX), minX);
-  panY = Math.max(Math.min(panY, maxY), minY);
+  if(!pages.length) return;
+  const page=pages[currentPage];
+  const wrap=document.getElementById('viewerWrap');
+  const ww=wrap.clientWidth||400, wh=wrap.clientHeight||420;
+  const pw=page.width*zoom, ph=page.height*zoom;
+  panX=Math.max(Math.min(panX,20),ww-pw-20);
+  panY=Math.max(Math.min(panY,20),wh-ph-20);
 }
 
-function zoomIn() { setZoom(zoom * 1.25); }
-function zoomOut() { setZoom(zoom / 1.25); }
-function resetZoom() {
-  if (!pages.length) return;
-  renderCurrentPage(true);
-}
-
-function setZoom(newZoom, cx, cy) {
-  const prev = zoom;
-  zoom = Math.max(0.2, Math.min(5, newZoom));
-  if (cx !== undefined && cy !== undefined) {
-    const wrap = document.getElementById('viewerWrap');
-    const rect = wrap.getBoundingClientRect();
-    const wx = cx - rect.left, wy = cy - rect.top;
-    const imgX = (wx - panX) / prev;
-    const imgY = (wy - panY) / prev;
-    panX = wx - imgX * zoom;
-    panY = wy - imgY * zoom;
+function zoomIn(){setZoom(zoom*1.25);}
+function zoomOut(){setZoom(zoom/1.25);}
+function resetZoom(){if(pages.length)renderCurrentPage(true);}
+function setZoom(nz,cx,cy) {
+  const prev=zoom; zoom=Math.max(0.2,Math.min(5,nz));
+  if(cx!==undefined) {
+    const wrap=document.getElementById('viewerWrap');
+    const rect=wrap.getBoundingClientRect();
+    const wx=cx-rect.left, wy=cy-rect.top;
+    panX=wx-(wx-panX)*zoom/prev; panY=wy-(wy-panY)*zoom/prev;
     clampPan();
   }
   applyTransform();
 }
 
-// ──── UI state ────
-function updateUI() {
-  const has = pages.length > 0;
-  document.getElementById('pagesSection').classList.toggle('visible', has);
-  document.getElementById('viewerSection').classList.toggle('visible', has);
-  document.getElementById('translateBtn').disabled = !has;
-  document.getElementById('pagesTitle').textContent = `페이지 목록 (${pages.length}장)`;
-  if (!has) document.getElementById('resultGrid').classList.remove('visible');
-  updateNavButtons();
-  if (has && !document.getElementById('addPageBtn')) rebuildThumbs();
+function pinchDist(e) {
+  const dx=e.touches[0].clientX-e.touches[1].clientX;
+  const dy=e.touches[0].clientY-e.touches[1].clientY;
+  return Math.sqrt(dx*dx+dy*dy);
 }
 
-// ──── Translation ────
+// ── Full page translation ──
 async function doTranslate() {
-  const apiKey = localStorage.getItem('gemini_api_key') || document.getElementById('apiKeyInput').value.trim();
-  if (!apiKey) { showError('Groq API 키를 입력하고 저장해주세요.'); return; }
-  if (!pages.length) return;
+  const apiKey=localStorage.getItem('gemini_api_key')||document.getElementById('apiKeyInput').value.trim();
+  if(!apiKey){showError('API 키를 입력하고 저장해주세요.');return;}
+  if(!pages.length) return;
 
   showLoading('AI가 이미지를 분석 중...');
   hideError();
 
   try {
-    const page = pages[currentPage];
-    const tmpCanvas = document.createElement('canvas');
-    const scanOn = document.getElementById('scanToggle').checked;
-    const data = scanOn ? page.processed : page.original;
-    tmpCanvas.width = page.width;
-    tmpCanvas.height = page.height;
-    tmpCanvas.getContext('2d').putImageData(data, 0, 0);
-    const base64 = tmpCanvas.toDataURL('image/jpeg', 0.92).split(',')[1];
+    const page=pages[currentPage];
+    const tmp=document.createElement('canvas'); tmp.width=page.width; tmp.height=page.height;
+    const scanOn=document.getElementById('scanToggle').checked;
+    tmp.getContext('2d').putImageData(scanOn?page.processed:page.original,0,0);
+    const base64=tmp.toDataURL('image/jpeg',0.92).split(',')[1];
 
-    const prompt = `이 교과서 이미지에서 한국어 텍스트를 모두 인식하고 러시아어로 번역해주세요.
+    const prompt=`이 교과서 이미지에서 한국어 텍스트를 모두 인식하고 러시아어로 번역해주세요.
 
 정확히 다음 형식으로만 응답하세요:
 
@@ -938,79 +787,78 @@ async function doTranslate() {
 - 수식, 영어, 숫자는 그대로 유지
 - 교과서 문체에 맞는 정확한 번역`;
 
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-        max_tokens: 4096,
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'text', text: prompt },
-            { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64}` } }
-          ]
-        }]
+    const res=await fetch('https://api.groq.com/openai/v1/chat/completions',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},
+      body:JSON.stringify({
+        model:'meta-llama/llama-4-scout-17b-16e-instruct',
+        max_tokens:4096,
+        messages:[{role:'user',content:[
+          {type:'text',text:prompt},
+          {type:'image_url',image_url:{url:`data:image/jpeg;base64,${base64}`}}
+        ]}]
       })
     });
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      const msg = err.error?.message || `HTTP ${res.status}`;
-      throw new Error(`[${res.status}] ${msg}`);
+    if(!res.ok){
+      const err=await res.json().catch(()=>({}));
+      throw new Error(`[${res.status}] ${err.error?.message||''}`);
     }
 
-    const json = await res.json();
-    const text = json.choices?.[0]?.message?.content || '';
-    const kor = (text.match(/\[KOREAN\]([\s\S]*?)\[\/KOREAN\]/) || [])[1]?.trim() || '인식 실패';
-    const rus = (text.match(/\[RUSSIAN\]([\s\S]*?)\[\/RUSSIAN\]/) || [])[1]?.trim() || '번역 실패';
+    const json=await res.json();
+    const text=json.choices?.[0]?.message?.content||'';
+    const kor=(text.match(/\[KOREAN\]([\s\S]*?)\[\/KOREAN\]/)||[])[1]?.trim()||'인식 실패';
+    const rus=(text.match(/\[RUSSIAN\]([\s\S]*?)\[\/RUSSIAN\]/)||[])[1]?.trim()||'번역 실패';
 
-    document.getElementById('koreanText').value = kor;
-    document.getElementById('russianText').value = rus;
-    document.getElementById('korCount').textContent = kor.length + '자';
-    document.getElementById('rusCount').textContent = rus.length + '자';
-    const grid = document.getElementById('resultGrid');
+    document.getElementById('koreanText').value=kor;
+    document.getElementById('russianText').value=rus;
+    document.getElementById('korCount').textContent=kor.length+'자';
+    document.getElementById('rusCount').textContent=rus.length+'자';
+    const grid=document.getElementById('resultGrid');
     grid.classList.add('visible');
-    setTimeout(() => grid.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+    setTimeout(()=>grid.scrollIntoView({behavior:'smooth',block:'start'}),100);
 
-  } catch (e) {
-    alert('번역 오류: ' + e.message);
-    showError('오류: ' + e.message);
+  } catch(e) {
+    alert('번역 오류: '+e.message);
+    showError('오류: '+e.message);
   } finally {
     hideLoading();
   }
 }
 
-// ──── Helpers ────
+// ── Helpers ──
 function copyText(id) {
-  const el = document.getElementById(id);
-  el.select();
-  document.execCommand('copy');
-  const btn = el.closest('.result-card').querySelector('.btn-gray');
-  const orig = btn.textContent;
-  btn.textContent = '✅ 복사됨!';
-  setTimeout(() => btn.textContent = orig, 1500);
+  const el=document.getElementById(id); el.select(); document.execCommand('copy');
+  const btn=el.closest('.result-card').querySelector('.btn-gray');
+  const orig=btn.textContent; btn.textContent='✅ 복사됨!';
+  setTimeout(()=>btn.textContent=orig,1500);
+}
+function showLoading(t){document.getElementById('loadingText').textContent=t;document.getElementById('loading').classList.add('visible');}
+function hideLoading(){document.getElementById('loading').classList.remove('visible');}
+function showError(m){const e=document.getElementById('errorMsg');e.textContent=m;e.classList.add('visible');}
+function hideError(){document.getElementById('errorMsg').classList.remove('visible');}
+
+function updateUI() {
+  const has=pages.length>0;
+  document.getElementById('pagesSection').classList.toggle('visible',has);
+  document.getElementById('viewerSection').classList.toggle('visible',has);
+  document.getElementById('translateBtn').disabled=!has;
+  document.getElementById('pagesTitle').textContent=`페이지 목록 (${pages.length}장)`;
+  if(!has) document.getElementById('resultGrid').classList.remove('visible');
+  updateNavButtons();
+  if(has&&!document.getElementById('addPageBtn')) rebuildThumbs();
 }
 
-function showLoading(t) {
-  document.getElementById('loadingText').textContent = t;
-  document.getElementById('loading').classList.add('visible');
-}
-function hideLoading() { document.getElementById('loading').classList.remove('visible'); }
-function showError(m) { const e = document.getElementById('errorMsg'); e.textContent = m; e.classList.add('visible'); }
-function hideError() { document.getElementById('errorMsg').classList.remove('visible'); }
-
-// ──── Drag and drop ────
-const zone = document.getElementById('uploadZone');
-zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
-zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
-zone.addEventListener('drop', e => {
-  e.preventDefault();
-  zone.classList.remove('drag-over');
-  handleFiles(e.dataTransfer.files);
+// ── Drag & drop ──
+const zone=document.getElementById('uploadZone');
+zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('drag-over');});
+zone.addEventListener('dragleave',()=>zone.classList.remove('drag-over'));
+zone.addEventListener('drop',e=>{
+  e.preventDefault();zone.classList.remove('drag-over');
+  const file=e.dataTransfer.files[0];
+  if(!file) return;
+  if(file.type==='application/pdf') handlePdf(file);
+  else handleFiles(e.dataTransfer.files);
 });
 </script>
 </body>
