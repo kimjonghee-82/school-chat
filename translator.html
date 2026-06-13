@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>교과서 번역기</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#5c6bc0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="번역기">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -1874,6 +1880,14 @@ document.addEventListener('drop', e=>{
   if(file.type==='application/pdf') handlePdf(file);
   else handleFiles(e.dataTransfer.files);
 });
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/school-chat/sw.js')
+      .catch(e => console.warn('SW 등록 실패:', e));
+  });
+}
 </script>
 </body>
 </html>
