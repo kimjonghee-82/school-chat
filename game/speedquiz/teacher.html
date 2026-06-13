@@ -562,7 +562,12 @@ async function fetchStudents() {
 
 function renderStudents() {
   const grid = document.getElementById('studentGrid');
-  const entries = Object.entries(students);
+  const now = Date.now();
+  let entries = Object.entries(students);
+  // Filter out students not seen for more than 20 seconds (requires heartbeat from student)
+  if (gameStatus === 'waiting') {
+    entries = entries.filter(([,s]) => !s.lastSeen || (now - s.lastSeen < 20000));
+  }
   if (!entries.length) {
     grid.innerHTML = `<div class="empty-state"><div class="e-icon">👋</div><p>학생이 룸코드로 접속하면 여기에 표시됩니다</p><p style="margin-top:8px;font-size:0.85rem">룸코드: <strong style="color:#4caf50;font-family:monospace;font-size:1.1rem">${roomCode}</strong></p></div>`;
     return;
@@ -632,20 +637,26 @@ async function renderPdfPages(pdfBuf, startPage, endPage) {
   const total = pdf.numPages;
   const s = Math.max(1, startPage);
   const e = Math.min(total, endPage);
-  const images = [];
+  const pages = []; // { highRes, thumb }
   for (let p = s; p <= e; p++) {
     setGenProgress(`페이지 이미지화 중... ${p - s + 1}/${e - s + 1}페이지`);
     const page = await pdf.getPage(p);
-    const scale = 1.5;
-    const viewport = page.getViewport({ scale });
+    const viewport = page.getViewport({ scale: 1.5 });
     const canvas = document.createElement('canvas');
     canvas.width = viewport.width;
     canvas.height = viewport.height;
-    const ctx = canvas.getContext('2d');
-    await page.render({ canvasContext: ctx, viewport }).promise;
-    images.push(canvas.toDataURL('image/jpeg', 0.85));
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+    const highRes = canvas.toDataURL('image/jpeg', 0.85);
+    // Thumbnail for student display (smaller, lower quality)
+    const tw = Math.round(viewport.width * 0.45);
+    const th = Math.round(viewport.height * 0.45);
+    const tc = document.createElement('canvas');
+    tc.width = tw; tc.height = th;
+    tc.getContext('2d').drawImage(canvas, 0, 0, tw, th);
+    const thumb = tc.toDataURL('image/jpeg', 0.5);
+    pages.push({ highRes, thumb });
   }
-  return images;
+  return pages;
 }
 
 // ── Pre-generate questions ─────────────────────────────────────────
@@ -678,10 +689,10 @@ async function pregenerateQuestions() {
         const pdfBuf = await fetchPdfFromFirebase(fbBase, cfg.book);
         const startPage = cfg.startPage || 1;
         const endPage = cfg.endPage || Math.min(10, bookData.pageCount || 10);
-        const images = await renderPdfPages(pdfBuf, startPage, endPage);
-        if (!images.length) throw new Error('페이지 이미지를 생성할 수 없습니다.');
-        setGenProgress(`Vision AI가 ${images.length}페이지를 분석하는 중... (30~90초 소요)`);
-        cachedQuestions = await generateQuestionsFromImages(images, count, diff, cfg.claudeApiKey);
+        const pages = await renderPdfPages(pdfBuf, startPage, endPage);
+        if (!pages.length) throw new Error('페이지 이미지를 생성할 수 없습니다.');
+        setGenProgress(`Vision AI가 ${pages.length}페이지를 분석하는 중... (30~90초 소요)`);
+        cachedQuestions = await generateQuestionsFromImages(pages, count, diff, cfg.claudeApiKey);
       }
     }
 
@@ -700,20 +711,21 @@ async function pregenerateQuestions() {
 }
 
 // ── Vision-based question generation ──────────────────────────────
-async function generateQuestionsFromImages(images, count, diff, apiKey) {
+async function generateQuestionsFromImages(pages, count, diff, apiKey) {
   const diffMap = { '하':'쉬움(초등 저학년)', '중':'보통(초등 고학년)', '상':'어려움(중학생)', '종합':'쉬움~어려움 골고루' };
   const questions = [];
   const batchSize = 3;
   const batches = [];
-  for (let i = 0; i < images.length; i += batchSize) batches.push(images.slice(i, i + batchSize));
+  for (let i = 0; i < pages.length; i += batchSize) batches.push(pages.slice(i, i + batchSize));
 
   for (let bi = 0; bi < batches.length; bi++) {
     const batch = batches[bi];
     const batchCount = Math.max(3, Math.ceil(count / batches.length));
     setGenProgress(`Vision AI 분석 중... 배치 ${bi + 1}/${batches.length}`);
+    const batchThumb = batch[0].thumb; // representative thumbnail for this batch
 
     const content = [
-      ...batch.map(img => ({ type: 'image_url', image_url: { url: img } })),
+      ...batch.map(p => ({ type: 'image_url', image_url: { url: p.highRes } })),
       {
         type: 'text',
         text: `이 교과서 페이지들을 보고 학습 퀴즈 ${batchCount}개를 만들어주세요.
@@ -749,7 +761,10 @@ JSON만 응답:
     if (m) {
       try {
         const parsed = JSON.parse(m[0]);
-        if (parsed.questions) questions.push(...parsed.questions);
+        if (parsed.questions) {
+          parsed.questions.forEach(q => { q.image = batchThumb; });
+          questions.push(...parsed.questions);
+        }
       } catch {}
     }
   }
@@ -885,14 +900,17 @@ async function resetGame() {
   if (timerInterval) clearInterval(timerInterval);
   gameStatus = 'waiting';
   students = {};
-  try { await fbSet('game', { status: 'waiting' }); } catch {}
+  try {
+    await fbSet('game', { status: 'waiting' });
+    await fbSet('students', null); // clear all students from Firebase
+  } catch {}
   document.getElementById('finalBanner').classList.add('hidden');
   document.getElementById('timerSection').classList.add('hidden');
   document.getElementById('listTitle').textContent = '접속한 학생';
-  document.getElementById('startBtn').disabled = false;
+  document.getElementById('startBtn').disabled = cachedQuestions ? false : true;
   document.getElementById('endBtn').disabled = true;
   renderStudents();
-  showStatus('초기화 완료! 설정에서 지도서를 선택하고 게임을 시작하세요.', 'success');
+  showStatus('초기화 완료! 학생들이 다시 룸코드로 접속해야 합니다.', 'success');
 }
 
 // ── Status ─────────────────────────────────────────────────────────

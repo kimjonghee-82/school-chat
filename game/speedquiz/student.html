@@ -322,10 +322,11 @@ async function joinRoom() {
 
   try {
     // Register student
-    await fbSet(`students/${studentId}`, { name: myName, score: 0, answered: 0, currentIndex: 0, joinedAt: Date.now() });
+    await fbSet(`students/${studentId}`, { name: myName, score: 0, answered: 0, currentIndex: 0, joinedAt: Date.now(), lastSeen: Date.now() });
 
     showWaiting();
     startWaitingPoll();
+    startHeartbeat();
   } catch(e) {
     showErr('접속 오류: ' + e.message);
     document.querySelector('.btn-join').disabled = false;
@@ -336,6 +337,17 @@ function showErr(msg) {
   const el = document.getElementById('loginError');
   el.textContent = msg;
   el.style.display = 'block';
+}
+
+// ── Heartbeat ─────────────────────────────────────────────────────
+let heartbeatInterval = null;
+function startHeartbeat() {
+  if (heartbeatInterval) clearInterval(heartbeatInterval);
+  heartbeatInterval = setInterval(() => {
+    if (studentId && firebaseUrl) {
+      fbPatch(`students/${studentId}`, { lastSeen: Date.now() }).catch(() => {});
+    }
+  }, 5000);
 }
 
 // ── Waiting ────────────────────────────────────────────────────────
@@ -429,6 +441,18 @@ function showQuestion() {
   } else {
     badge.textContent = '단답형';
     badge.className = 'question-type-badge sa';
+  }
+
+  // Show page image if question was generated from PDF page
+  const questionArea = document.getElementById('questionArea');
+  const existingImg = questionArea.querySelector('.q-page-img');
+  if (existingImg) existingImg.remove();
+  if (q.image) {
+    const img = document.createElement('img');
+    img.className = 'q-page-img';
+    img.src = q.image;
+    img.style.cssText = 'max-width:100%;max-height:220px;border-radius:8px;margin-bottom:12px;object-fit:contain;border:1px solid #30363d';
+    questionArea.insertBefore(img, document.getElementById('questionText'));
   }
 
   document.getElementById('questionText').textContent = q.question;
