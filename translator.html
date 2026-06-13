@@ -174,6 +174,8 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
 }
 .modal input:focus { border-color: var(--primary); }
 .modal-hint { font-size: .78rem; color: var(--sub); line-height: 1.6; margin-bottom: 16px; }
+.page-layout-btn { padding: 6px 18px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--sub); cursor: pointer; font-size: .85rem; transition: all .15s; }
+.page-layout-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
 .modal-hint a { color: var(--accent); }
 .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
 .btn { padding: 9px 18px; border: none; border-radius: 10px; cursor: pointer; font-size: .85rem; font-weight: 600; }
@@ -334,6 +336,13 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
     </div>
     <label>Groq API 키 (<a href="https://console.groq.com/keys" target="_blank">무료 발급</a>)</label>
     <input type="password" id="apiInput" placeholder="gsk_...">
+    <div class="toggle-row" style="margin-bottom:12px">
+      <label>📖 페이지 구성</label>
+      <div style="display:flex;gap:8px">
+        <button id="btnPage1" class="page-layout-btn active" onclick="setPageLayout(1)">1페이지</button>
+        <button id="btnPage2" class="page-layout-btn" onclick="setPageLayout(2)">2페이지</button>
+      </div>
+    </div>
     <div class="toggle-row">
       <label>🔲 스캔 보정 (문서처럼 평평하게)</label>
       <label class="toggle">
@@ -389,6 +398,16 @@ const ctx2 = canvas2.getContext('2d');
 const selCanvas = document.getElementById('selCanvas');
 const selCtx = selCanvas.getContext('2d');
 
+let pageLayout = 1; // 1 또는 2
+
+function setPageLayout(n) {
+  pageLayout = n;
+  localStorage.setItem('page_layout', n);
+  document.getElementById('btnPage1').classList.toggle('active', n===1);
+  document.getElementById('btnPage2').classList.toggle('active', n===2);
+  if (slots[currentSlot]) renderCurrentPage(true);
+}
+
 function isLandscape() { return window.innerWidth > window.innerHeight; }
 function isTwoPage() { return isLandscape() && slots.filter(s=>s&&!s.pdfRef).length + (pdfDoc ? pdfDoc.numPages : 0) > 1 || (isLandscape() && slots.length > 1); }
 
@@ -410,6 +429,8 @@ window.onload = () => {
   const lang = localStorage.getItem('target_lang');
   if (lang) { targetLang = lang; document.getElementById('targetLang').value = lang; }
   document.getElementById('popLangLabel').textContent = '🌐 ' + LANG_NAMES[targetLang];
+  const pl = parseInt(localStorage.getItem('page_layout')||'1');
+  if (pl === 2) setPageLayout(2);
   initViewer();
   renderSlot();
 };
@@ -497,8 +518,8 @@ async function renderPdfSlot(idx, fitToView) {
   }
   try {
     await renderOne(idx);
-    // 가로 모드면 다음 페이지도 미리 렌더
-    if (isLandscape() && slots[idx+1]?.pdfRef) await renderOne(idx+1);
+    // 2페이지 모드면 다음 페이지도 미리 렌더
+    if (pageLayout === 2 && slots[idx+1]?.pdfRef) await renderOne(idx+1);
   } finally { hideLoading(); }
   renderSlot(fitToView);
   updateNav();
@@ -551,8 +572,8 @@ function scanEffect(imageData, w, h) {
 
 // ── Navigation ──
 function goPage(dir) {
-  // 가로 모드면 두 페이지씩 이동
-  const step = (isLandscape() && slots.length > 1) ? dir * 2 : dir;
+  // 2페이지 모드면 두 페이지씩 이동
+  const step = (pageLayout === 2 && slots.length > 1) ? dir * 2 : dir;
   const next = currentSlot + step;
   if (next < 0) return;
 
@@ -622,8 +643,9 @@ function renderSlot(fitToView) {
 }
 
 function getTwoPageMode() {
+  if (pageLayout !== 2) return false;
   const nextPage = slots[currentSlot + 1];
-  return isLandscape() && nextPage && !nextPage.pdfRef;
+  return nextPage && !nextPage.pdfRef;
 }
 
 // 현재 활성 뷰 객체 반환
