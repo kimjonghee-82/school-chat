@@ -211,7 +211,7 @@ main { padding:24px; max-width:1400px; margin:0 auto; }
     <span class="room-code-value" id="roomCode" onclick="showRoomPopup()" title="클릭하면 크게 보기">------</span>
   </div>
   <div class="game-controls">
-    <button class="btn-start" id="startBtn" onclick="startGame()">게임 시작</button>
+    <button class="btn-start" id="startBtn" onclick="startGame()" disabled>게임 시작</button>
     <button class="btn-end" id="endBtn" onclick="resetGame()" disabled>리셋</button>
   </div>
 </header>
@@ -269,17 +269,11 @@ main { padding:24px; max-width:1400px; margin:0 auto; }
     </div>
 
     <div class="form-group">
-      <label>출제 범위 <span id="rangeLoading" style="color:#e3b341;font-size:0.75rem;display:none">AI 분석 중...</span></label>
-      <!-- Tag chips -->
-      <div id="rangeTags" style="display:flex;flex-wrap:wrap;gap:6px;min-height:36px;background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:8px;margin-bottom:6px;">
-        <span style="color:#8b949e;font-size:0.82rem;align-self:center">지도서를 선택하면 단원/차시가 표시됩니다</span>
+      <label>지도서 정보</label>
+      <div id="rangeTags" style="background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:10px;font-size:0.85rem;">
+        <span style="color:#8b949e;font-size:0.82rem">지도서를 선택하면 정보가 표시됩니다</span>
       </div>
-      <!-- Manual add -->
-      <div style="display:flex;gap:6px;">
-        <input type="text" id="rangeManual" placeholder="직접 추가: 예) 3단원 2~3차시" style="flex:1;font-size:0.85rem;">
-        <button type="button" onclick="addManualRange()" style="background:#30363d;border:none;color:#e6edf3;padding:0 12px;border-radius:8px;cursor:pointer;font-size:0.85rem;white-space:nowrap">추가</button>
-      </div>
-      <small style="color:#8b949e;font-size:0.75rem;margin-top:4px;display:block">선택 없으면 전체 내용으로 출제</small>
+      <small style="color:#8b949e;font-size:0.75rem;margin-top:4px;display:block">저장 시 AI가 자동으로 문제를 생성합니다</small>
     </div>
 
     <div class="form-group">
@@ -337,6 +331,7 @@ let selectedDiff = cfg.difficulty || '중';
 let bookTextCache = '';
 let bookStructure = null;
 let selectedRanges = new Set(cfg.selectedRanges || []);
+let cachedQuestions = null;
 
 localStorage.setItem('sq_room', roomCode);
 document.getElementById('roomCode').textContent = roomCode;
@@ -383,8 +378,13 @@ function saveSettings() {
   };
   localStorage.setItem('sq_cfg', JSON.stringify(cfg));
   closeSettings();
-  showStatus('설정이 저장되었습니다.', 'success');
   startPolling();
+  if (cfg.book && cfg.claudeApiKey && cfg.firebaseUrl) {
+    cachedQuestions = null;
+    pregenerateQuestions();
+  } else {
+    showStatus('설정이 저장되었습니다.', 'success');
+  }
 }
 
 async function loadBooks() {
@@ -415,125 +415,32 @@ async function loadBooks() {
     bookTextCache = ''; bookStructure = null; selectedRanges.clear();
     const id = sel.value;
     if (id) loadBookStructure(id, fbBase);
-    else { document.getElementById('rangePicker').innerHTML = '<span style="color:#8b949e">지도서를 선택하면 단원/차시가 표시됩니다</span>'; document.getElementById('rangeSummary').textContent = ''; }
+    else { document.getElementById('rangeTags').innerHTML = '<span style="color:#8b949e;font-size:0.82rem">지도서를 선택하면 정보가 표시됩니다</span>'; }
   });
 }
 
 async function loadBookStructure(bookId, fbBase) {
-  const picker = document.getElementById('rangePicker');
+  const container = document.getElementById('rangeTags');
   const loading = document.getElementById('rangeLoading');
-  picker.innerHTML = '<span style="color:#8b949e">불러오는 중...</span>';
-  loading.style.display = 'inline';
+  container.innerHTML = '<span style="color:#8b949e;font-size:0.82rem">불러오는 중...</span>';
+  loading.style.display = 'none';
   try {
     const r = await fetch(`${fbBase}/books/${bookId}.json`);
     const data = await r.json();
-    if (!data?.text) { picker.innerHTML = '<span style="color:#f47067">텍스트 없음 — 다시 업로드해주세요</span>'; return; }
-    bookTextCache = data.text;
-    loading.textContent = 'AI 분석 중...';
-    bookStructure = cfg.claudeApiKey ? await extractStructureWithAI(data.text, cfg.claudeApiKey) : null;
-    if (!bookStructure?.units?.length) {
-      picker.innerHTML = '<span style="color:#8b949e">구조 인식 불가 — API 키 확인 후 지도서를 다시 선택해주세요</span>';
-      loading.style.display = 'none'; return;
+    if (!data) { container.innerHTML = '<span style="color:#f47067">지도서를 불러올 수 없습니다</span>'; return; }
+    if (data.hasImages) {
+      const s = data.imageStart || 1, e = data.imageEnd || s;
+      container.innerHTML = `<span style="color:#4caf50;font-size:0.85rem">✅ 이미지 기반 — ${s}~${e}페이지 (${e-s+1}페이지) 저장됨<br><span style="color:#8b949e">저장 시 저장 버튼을 누르면 AI가 자동으로 문제를 생성합니다</span></span>`;
+    } else if (data.text) {
+      bookTextCache = data.text;
+      container.innerHTML = '<span style="color:#8b949e;font-size:0.82rem">텍스트 기반 지도서 — 저장 시 AI가 자동으로 문제를 생성합니다</span>';
+    } else {
+      container.innerHTML = '<span style="color:#f47067">내용 없음 — 지도서를 다시 업로드해주세요</span>';
     }
-    renderRangePicker();
   } catch(e) {
-    picker.innerHTML = `<span style="color:#f47067">오류: ${e.message}</span>`;
-  }
-  loading.style.display = 'none';
-}
-
-async function extractStructureWithAI(text, apiKey) {
-  const sample = text.substring(0, 8000);
-  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method:'POST',
-    headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},
-    body: JSON.stringify({
-      model:'llama-3.3-70b-versatile', max_tokens:1024,
-      messages:[
-        {role:'system', content:'초등학교 교과서 구조 분석 전문가입니다. JSON만 반환하세요.'},
-        {role:'user', content:`다음은 초등 지도서에서 추출한 텍스트입니다. 실제로 텍스트에 존재하는 단원과 차시만 추출하세요. 절대 추측 금지. 단원별 차시 수가 다를 수 있음. 차시 없으면 lessons 빈 배열.\nJSON만 반환:\n{"units":[{"num":1,"name":"실제 단원명","lessons":["1차시","2~3차시"]},...]}\n\n텍스트:\n${sample}`}
-      ]
-    })
-  });
-  if (!res.ok) return null;
-  const d = await res.json();
-  const m = (d.choices?.[0]?.message?.content || '').match(/\{[\s\S]*\}/);
-  if (!m) return null;
-  const p = JSON.parse(m[0]);
-  if (!p.units?.length) return null;
-  return {
-    units: p.units.map(u => ({
-      id:`u${u.num}`, num:u.num,
-      name:`${u.num}단원 ${u.name||''}`.trim(),
-      lessons:(u.lessons||[]).map((l,j)=>({id:`u${u.num}_l${j}`,name:String(l)}))
-    }))
-  };
-}
-
-// selectedRanges is now a Set of label strings like "3단원 2~3차시"
-function renderRangePicker() {
-  const container = document.getElementById('rangeTags');
-  container.innerHTML = '';
-  // Unit buttons → click to add whole unit or expand lessons
-  bookStructure.units.forEach(unit => {
-    // Unit tag button
-    const unitBtn = document.createElement('button');
-    unitBtn.className = 'range-tag-btn';
-    unitBtn.textContent = unit.name + ' 전체';
-    unitBtn.onclick = () => addRangeTag(unit.name + ' 전체');
-    container.appendChild(unitBtn);
-    // Lesson tag buttons
-    unit.lessons.forEach(l => {
-      const lBtn = document.createElement('button');
-      lBtn.className = 'range-tag-btn';
-      lBtn.textContent = unit.name.replace(/ .*/,'') + ' ' + l.name; // "3단원 2차시"
-      lBtn.onclick = () => addRangeTag(unit.name.replace(/ .*/,'') + ' ' + l.name);
-      container.appendChild(lBtn);
-    });
-  });
-  renderSelectedTags();
-}
-
-function renderSelectedTags() {
-  // Remove existing active tags
-  document.querySelectorAll('.range-tag').forEach(el => el.remove());
-  const container = document.getElementById('rangeTags');
-  selectedRanges.forEach(label => {
-    const tag = document.createElement('span');
-    tag.className = 'range-tag active';
-    tag.innerHTML = `${label} <span class="rt-x" onclick="removeRangeTag('${label.replace(/'/g,"\\'")}')">✕</span>`;
-    container.insertBefore(tag, container.firstChild);
-  });
-  if (!container.children.length) {
-    container.innerHTML = '<span style="color:#8b949e;font-size:0.82rem;align-self:center">선택 없음 — 아래 버튼을 클릭하거나 직접 입력하세요</span>';
+    container.innerHTML = `<span style="color:#f47067">오류: ${e.message}</span>`;
   }
 }
-
-function addRangeTag(label) {
-  if (!label || selectedRanges.has(label)) return;
-  selectedRanges.add(label);
-  renderSelectedTags();
-}
-
-function removeRangeTag(label) {
-  selectedRanges.delete(label);
-  renderSelectedTags();
-}
-
-function addManualRange() {
-  const input = document.getElementById('rangeManual');
-  const val = input.value.trim();
-  if (val) { addRangeTag(val); input.value = ''; }
-}
-
-function getSelectedText() {
-  if (!bookTextCache) return '';
-  if (!selectedRanges.size) return bookTextCache;
-  // Pass the range labels directly into the question prompt instead of slicing text
-  // (text slicing is unreliable with PDF extraction)
-  return bookTextCache;
-}
-
 
 async function loadFbUrl() {
   try {
@@ -607,58 +514,145 @@ function closeRoomPopup() {
   document.getElementById('roomPopup').style.display = 'none';
 }
 
-// ── Game Start ─────────────────────────────────────────────────────
-async function startGame() {
-  if (!cfg.firebaseUrl) return showStatus('⚙️ 설정에서 Firebase URL을 입력해주세요.','error');
-  if (!cfg.claudeApiKey) return showStatus('⚙️ 설정에서 Claude API 키를 입력해주세요.','error');
-  if (!cfg.book) return showStatus('⚙️ 설정에서 지도서를 선택해주세요.','error');
-
+// ── Pre-generate questions ─────────────────────────────────────────
+async function pregenerateQuestions() {
+  if (!cfg.book || !cfg.claudeApiKey || !cfg.firebaseUrl) return;
+  cachedQuestions = null;
   document.getElementById('startBtn').disabled = true;
   document.getElementById('generatingView').classList.remove('hidden');
   document.getElementById('listSection').classList.add('hidden');
-  document.getElementById('statusBar').style.display = 'none';
 
   try {
-    setGenProgress('지도서 불러오는 중...');
-    if (!bookTextCache) {
-      const fbBase = cfg.firebaseUrl.replace(/\/$/, '');
-      const r = await fetch(`${fbBase}/books/${cfg.book}.json`);
-      const data = await r.json();
-      if (!data?.text) throw new Error('지도서 텍스트가 없습니다. 다시 업로드해주세요.');
-      bookTextCache = data.text;
-    }
-    const content = getSelectedText();
-    setGenProgress('AI가 문제를 생성하는 중... (20~40초 소요)');
-    const questions = await generateQuestions(content, cfg.questionCount||20, cfg.difficulty||'중', cfg.claudeApiKey);
+    const fbBase = cfg.firebaseUrl.replace(/\/$/, '');
+    setGenProgress('지도서 정보 불러오는 중...');
+    const bookRes = await fetch(`${fbBase}/books/${cfg.book}.json`);
+    const bookData = await bookRes.json();
+    if (!bookData) throw new Error('지도서를 불러올 수 없습니다.');
 
-    setGenProgress('Firebase에 게임 데이터 저장 중...');
-    totalMs = (cfg.gameTime||5) * 60 * 1000;
+    const count = cfg.questionCount || 20;
+    const diff = cfg.difficulty || '중';
+
+    if (bookData.hasImages) {
+      const start = bookData.imageStart || 1;
+      const end = bookData.imageEnd || start;
+      const images = [];
+      for (let p = start; p <= end; p++) {
+        setGenProgress(`이미지 로딩 중... ${p - start + 1}/${end - start + 1}페이지`);
+        const imgRes = await fetch(`${fbBase}/books/${cfg.book}/images/p${p}.json`);
+        const imgData = await imgRes.json();
+        if (imgData) images.push(imgData);
+      }
+      if (!images.length) throw new Error('저장된 이미지가 없습니다. 지도서 업로드 페이지에서 이미지를 저장해주세요.');
+      setGenProgress(`Vision AI가 ${images.length}페이지를 분석하는 중... (30~90초 소요)`);
+      cachedQuestions = await generateQuestionsFromImages(images, count, diff, cfg.claudeApiKey);
+    } else if (bookData.text) {
+      bookTextCache = bookData.text;
+      setGenProgress('AI가 문제를 생성하는 중... (20~40초 소요)');
+      cachedQuestions = await generateQuestions(bookData.text, count, diff, cfg.claudeApiKey);
+    } else {
+      throw new Error('지도서에 내용이 없습니다. 다시 업로드해주세요.');
+    }
+
+    if (!cachedQuestions?.length) throw new Error('문제를 생성할 수 없습니다.');
+
+    document.getElementById('generatingView').classList.add('hidden');
+    document.getElementById('listSection').classList.remove('hidden');
+    document.getElementById('startBtn').disabled = false;
+    showStatus(`✅ ${cachedQuestions.length}문제 준비 완료! 게임을 시작할 수 있습니다.`, 'success');
+  } catch(e) {
+    console.error(e);
+    document.getElementById('generatingView').classList.add('hidden');
+    document.getElementById('listSection').classList.remove('hidden');
+    showStatus('문제 생성 오류: ' + e.message + ' — 설정을 확인 후 다시 저장해주세요.', 'error');
+  }
+}
+
+// ── Vision-based question generation ──────────────────────────────
+async function generateQuestionsFromImages(images, count, diff, apiKey) {
+  const diffMap = { '하':'쉬움(초등 저학년)', '중':'보통(초등 고학년)', '상':'어려움(중학생)', '종합':'쉬움~어려움 골고루' };
+  const questions = [];
+  const batchSize = 3;
+  const batches = [];
+  for (let i = 0; i < images.length; i += batchSize) batches.push(images.slice(i, i + batchSize));
+
+  for (let bi = 0; bi < batches.length; bi++) {
+    const batch = batches[bi];
+    const batchCount = Math.max(3, Math.ceil(count / batches.length));
+    setGenProgress(`Vision AI 분석 중... 배치 ${bi + 1}/${batches.length}`);
+
+    const content = [
+      ...batch.map(img => ({ type: 'image_url', image_url: { url: img } })),
+      {
+        type: 'text',
+        text: `이 교과서 페이지들을 보고 학습 퀴즈 ${batchCount}개를 만들어주세요.
+난이도: ${diffMap[diff] || '보통'}
+객관식(4지선다)과 단답형을 섞어서 출제하세요.
+
+JSON만 응답:
+{"questions":[
+  {"type":"multiple_choice","question":"질문","choices":["선택1","선택2","선택3","선택4"],"answer":0},
+  {"type":"short_answer","question":"질문","answer":"정답"}
+]}`
+      }
+    ];
+
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+        max_tokens: 2048,
+        messages: [{ role: 'user', content }]
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error?.message || `Vision API 오류 (${res.status})`);
+    }
+
+    const data = await res.json();
+    const text = data.choices[0].message.content.trim();
+    const m = text.match(/\{[\s\S]*\}/);
+    if (m) {
+      try {
+        const parsed = JSON.parse(m[0]);
+        if (parsed.questions) questions.push(...parsed.questions);
+      } catch {}
+    }
+  }
+  return questions;
+}
+
+// ── Game Start ─────────────────────────────────────────────────────
+async function startGame() {
+  if (!cfg.firebaseUrl) return showStatus('⚙️ 설정에서 Firebase URL을 입력해주세요.', 'error');
+  if (!cachedQuestions?.length) return showStatus('⚙️ 문제가 아직 준비되지 않았습니다. 설정을 저장해주세요.', 'error');
+
+  document.getElementById('startBtn').disabled = true;
+
+  try {
+    totalMs = (cfg.gameTime || 5) * 60 * 1000;
     endTime = Date.now() + totalMs;
 
     await fbSet('game', {
       status: 'active',
-      questions,
+      questions: cachedQuestions,
       endTime,
       startTime: Date.now()
     });
-    // Reset all student scores
-    const stuEntries = Object.entries(students);
-    for (const [id] of stuEntries) {
+    for (const [id] of Object.entries(students)) {
       await fbPatch(`students/${id}`, { score: 0, answered: 0, currentIndex: 0 });
     }
 
     gameStatus = 'active';
-    document.getElementById('generatingView').classList.add('hidden');
-    document.getElementById('listSection').classList.remove('hidden');
     document.getElementById('listTitle').textContent = '실시간 점수';
     document.getElementById('timerSection').classList.remove('hidden');
     document.getElementById('endBtn').disabled = false;
     startTimer();
-    showStatus(`게임 시작! ${questions.length}문제 준비 완료 ✅`, 'success');
-  } catch (e) {
+    showStatus(`게임 시작! ${cachedQuestions.length}문제 ✅`, 'success');
+  } catch(e) {
     console.error(e);
-    document.getElementById('generatingView').classList.add('hidden');
-    document.getElementById('listSection').classList.remove('hidden');
     document.getElementById('startBtn').disabled = false;
     showStatus('오류: ' + e.message, 'error');
   }
@@ -666,39 +660,6 @@ async function startGame() {
 
 function setGenProgress(msg) {
   document.getElementById('genProgress').textContent = msg;
-}
-
-async function loadBookContent(bookId) {
-  const fbBase = cfg.firebaseUrl.replace(/\/$/, '');
-  const r = await fetch(`${fbBase}/books/${bookId}.json`);
-  if (!r.ok) throw new Error(`지도서를 불러올 수 없습니다 (Firebase)`);
-  const data = await r.json();
-  if (!data || !data.text) throw new Error('지도서 텍스트가 없습니다. 다시 업로드해주세요.');
-  return data.text;
-}
-
-async function extractPdfText(buf) {
-  if (!window.pdfjsLib) {
-    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
-    window.pdfjsLib.GlobalWorkerOptions.workerSrc =
-      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-  }
-  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
-  let text = '';
-  for (let i = 1; i <= Math.min(pdf.numPages, 60); i++) {
-    const page = await pdf.getPage(i);
-    const c = await page.getTextContent();
-    text += c.items.map(x => x.str).join(' ') + '\n';
-  }
-  return text;
-}
-
-function loadScript(src) {
-  return new Promise((res, rej) => {
-    const s = document.createElement('script');
-    s.src = src; s.onload = res; s.onerror = rej;
-    document.head.appendChild(s);
-  });
 }
 
 async function generateQuestions(content, count, diff, apiKey) {
@@ -810,10 +771,6 @@ function showStatus(msg, type) {
   if (type === 'success') setTimeout(() => { el.style.display='none'; }, 3000);
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  const mi = document.getElementById('rangeManual');
-  if (mi) mi.addEventListener('keydown', e => { if(e.key==='Enter') addManualRange(); });
-});
 
 // ── Init ───────────────────────────────────────────────────────────
 (async () => {
@@ -825,6 +782,11 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch {}
   }
   startPolling();
+  if (cfg.book && cfg.claudeApiKey && cfg.firebaseUrl) {
+    pregenerateQuestions();
+  } else {
+    showStatus('⚙️ 설정을 열어 지도서와 API 키를 입력해주세요.', 'info');
+  }
 })();
 </script>
 </body>

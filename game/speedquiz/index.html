@@ -169,6 +169,25 @@ a.card.student:hover { transform:translateY(-4px); box-shadow:0 8px 30px rgba(92
 
   <div class="upload-result" id="uploadResult"></div>
 
+  <!-- Page range selector (shown after PDF upload) -->
+  <div id="pageSection" style="display:none;margin-top:16px;text-align:left">
+    <p style="color:#e3b341;font-size:0.85rem;margin-bottom:10px">📄 이미지로 저장할 페이지 범위를 지정하세요 <span style="color:#8b949e">(최대 30페이지)</span></p>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+      <label style="color:#8b949e;font-size:0.82rem;white-space:nowrap">시작 페이지</label>
+      <input type="number" id="startPageInput" value="1" min="1" style="width:70px;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:6px 8px;color:#e6edf3;font-size:0.9rem">
+      <label style="color:#8b949e;font-size:0.82rem;white-space:nowrap">끝 페이지</label>
+      <input type="number" id="endPageInput" value="20" min="1" style="width:70px;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:6px 8px;color:#e6edf3;font-size:0.9rem">
+      <span style="color:#8b949e;font-size:0.82rem">/ 총 <span id="pageTotal">0</span>페이지</span>
+    </div>
+    <button onclick="savePageImages()" style="background:#e3b341;border:none;color:#0d1117;padding:8px 20px;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9rem">이미지 저장 시작</button>
+    <div id="pageProgress" style="display:none;margin-top:12px">
+      <div style="height:8px;background:#30363d;border-radius:4px;overflow:hidden;margin-bottom:6px">
+        <div id="pageProgressFill" style="height:100%;background:linear-gradient(90deg,#e3b341,#f0c060);border-radius:4px;width:0%;transition:width 0.3s"></div>
+      </div>
+      <p id="pageProgressMsg" style="color:#8b949e;font-size:0.82rem"></p>
+    </div>
+  </div>
+
   <div class="book-list" id="bookList" style="display:none">
     <p class="book-list-title">📖 업로드된 지도서</p>
     <div id="bookListItems"></div>
@@ -297,66 +316,118 @@ async function loadPdfJs() {
     `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VER}/pdf.worker.min.js`;
 }
 
+let currentPdf = null;
+let currentBookId = null;
+
 async function handleUpload(input) {
   const file = input.files[0];
   if (!file) return;
   input.value = '';
 
   if (!FB_URL) return showResult('⚠️ Firebase URL을 불러올 수 없습니다.', 'error');
+  if (!file.name.toLowerCase().endsWith('.pdf') && !file.name.toLowerCase().endsWith('.txt')) {
+    return showResult('❌ PDF 또는 TXT 파일만 가능합니다.', 'error');
+  }
 
   document.getElementById('uploadProgress').style.display = 'block';
   document.getElementById('uploadResult').style.display = 'none';
+  document.getElementById('pageSection').style.display = 'none';
   setProgress(5, '파일 읽는 중...');
 
   try {
-    let text = '';
+    const bookName = file.name.replace(/\.[^.]+$/, '');
+    currentBookId = 'book_' + Date.now();
 
     if (file.name.toLowerCase().endsWith('.pdf')) {
-      setProgress(10, 'PDF.js 로딩 중...');
+      setProgress(10, 'PDF 로딩 중...');
       await loadPdfJs();
-
-      setProgress(20, 'PDF 분석 중...');
       const buf = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
-      const total = pdf.numPages;
+      currentPdf = await pdfjsLib.getDocument({ data: buf }).promise;
+      const total = currentPdf.numPages;
+      setProgress(30, `총 ${total}페이지 확인됨`);
 
-      for (let i = 1; i <= total; i++) {
-        const page = await pdf.getPage(i);
-        const content = await page.getTextContent();
-        text += extractPageText(content.items) + '\n';
-        setProgress(20 + Math.floor(i / total * 60), `페이지 추출 중... ${i}/${total}`);
-      }
+      // Save basic metadata to Firebase (no text extraction)
+      await fetch(`${FB_URL}/books/${currentBookId}.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: bookName, uploadedAt: Date.now(), pageCount: total, hasImages: false })
+      });
+
+      setProgress(100, '완료!');
+      showResult(`✅ "${bookName}" (${total}페이지) — 아래에서 출제 범위를 지정하세요`, 'success');
+
+      // Show page range selector
+      document.getElementById('pageTotal').textContent = total;
+      document.getElementById('endPageInput').value = Math.min(total, 20);
+      document.getElementById('startPageInput').max = total;
+      document.getElementById('endPageInput').max = total;
+      document.getElementById('pageSection').style.display = 'block';
     } else {
-      text = await file.text();
-      setProgress(80, '텍스트 읽기 완료');
+      const text = await file.text();
+      setProgress(80, 'Firebase에 저장 중...');
+      await fetch(`${FB_URL}/books/${currentBookId}.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: bookName, text, uploadedAt: Date.now(), pageCount: 0 })
+      });
+      setProgress(100, '완료!');
+      showResult(`✅ "${bookName}" 업로드 완료`, 'success');
+      loadBookList();
     }
-
-    if (!text.trim()) throw new Error('텍스트를 추출할 수 없습니다.');
-
-    setProgress(85, 'Firebase에 저장 중...');
-    const bookId = 'book_' + Date.now();
-    const bookName = file.name.replace(/\.[^.]+$/, '');
-    await fetch(`${FB_URL}/books/${bookId}.json`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: bookName,
-        text: text,
-        uploadedAt: Date.now(),
-        pages: text.split('\n').length
-      })
-    });
-
-    setProgress(100, '완료!');
-    showResult(`✅ "${bookName}" 업로드 완료 (${Math.round(text.length / 1000)}KB)`, 'success');
-    loadBookList();
   } catch (e) {
     showResult('❌ 오류: ' + e.message, 'error');
   }
 
-  setTimeout(() => {
-    document.getElementById('uploadProgress').style.display = 'none';
-  }, 1500);
+  setTimeout(() => { document.getElementById('uploadProgress').style.display = 'none'; }, 1500);
+}
+
+async function savePageImages() {
+  if (!currentPdf || !currentBookId) return;
+  const start = parseInt(document.getElementById('startPageInput').value) || 1;
+  const end = parseInt(document.getElementById('endPageInput').value) || 1;
+  if (start < 1 || end < start) return alert('페이지 범위를 확인해주세요');
+  if (end - start > 29) return alert('최대 30페이지까지 선택 가능합니다');
+
+  const total = end - start + 1;
+  document.getElementById('pageProgress').style.display = 'block';
+
+  try {
+    for (let i = start; i <= end; i++) {
+      const pg = await currentPdf.getPage(i);
+      const vp = pg.getViewport({ scale: 1 });
+      // Scale so max width = 900px
+      const scale = Math.min(900 / vp.width, 1.5);
+      const scaled = pg.getViewport({ scale });
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(scaled.width);
+      canvas.height = Math.round(scaled.height);
+      await pg.render({ canvasContext: canvas.getContext('2d'), viewport: scaled }).promise;
+      // Compress to JPEG 65%
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.65);
+
+      await fetch(`${FB_URL}/books/${currentBookId}/images/p${i}.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dataUrl)
+      });
+
+      const done = i - start + 1;
+      document.getElementById('pageProgressMsg').textContent = `이미지 저장 중... ${done}/${total} (${i}페이지)`;
+      document.getElementById('pageProgressFill').style.width = `${Math.round(done/total*100)}%`;
+    }
+
+    // Update metadata
+    await fetch(`${FB_URL}/books/${currentBookId}.json`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hasImages: true, imageStart: start, imageEnd: end })
+    });
+
+    document.getElementById('pageProgressMsg').textContent = `✅ ${total}페이지 저장 완료! 교사 모드에서 이 자료로 문제를 낼 수 있습니다.`;
+    loadBookList();
+  } catch(e) {
+    document.getElementById('pageProgressMsg').textContent = '❌ 오류: ' + e.message;
+  }
 }
 
 initFirebase().then(loadBookList);
