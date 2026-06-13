@@ -449,8 +449,17 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
 }
 .trans-popup.visible { display: block; }
 .trans-popup .pop-close { position: absolute; top: 8px; right: 10px; background: none; border: none; cursor: pointer; color: var(--sub); font-size: 1rem; }
-.trans-popup .pop-lang { font-size: .68rem; font-weight: 700; color: var(--sub); text-transform: uppercase; margin-bottom: 4px; }
+.trans-popup .pop-lang { font-size: .68rem; font-weight: 700; color: var(--sub); text-transform: uppercase; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between; }
 .trans-popup .pop-kor { font-size: .82rem; color: var(--text); margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 8px; line-height: 1.6; }
+.pop-tts {
+  background: none; border: none; cursor: pointer; color: var(--sub);
+  font-size: .95rem; padding: 0 2px; line-height: 1;
+  transition: color .15s, transform .1s;
+}
+.pop-tts:hover { color: var(--accent); transform: scale(1.2); }
+.pop-tts.speaking { color: #81c784; animation: pulse .6s ease infinite alternate; }
+@keyframes pulse { from { opacity: 1; } to { opacity: .4; } }
+.canvas-wrap.mode-pen { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23f5d33a' d='M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z'/%3E%3C/svg%3E") 0 24, crosshair; }
 .trans-popup .pop-rus { font-size: .9rem; color: var(--accent); font-weight: 600; line-height: 1.6; margin-bottom: 10px; }
 .pop-loading { font-size: .8rem; color: var(--sub); text-align: center; padding: 6px 0; }
 .pop-apply {
@@ -556,7 +565,10 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
     <canvas id="selCanvas"></canvas>
     <div class="trans-popup" id="transPopup" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()">
       <button class="pop-close" onclick="closePopup()">✕</button>
-      <div class="pop-lang">🇰🇷 한국어</div>
+      <div class="pop-lang">
+        <span>🇰🇷 한국어</span>
+        <button class="pop-tts" id="popTts" onclick="speakKorean()" title="한국어 읽기">🔊</button>
+      </div>
       <div class="pop-kor" id="popKor"></div>
       <div class="pop-lang" id="popLangLabel">🌐 러시아어</div>
       <div class="pop-rus" id="popRus"></div>
@@ -626,6 +638,13 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
       <div style="display:flex;gap:8px">
         <button id="btnPage1" class="page-layout-btn active" onclick="setPageLayout(1)">1페이지</button>
         <button id="btnPage2" class="page-layout-btn" onclick="setPageLayout(2)">2페이지</button>
+      </div>
+    </div>
+    <div class="toggle-row" style="margin-bottom:12px">
+      <label>✏️ 영역 선택 방식</label>
+      <div style="display:flex;gap:8px">
+        <button id="btnSelDrag" class="page-layout-btn active" onclick="setSelMode('drag')">드래그</button>
+        <button id="btnSelPen"  class="page-layout-btn"        onclick="setSelMode('pen')">형광펜</button>
       </div>
     </div>
     <div class="toggle-row">
@@ -933,6 +952,8 @@ let isPanning = false, panStart = {x:0,y:0};
 let lastPinchDist = null;
 let viewMode = 'select';
 let isSelecting = false, selStart = {x:0,y:0}, selEnd = {x:0,y:0};
+let selMode = 'drag'; // 'drag' | 'pen'
+let penPoints = []; // image-coord points for pen mode
 
 const canvas  = document.getElementById('viewerCanvas');
 const ctx     = canvas.getContext('2d');
@@ -975,6 +996,8 @@ window.onload = async () => {
   document.getElementById('popLangLabel').textContent = '🌐 ' + LANG_NAMES[targetLang];
   const pl = parseInt(localStorage.getItem('page_layout')||'1');
   if (pl === 2) setPageLayout(2);
+  const sm = localStorage.getItem('sel_mode') || 'drag';
+  setSelMode(sm);
   initViewer();
   renderSlot();
   // 라이브러리 초기화
@@ -1142,6 +1165,56 @@ function applyScanFilter(el, on) {
 }
 
 /* ══════════════════════════════
+   Selection mode
+══════════════════════════════ */
+function setSelMode(m) {
+  selMode = m;
+  localStorage.setItem('sel_mode', m);
+  document.getElementById('btnSelDrag').classList.toggle('active', m==='drag');
+  document.getElementById('btnSelPen').classList.toggle('active',  m==='pen');
+  const wrap = document.getElementById('canvasWrap');
+  if (wrap.classList.contains('visible')) {
+    wrap.className = 'canvas-wrap visible' + (m==='pen' ? ' mode-pen' : ' mode-select');
+  }
+}
+
+/* ══════════════════════════════
+   TTS
+══════════════════════════════ */
+let ttsSynth = window.speechSynthesis;
+let ttsUtterance = null;
+
+function speakKorean() {
+  const text = document.getElementById('popKor').textContent;
+  if (!text || text === '인식 실패') return;
+  if (ttsSynth.speaking) { ttsSynth.cancel(); setTtsIcon(false); return; }
+
+  ttsUtterance = new SpeechSynthesisUtterance(text);
+  ttsUtterance.lang = 'ko-KR';
+  ttsUtterance.rate = 0.9;
+  ttsUtterance.pitch = 1.1;
+
+  // 여성 목소리 선택
+  const voices = ttsSynth.getVoices();
+  const femaleKo = voices.find(v => v.lang.startsWith('ko') && /female|여성|woman|f$/i.test(v.name))
+                || voices.find(v => v.lang.startsWith('ko'));
+  if (femaleKo) ttsUtterance.voice = femaleKo;
+
+  ttsUtterance.onstart = () => setTtsIcon(true);
+  ttsUtterance.onend   = () => setTtsIcon(false);
+  ttsUtterance.onerror = () => setTtsIcon(false);
+  ttsSynth.speak(ttsUtterance);
+}
+
+function setTtsIcon(on) {
+  const btn = document.getElementById('popTts');
+  if (!btn) return;
+  btn.classList.toggle('speaking', on);
+  btn.textContent = on ? '⏹' : '🔊';
+}
+
+/* 팝업 닫을 때 TTS 중단 */
+/* ══════════════════════════════
    Navigation
 ══════════════════════════════ */
 function goPage(dir) {
@@ -1270,7 +1343,7 @@ function renderSlot(fitToView) {
 
   emptySlot.style.display = 'none';
   canvasWrap.classList.add('visible');
-  canvasWrap.className = 'canvas-wrap visible mode-select';
+  canvasWrap.className = 'canvas-wrap visible ' + (selMode==='pen' ? 'mode-pen' : 'mode-select');
   zoomBar.classList.remove('hidden');
   if (dlBtn) dlBtn.style.display = '';
 
@@ -1441,6 +1514,8 @@ function initViewer() {
     if (viewMode==='pan') {
       isPanning=true; panStart={x:e.clientX-v.panX, y:e.clientY-v.panY};
       wrap.classList.add('grabbing');
+    } else if (selMode === 'pen') {
+      isSelecting=true; penPoints=[imgPos(e)]; closePopup(); drawPenPath();
     } else {
       isSelecting=true; selStart=imgPos(e); selEnd=selStart; closePopup();
     }
@@ -1465,17 +1540,28 @@ function initViewer() {
         applyTransform();
       }
     }
-    else if (viewMode==='select'&&isSelecting) { selEnd=imgPos(e); drawSel(); }
+    else if (viewMode==='select'&&isSelecting) {
+      if (selMode==='pen') { penPoints.push(imgPos(e)); drawPenPath(); }
+      else { selEnd=imgPos(e); drawSel(); }
+    }
   });
 
   window.addEventListener('mouseup', e => {
     document.getElementById('canvasWrap').classList.remove('grabbing');
     if (viewMode==='pan') { isPanning=false; }
     else if (viewMode==='select'&&isSelecting) {
-      isSelecting=false; selEnd=imgPos(e); drawSel();
-      const r=selRect();
-      if(r.w>20&&r.h>20) translateSel(r, e.clientX, e.clientY);
-      else selCtx.clearRect(0,0,selCanvas.width,selCanvas.height);
+      isSelecting=false;
+      if (selMode==='pen') {
+        penPoints.push(imgPos(e));
+        const r = penBBox();
+        if(r&&r.w>10&&r.h>10) translateSel(r, e.clientX, e.clientY);
+        else selCtx.clearRect(0,0,selCanvas.width,selCanvas.height);
+      } else {
+        selEnd=imgPos(e); drawSel();
+        const r=selRect();
+        if(r.w>20&&r.h>20) translateSel(r, e.clientX, e.clientY);
+        else selCtx.clearRect(0,0,selCanvas.width,selCanvas.height);
+      }
     }
   });
 
@@ -1484,6 +1570,7 @@ function initViewer() {
       selectPane(e.touches[0].clientX);
       const v=av();
       if(viewMode==='pan'){isPanning=true;panStart={x:e.touches[0].clientX-v.panX,y:e.touches[0].clientY-v.panY};}
+      else if(selMode==='pen'){isSelecting=true;penPoints=[imgPosTouch(e.touches[0])];closePopup();drawPenPath();}
       else{isSelecting=true;selStart=imgPosTouch(e.touches[0]);selEnd=selStart;closePopup();}
     } else if(e.touches.length===2){lastPinchDist=pdist(e);}
     e.preventDefault();
@@ -1503,7 +1590,10 @@ function initViewer() {
           renderCurrentPage(false);
         }else{panX=e.touches[0].clientX-panStart.x;panY=e.touches[0].clientY-panStart.y;clampPan();applyTransform();}
       }
-      else if(viewMode==='select'&&isSelecting){selEnd=imgPosTouch(e.touches[0]);drawSel();}
+      else if(viewMode==='select'&&isSelecting){
+        if(selMode==='pen'){penPoints.push(imgPosTouch(e.touches[0]));drawPenPath();}
+        else{selEnd=imgPosTouch(e.touches[0]);drawSel();}
+      }
     } else if(e.touches.length===2&&lastPinchDist){
       const d=pdist(e);
       const cx=(e.touches[0].clientX+e.touches[1].clientX)/2;
@@ -1518,12 +1608,21 @@ function initViewer() {
     if(e.touches.length<2) lastPinchDist=null;
     if(e.touches.length===0){
       if(viewMode==='select'&&isSelecting){
-        isSelecting=false;drawSel();
-        const r=selRect();
-        const v=av();
-        const px=selEnd.x*v.zoom+v.panX, py=selEnd.y*v.zoom+v.panY+52;
-        if(r.w>20&&r.h>20) translateSel(r, px, py);
-        else selCtx.clearRect(0,0,selCanvas.width,selCanvas.height);
+        isSelecting=false;
+        if(selMode==='pen'){
+          const r=penBBox();
+          if(r&&r.w>10&&r.h>10){
+            const v=av(); const px=r.x*v.zoom+v.panX, py=r.y*v.zoom+v.panY+52;
+            translateSel(r, px, py);
+          } else selCtx.clearRect(0,0,selCanvas.width,selCanvas.height);
+        } else {
+          drawSel();
+          const r=selRect();
+          const v=av();
+          const px=selEnd.x*v.zoom+v.panX, py=selEnd.y*v.zoom+v.panY+52;
+          if(r.w>20&&r.h>20) translateSel(r, px, py);
+          else selCtx.clearRect(0,0,selCanvas.width,selCanvas.height);
+        }
       }
       isPanning=false;
     }
@@ -1573,6 +1672,53 @@ function drawSel() {
   selCtx.lineWidth=2;
   selCtx.setLineDash([6,3]);
   selCtx.strokeRect(x,y,w,h);
+}
+
+function drawPenPath() {
+  const wrap = document.getElementById('canvasWrap');
+  selCanvas.width = wrap.offsetWidth; selCanvas.height = wrap.offsetHeight;
+  selCtx.clearRect(0,0,selCanvas.width,selCanvas.height);
+  if (penPoints.length < 2) return;
+  const v = av();
+  const ww = wrap.offsetWidth; const half = Math.floor(ww/2);
+  const baseX = getTwoPageMode() && activePane===1 ? half : 0;
+
+  selCtx.save();
+  selCtx.globalCompositeOperation = 'multiply';
+  selCtx.strokeStyle = 'rgba(255,235,59,0.75)';
+  selCtx.lineWidth   = 18;
+  selCtx.lineCap     = 'round';
+  selCtx.lineJoin    = 'round';
+  selCtx.beginPath();
+  const p0 = penPoints[0];
+  selCtx.moveTo(p0.x*v.zoom+v.panX+baseX, p0.y*v.zoom+v.panY);
+  for (let i=1; i<penPoints.length; i++) {
+    const p = penPoints[i];
+    selCtx.lineTo(p.x*v.zoom+v.panX+baseX, p.y*v.zoom+v.panY);
+  }
+  selCtx.stroke();
+  selCtx.restore();
+
+  // bbox 테두리 점선
+  const r = penBBox();
+  if (!r) return;
+  const sx = r.x*v.zoom+v.panX+baseX, sy = r.y*v.zoom+v.panY;
+  const sw = r.w*v.zoom, sh = r.h*v.zoom;
+  selCtx.strokeStyle = '#f5d33a';
+  selCtx.lineWidth = 1.5;
+  selCtx.setLineDash([5,3]);
+  selCtx.strokeRect(sx, sy, sw, sh);
+  selCtx.setLineDash([]);
+}
+
+function penBBox() {
+  if (!penPoints.length) return null;
+  let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+  for (const p of penPoints) {
+    if(p.x<minX)minX=p.x; if(p.y<minY)minY=p.y;
+    if(p.x>maxX)maxX=p.x; if(p.y>maxY)maxY=p.y;
+  }
+  return {x:minX, y:minY, w:maxX-minX, h:maxY-minY};
 }
 
 /* ══════════════════════════════
@@ -1754,10 +1900,7 @@ function undoApply() {
   document.getElementById('popApply').classList.add('visible');
 }
 
-function closePopup() {
-  document.getElementById('transPopup').classList.remove('visible');
-  selCtx.clearRect(0,0,selCanvas.width,selCanvas.height);
-}
+
 
 /* ══════════════════════════════
    Download
