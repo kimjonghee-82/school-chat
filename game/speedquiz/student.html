@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>스피드퀴즈 - 학생</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+body {
+  min-height:100vh; min-height:100dvh;
+  background:#0d1117; color:#fff;
+  font-family:'Segoe UI',sans-serif;
+  display:flex; flex-direction:column;
+}
+
+/* ── Login ── */
+#loginScreen {
+  flex:1; display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  padding:24px; gap:24px;
+}
+#loginScreen h1 { font-size:1.8rem; }
+#loginScreen p { color:#8b949e; font-size:0.9rem; }
+.login-card {
+  background:#161b22; border:1px solid #30363d;
+  border-radius:16px; padding:32px; width:100%; max-width:380px;
+  display:flex; flex-direction:column; gap:16px;
+}
+.login-card label { color:#8b949e; font-size:0.82rem; display:block; margin-bottom:4px; }
+.login-card input {
+  width:100%; background:#0d1117; border:1px solid #30363d;
+  border-radius:8px; padding:12px 14px; color:#fff; font-size:1rem;
+}
+.login-card input:focus { outline:none; border-color:#5c6bc0; }
+.room-input { letter-spacing:6px; font-family:monospace; font-size:1.3rem; text-align:center; }
+.btn-join {
+  background:#5c6bc0; color:#fff; border:none;
+  padding:14px; border-radius:10px; font-size:1rem;
+  font-weight:700; cursor:pointer; margin-top:4px;
+}
+.btn-join:hover { background:#5060b0; }
+.btn-join:disabled { background:#333; color:#666; cursor:not-allowed; }
+
+/* ── Waiting ── */
+#waitingScreen {
+  flex:1; display:none; flex-direction:column;
+  align-items:center; justify-content:center; gap:20px; padding:24px;
+}
+.pulse-icon { font-size:4rem; animation:pulse 1.5s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.1)} }
+#waitingScreen h2 { font-size:1.3rem; }
+#waitingScreen p { color:#8b949e; text-align:center; }
+.student-info-badge {
+  background:#161b22; border:1px solid #30363d; border-radius:12px;
+  padding:14px 24px; text-align:center;
+}
+.student-info-badge .s-name { font-size:1.1rem; font-weight:700; color:#5c6bc0; }
+.student-info-badge .s-room { font-size:0.85rem; color:#8b949e; margin-top:4px; }
+
+/* ── Quiz Screen ── */
+#quizScreen {
+  flex:1; display:none; flex-direction:column;
+  overflow:hidden;
+}
+
+.quiz-header {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:10px 16px; background:#161b22;
+  border-bottom:1px solid #30363d;
+  flex-shrink:0;
+}
+.score-display { font-size:1.2rem; font-weight:700; color:#4caf50; }
+.timer-chip {
+  font-family:monospace; font-size:1.1rem; font-weight:700;
+  background:#0d1117; padding:6px 12px; border-radius:8px;
+  border:2px solid #30363d; color:#fff; transition:color 0.3s, border-color 0.3s;
+}
+.timer-chip.warning { color:#f44336; border-color:#f44336; animation:blink 0.5s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.question-counter { font-size:0.85rem; color:#8b949e; }
+
+/* Question area */
+.question-area {
+  flex:1; background:#0d1117;
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  padding:24px 20px; text-align:center;
+  min-height:0;
+}
+.question-type-badge {
+  font-size:0.75rem; font-weight:600; padding:4px 10px;
+  border-radius:20px; margin-bottom:16px;
+  text-transform:uppercase; letter-spacing:0.5px;
+}
+.question-type-badge.mc { background:#1a2a4a; color:#58a6ff; }
+.question-type-badge.sa { background:#2a1a4a; color:#bc8cff; }
+.question-text {
+  font-size:clamp(1.1rem, 3.5vw, 1.6rem);
+  font-weight:600; line-height:1.5;
+  color:#e6edf3; max-width:600px;
+}
+
+/* Choices */
+.choices-area { flex-shrink:0; }
+
+.choice-strip {
+  display:flex; align-items:center;
+  padding:0 20px;
+  min-height:72px;
+  cursor:pointer;
+  transition:filter 0.1s, transform 0.1s;
+  border:none; width:100%; text-align:left;
+  font-size:clamp(0.95rem, 2.5vw, 1.1rem);
+  font-family:inherit; color:#fff; font-weight:500;
+  position:relative;
+}
+.choice-strip:active { transform:scale(0.98); filter:brightness(0.9); }
+.choice-strip.disabled { cursor:not-allowed; }
+.choice-strip.correct { filter:brightness(1.2); }
+.choice-strip.wrong { filter:brightness(0.5); }
+
+.choice-strip:nth-child(1) { background:#7b5ea7; }
+.choice-strip:nth-child(2) { background:#2e7d32; }
+.choice-strip:nth-child(3) { background:#e65100; }
+.choice-strip:nth-child(4) { background:#c62828; }
+
+.choice-label {
+  width:32px; height:32px; border-radius:50%;
+  background:rgba(255,255,255,0.2); display:flex;
+  align-items:center; justify-content:center;
+  font-weight:700; font-size:0.9rem; flex-shrink:0; margin-right:14px;
+}
+.choice-text { flex:1; }
+
+/* Short answer */
+.short-answer-area {
+  padding:16px 20px; background:#161b22;
+  border-top:1px solid #30363d;
+  display:flex; gap:10px; flex-shrink:0;
+}
+.answer-input {
+  flex:1; background:#0d1117; border:2px solid #30363d;
+  border-radius:10px; padding:12px 16px; color:#fff; font-size:1rem;
+  font-family:inherit;
+}
+.answer-input:focus { outline:none; border-color:#5c6bc0; }
+.btn-submit {
+  background:#5c6bc0; color:#fff; border:none;
+  padding:12px 20px; border-radius:10px; font-size:1rem;
+  font-weight:700; cursor:pointer; white-space:nowrap;
+}
+.btn-submit:hover { background:#5060b0; }
+.btn-submit:disabled { background:#333; color:#666; cursor:not-allowed; }
+
+/* Feedback overlay */
+.feedback-overlay {
+  position:fixed; inset:0; display:flex;
+  flex-direction:column; align-items:center; justify-content:center;
+  z-index:100; animation:feedIn 0.15s ease-out;
+  pointer-events:none;
+}
+@keyframes feedIn { from{opacity:0;transform:scale(0.8)} to{opacity:1;transform:scale(1)} }
+.feedback-icon { font-size:6rem; }
+.feedback-text { font-size:1.5rem; font-weight:700; margin-top:12px; }
+.feedback-points { font-size:1.1rem; margin-top:4px; opacity:0.8; }
+.feedback-overlay.correct-fb { background:rgba(76,175,80,0.92); }
+.feedback-overlay.wrong-fb { background:rgba(244,67,54,0.92); }
+
+/* ── End Screen ── */
+#endScreen {
+  flex:1; display:none; flex-direction:column;
+  align-items:center; justify-content:center; gap:20px; padding:24px;
+  text-align:center;
+}
+.end-score-card {
+  background:#161b22; border:2px solid #4caf50; border-radius:20px;
+  padding:32px 48px;
+}
+.end-score-card .final-score { font-size:3.5rem; font-weight:700; color:#4caf50; }
+.end-score-card .final-label { color:#8b949e; margin-top:4px; }
+.end-stats { display:flex; gap:24px; }
+.stat-item { text-align:center; }
+.stat-num { font-size:1.8rem; font-weight:700; }
+.stat-lbl { font-size:0.8rem; color:#8b949e; }
+.stat-item.correct .stat-num { color:#4caf50; }
+.stat-item.wrong .stat-num { color:#f44336; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div style="text-align:center">
+    <div style="font-size:3rem">⚡</div>
+    <h1>스피드퀴즈</h1>
+    <p>선생님이 알려준 룸코드로 참여하세요</p>
+  </div>
+  <div class="login-card">
+    <div>
+      <label>이름</label>
+      <input type="text" id="nameInput" placeholder="이름을 입력하세요" maxlength="10" autocomplete="off">
+    </div>
+    <div>
+      <label>룸코드 (6자리)</label>
+      <input type="tel" id="roomInput" class="room-input" placeholder="000000" maxlength="6" autocomplete="off">
+    </div>
+    <div id="loginError" style="color:#f47067;font-size:0.85rem;display:none"></div>
+    <button class="btn-join" onclick="joinRoom()">참여하기 →</button>
+  </div>
+</div>
+
+<!-- WAITING -->
+<div id="waitingScreen">
+  <div class="pulse-icon">⏳</div>
+  <h2>선생님을 기다리는 중...</h2>
+  <p>선생님이 게임을 시작하면<br>자동으로 시작됩니다</p>
+  <div class="student-info-badge">
+    <div class="s-name" id="waitName"></div>
+    <div class="s-room">룸코드: <span id="waitRoom"></span></div>
+  </div>
+</div>
+
+<!-- QUIZ -->
+<div id="quizScreen">
+  <div class="quiz-header">
+    <div class="score-display"><span id="scoreDisplay">0</span>점</div>
+    <div class="timer-chip" id="timerChip">00:00</div>
+    <div class="question-counter" id="qCounter">0/0</div>
+  </div>
+
+  <div class="question-area" id="questionArea">
+    <div class="question-type-badge mc" id="typeBadge">객관식</div>
+    <div class="question-text" id="questionText"></div>
+  </div>
+
+  <div class="choices-area" id="choicesArea"></div>
+</div>
+
+<!-- END -->
+<div id="endScreen">
+  <div style="font-size:3rem">🏁</div>
+  <h2>게임 종료!</h2>
+  <div class="end-score-card">
+    <div class="final-score" id="finalScore">0</div>
+    <div class="final-label">최종 점수</div>
+  </div>
+  <div class="end-stats">
+    <div class="stat-item correct">
+      <div class="stat-num" id="statCorrect">0</div>
+      <div class="stat-lbl">정답</div>
+    </div>
+    <div class="stat-item wrong">
+      <div class="stat-num" id="statWrong">0</div>
+      <div class="stat-lbl">오답</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num" id="statTotal">0</div>
+      <div class="stat-lbl">총 문제</div>
+    </div>
+  </div>
+  <p style="color:#8b949e;font-size:0.9rem">선생님 화면에서 전체 결과를 확인하세요</p>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────
+let myName = '';
+let roomCode = '';
+let studentId = '';
+let firebaseUrl = '';
+let questions = [];
+let currentIndex = 0;
+let score = 0;
+let correctCount = 0;
+let wrongCount = 0;
+let totalAnswered = 0;
+let gameEndTime = 0;
+let timerInterval = null;
+let pollInterval = null;
+let answered = false; // current question answered
+
+// ── Login ──────────────────────────────────────────────────────────
+async function joinRoom() {
+  const name = document.getElementById('nameInput').value.trim();
+  const room = document.getElementById('roomInput').value.trim();
+  const err = document.getElementById('loginError');
+
+  if (!name) { showErr('이름을 입력해주세요'); return; }
+  if (room.length !== 6 || !/^\d+$/.test(room)) { showErr('룸코드는 숫자 6자리입니다'); return; }
+
+  // Find Firebase URL from teacher's room
+  // We need the Firebase URL — students need to know it
+  // Strategy: store it in a well-known path based on room code
+  // Teacher stores firebaseUrl in localStorage; student needs it too
+  // For simplicity, we'll ask student to enter it OR use a shared config file
+
+  // Check if there's a stored firebase url
+  const storedUrl = localStorage.getItem('sq_fb_url');
+
+  // Try to guess from a config file
+  let fbUrl = storedUrl;
+  if (!fbUrl) {
+    try {
+      const r = await fetch('../speedquiz/config.json');
+      const c = await r.json();
+      fbUrl = c.firebaseUrl;
+    } catch {}
+  }
+
+  if (!fbUrl) {
+    showErr('Firebase URL을 알 수 없습니다. 선생님께 문의하세요.');
+    return;
+  }
+
+  myName = name;
+  roomCode = room;
+  firebaseUrl = fbUrl.replace(/\/$/, '');
+  studentId = 'stu_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
+  localStorage.setItem('sq_fb_url', fbUrl);
+
+  document.querySelector('.btn-join').disabled = true;
+  err.style.display = 'none';
+
+  try {
+    // Register student
+    await fbSet(`students/${studentId}`, { name: myName, score: 0, answered: 0, currentIndex: 0, joinedAt: Date.now() });
+
+    showWaiting();
+    startWaitingPoll();
+  } catch(e) {
+    showErr('접속 오류: ' + e.message);
+    document.querySelector('.btn-join').disabled = false;
+  }
+}
+
+function showErr(msg) {
+  const el = document.getElementById('loginError');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+// ── Waiting ────────────────────────────────────────────────────────
+function showWaiting() {
+  document.getElementById('loginScreen').style.display = 'none';
+  const ws = document.getElementById('waitingScreen');
+  ws.style.display = 'flex';
+  document.getElementById('waitName').textContent = myName;
+  document.getElementById('waitRoom').textContent = roomCode;
+}
+
+function startWaitingPoll() {
+  if (pollInterval) clearInterval(pollInterval);
+  pollInterval = setInterval(checkGameStatus, 2000);
+}
+
+async function checkGameStatus() {
+  try {
+    const game = await fbGet('game');
+    if (game && game.status === 'active' && game.questions) {
+      clearInterval(pollInterval);
+      startQuiz(game);
+    }
+    if (game && game.status === 'ended') {
+      clearInterval(pollInterval);
+      showEnd();
+    }
+  } catch {}
+}
+
+// ── Firebase helpers ───────────────────────────────────────────────
+function fbUrl(path) {
+  return `${firebaseUrl}/rooms/${roomCode}/${path}.json`;
+}
+async function fbSet(path, data) {
+  await fetch(fbUrl(path), { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) });
+}
+async function fbPatch(path, data) {
+  await fetch(fbUrl(path), { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) });
+}
+async function fbGet(path) {
+  const r = await fetch(fbUrl(path));
+  return r.json();
+}
+
+// ── Quiz ───────────────────────────────────────────────────────────
+function startQuiz(game) {
+  questions = game.questions;
+  gameEndTime = game.endTime;
+  currentIndex = 0;
+  score = 0;
+  correctCount = 0;
+  wrongCount = 0;
+  totalAnswered = 0;
+
+  document.getElementById('waitingScreen').style.display = 'none';
+  document.getElementById('quizScreen').style.display = 'flex';
+
+  startTimer();
+  showQuestion();
+  startGamePoll();
+}
+
+function startGamePoll() {
+  if (pollInterval) clearInterval(pollInterval);
+  pollInterval = setInterval(async () => {
+    try {
+      const game = await fbGet('game');
+      if (game && game.status === 'ended') {
+        clearInterval(pollInterval);
+        if (timerInterval) clearInterval(timerInterval);
+        showEnd();
+      }
+    } catch {}
+  }, 3000);
+}
+
+function showQuestion() {
+  answered = false;
+  const q = questions[currentIndex % questions.length];
+  const isMC = q.type === 'multiple_choice';
+
+  // Update counter
+  document.getElementById('qCounter').textContent = `${totalAnswered + 1}번째`;
+
+  // Type badge
+  const badge = document.getElementById('typeBadge');
+  if (isMC) {
+    badge.textContent = '객관식';
+    badge.className = 'question-type-badge mc';
+  } else {
+    badge.textContent = '단답형';
+    badge.className = 'question-type-badge sa';
+  }
+
+  document.getElementById('questionText').textContent = q.question;
+  document.getElementById('scoreDisplay').textContent = score;
+
+  const choicesArea = document.getElementById('choicesArea');
+  choicesArea.innerHTML = '';
+
+  if (isMC) {
+    const labels = ['①','②','③','④'];
+    q.choices.forEach((choice, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'choice-strip';
+      btn.innerHTML = `<span class="choice-label">${labels[i]}</span><span class="choice-text">${esc(choice)}</span>`;
+      btn.onclick = () => answerMC(i, q.answer, btn);
+      choicesArea.appendChild(btn);
+    });
+  } else {
+    choicesArea.innerHTML = `
+      <div class="short-answer-area">
+        <input class="answer-input" id="answerInput" type="text" placeholder="답을 입력하세요..." maxlength="50" autocomplete="off">
+        <button class="btn-submit" onclick="answerSA('${esc(q.answer)}')">제출</button>
+      </div>`;
+    const inp = document.getElementById('answerInput');
+    inp.focus();
+    inp.addEventListener('keydown', e => { if (e.key==='Enter') answerSA(q.answer); });
+  }
+}
+
+function answerMC(selected, correct, btn) {
+  if (answered) return;
+  answered = true;
+
+  const strips = document.querySelectorAll('.choice-strip');
+  strips.forEach(s => { s.classList.add('disabled'); s.onclick = null; });
+
+  const isCorrect = selected === correct;
+  btn.classList.add(isCorrect ? 'correct' : 'wrong');
+  strips[correct].classList.add('correct');
+
+  updateScore(isCorrect);
+  showFeedback(isCorrect);
+  setTimeout(nextQuestion, 1200);
+}
+
+function answerSA(correctAnswer) {
+  if (answered) return;
+  const inp = document.getElementById('answerInput');
+  if (!inp) return;
+  const val = inp.value.trim();
+  if (!val) return;
+  answered = true;
+  inp.disabled = true;
+  document.querySelector('.btn-submit').disabled = true;
+
+  const isCorrect = normalize(val) === normalize(correctAnswer);
+  updateScore(isCorrect);
+  showFeedback(isCorrect);
+  setTimeout(nextQuestion, 1200);
+}
+
+function normalize(s) {
+  return String(s).toLowerCase().replace(/\s+/g,'').replace(/[.,!?]/g,'');
+}
+
+function updateScore(isCorrect) {
+  if (isCorrect) {
+    score += 10;
+    correctCount++;
+  } else {
+    score -= 5;
+    wrongCount++;
+  }
+  totalAnswered++;
+  document.getElementById('scoreDisplay').textContent = score;
+
+  // Push score to Firebase
+  fbPatch(`students/${studentId}`, { score, answered: totalAnswered, currentIndex: currentIndex + 1 }).catch(()=>{});
+}
+
+function showFeedback(isCorrect) {
+  const div = document.createElement('div');
+  div.className = `feedback-overlay ${isCorrect ? 'correct-fb' : 'wrong-fb'}`;
+  div.innerHTML = `
+    <div class="feedback-icon">${isCorrect ? '⭕' : '❌'}</div>
+    <div class="feedback-text">${isCorrect ? '정답!' : '오답!'}</div>
+    <div class="feedback-points">${isCorrect ? '+10점' : '-5점'}</div>
+  `;
+  document.body.appendChild(div);
+  setTimeout(() => div.remove(), 900);
+}
+
+function nextQuestion() {
+  currentIndex++;
+  // If we've gone through all questions, shuffle and restart from 0
+  if (currentIndex % questions.length === 0) {
+    // Shuffle questions for next round
+    questions = shuffle(questions);
+  }
+  showQuestion();
+}
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length-1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i+1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// ── Timer ──────────────────────────────────────────────────────────
+function startTimer() {
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    const rem = gameEndTime - Date.now();
+    if (rem <= 0) {
+      clearInterval(timerInterval);
+      showEnd();
+      return;
+    }
+    const secs = Math.ceil(rem/1000);
+    const m = Math.floor(secs/60), s = secs%60;
+    const chip = document.getElementById('timerChip');
+    chip.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    if (secs <= 10) chip.classList.add('warning');
+  }, 200);
+}
+
+// ── End ────────────────────────────────────────────────────────────
+function showEnd() {
+  if (timerInterval) clearInterval(timerInterval);
+  if (pollInterval) clearInterval(pollInterval);
+
+  document.getElementById('quizScreen').style.display = 'none';
+  document.getElementById('waitingScreen').style.display = 'none';
+  const es = document.getElementById('endScreen');
+  es.style.display = 'flex';
+
+  document.getElementById('finalScore').textContent = score + '점';
+  document.getElementById('statCorrect').textContent = correctCount;
+  document.getElementById('statWrong').textContent = wrongCount;
+  document.getElementById('statTotal').textContent = totalAnswered;
+
+  // Final score push
+  fbPatch(`students/${studentId}`, { score, answered: totalAnswered, finished: true }).catch(()=>{});
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Input enter key on login ───────────────────────────────────────
+document.getElementById('roomInput').addEventListener('keydown', e => { if(e.key==='Enter') joinRoom(); });
+document.getElementById('nameInput').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('roomInput').focus(); });
+</script>
+</body>
+</html>

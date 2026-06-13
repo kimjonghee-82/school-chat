@@ -1,0 +1,10 @@
+{
+  "books": [
+    {
+      "name": "예시: 국어 지도서 (여기에 파일명 입력)",
+      "file": "korean.txt",
+      "subject": "국어"
+    }
+  ],
+  "note": "books/ 폴더에 지도서 파일을 올리고 이 manifest.json에 추가하세요."
+}

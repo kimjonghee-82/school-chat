@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>스피드퀴즈 - 교사</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { min-height:100vh; background:#0d1117; color:#fff; font-family:'Segoe UI',sans-serif; }
+
+header {
+  display:grid;
+  grid-template-columns:6fr 2fr 2fr;
+  align-items:center;
+  padding:14px 24px;
+  background:#161b22;
+  border-bottom:2px solid #30363d;
+  gap:12px;
+  position:sticky;
+  top:0;
+  z-index:10;
+}
+.room-code-area { display:flex; align-items:center; gap:12px; }
+.room-code-label { color:#8b949e; font-size:0.85rem; white-space:nowrap; }
+.room-code-value {
+  font-size:2.2rem; font-weight:700; letter-spacing:8px;
+  color:#4caf50; font-family:monospace;
+}
+.btn-copy {
+  background:transparent; border:1px solid #30363d; color:#8b949e;
+  padding:4px 10px; border-radius:6px; cursor:pointer; font-size:0.8rem;
+  white-space:nowrap;
+}
+.btn-copy:hover { border-color:#4caf50; color:#4caf50; }
+
+.game-controls { display:flex; gap:8px; justify-content:center; }
+.btn-start {
+  background:#4caf50; color:#fff; border:none;
+  padding:10px 18px; border-radius:8px; font-size:0.95rem;
+  font-weight:600; cursor:pointer; white-space:nowrap;
+}
+.btn-start:hover:not(:disabled) { background:#43a047; }
+.btn-start:disabled { background:#2a4a2a; color:#666; cursor:not-allowed; }
+.btn-end {
+  background:#f44336; color:#fff; border:none;
+  padding:10px 18px; border-radius:8px; font-size:0.95rem;
+  font-weight:600; cursor:pointer; white-space:nowrap;
+}
+.btn-end:hover:not(:disabled) { background:#e53935; }
+.btn-end:disabled { background:#4a1515; color:#666; cursor:not-allowed; }
+
+.settings-area { display:flex; justify-content:flex-end; }
+.btn-settings {
+  background:transparent; border:1px solid #30363d; color:#8b949e;
+  width:44px; height:44px; border-radius:8px; font-size:1.3rem;
+  cursor:pointer; display:flex; align-items:center; justify-content:center;
+}
+.btn-settings:hover { border-color:#4caf50; color:#4caf50; }
+
+main { padding:24px; max-width:1400px; margin:0 auto; }
+
+.status-bar {
+  padding:10px 16px; border-radius:8px; margin-bottom:20px;
+  font-size:0.9rem; display:none;
+}
+.status-bar.info { background:#1a2a4a; color:#58a6ff; border:1px solid #1f6feb; display:block; }
+.status-bar.success { background:#1a2a1a; color:#4caf50; border:1px solid #2ea043; display:block; }
+.status-bar.error { background:#2a1a1a; color:#f47067; border:1px solid #da3633; display:block; }
+.status-bar.warning { background:#2a2a1a; color:#e3b341; border:1px solid #9e6a03; display:block; }
+
+.timer-section { text-align:center; margin-bottom:24px; }
+.timer-display {
+  font-size:4rem; font-weight:700; font-family:monospace;
+  color:#fff; line-height:1;
+}
+.timer-display.warning { color:#f44336; animation:pulse 0.5s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.timer-bar { height:8px; background:#30363d; border-radius:4px; margin-top:12px; overflow:hidden; }
+.timer-fill { height:100%; background:linear-gradient(90deg,#4caf50,#8bc34a); border-radius:4px; transition:width 1s linear, background 0.3s; }
+.timer-fill.warning { background:linear-gradient(90deg,#f44336,#ff5722); }
+
+.section-label {
+  color:#8b949e; font-size:0.8rem; text-transform:uppercase;
+  letter-spacing:1px; margin-bottom:14px; font-weight:600;
+}
+
+.student-grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(150px, 1fr));
+  gap:12px;
+}
+.student-card {
+  background:#161b22; border:1px solid #30363d; border-radius:12px;
+  padding:16px 12px; text-align:center;
+  transition:border-color 0.2s;
+}
+.student-card.rank1 { border-color:#ffd700; background:#1a1a0f; }
+.student-card.rank2 { border-color:#c0c0c0; }
+.student-card.rank3 { border-color:#cd7f32; }
+.student-card .s-rank { font-size:1.2rem; margin-bottom:4px; }
+.student-card .s-name { font-size:0.95rem; font-weight:600; margin-bottom:6px; color:#e6edf3; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.student-card .s-score { font-size:1.6rem; font-weight:700; color:#4caf50; }
+.student-card.rank1 .s-score { color:#ffd700; }
+.student-card .s-answered { font-size:0.75rem; color:#8b949e; margin-top:2px; }
+
+.empty-state { text-align:center; color:#8b949e; padding:80px 20px; grid-column:1/-1; }
+.empty-state .e-icon { font-size:3rem; margin-bottom:12px; }
+
+.generating-view { text-align:center; padding:80px 20px; }
+.spinner {
+  width:52px; height:52px; border:4px solid #30363d; border-top-color:#4caf50;
+  border-radius:50%; animation:spin 1s linear infinite; margin:0 auto 20px;
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+.generating-view p { color:#8b949e; font-size:1rem; margin-top:8px; }
+
+/* Settings Modal */
+.modal-overlay {
+  position:fixed; inset:0; background:rgba(0,0,0,0.75);
+  display:flex; align-items:center; justify-content:center;
+  z-index:200; opacity:0; pointer-events:none; transition:opacity 0.2s;
+}
+.modal-overlay.open { opacity:1; pointer-events:all; }
+.modal {
+  background:#161b22; border:1px solid #30363d; border-radius:16px;
+  padding:28px; width:90%; max-width:520px;
+  max-height:90vh; overflow-y:auto;
+  transform:translateY(20px); transition:transform 0.2s;
+}
+.modal-overlay.open .modal { transform:translateY(0); }
+.modal h2 { margin-bottom:24px; font-size:1.2rem; color:#e6edf3; }
+.form-group { margin-bottom:18px; }
+.form-group label { display:block; color:#8b949e; font-size:0.82rem; margin-bottom:6px; font-weight:500; }
+.form-group input, .form-group select {
+  width:100%; background:#0d1117; border:1px solid #30363d;
+  border-radius:8px; padding:10px 12px; color:#e6edf3; font-size:0.9rem;
+}
+.form-group input:focus, .form-group select:focus {
+  outline:none; border-color:#4caf50;
+}
+.form-group select option { background:#0d1117; }
+
+.diff-group { display:flex; gap:6px; }
+.diff-btn {
+  flex:1; padding:8px 4px; border-radius:8px; border:1px solid #30363d;
+  background:transparent; color:#8b949e; cursor:pointer; font-size:0.9rem;
+  transition:all 0.15s;
+}
+.diff-btn.active { border-color:#4caf50; background:#1a2a1a; color:#4caf50; font-weight:600; }
+
+.divider { border:none; border-top:1px solid #30363d; margin:20px 0; }
+.section-hint { color:#8b949e; font-size:0.78rem; margin-bottom:14px; }
+
+.modal-footer { display:flex; gap:8px; margin-top:24px; }
+.btn-save {
+  flex:1; background:#4caf50; color:#fff; border:none;
+  padding:12px; border-radius:8px; font-size:0.95rem; cursor:pointer; font-weight:600;
+}
+.btn-save:hover { background:#43a047; }
+.btn-cancel {
+  background:transparent; border:1px solid #30363d; color:#8b949e;
+  padding:12px 20px; border-radius:8px; font-size:0.95rem; cursor:pointer;
+}
+.btn-cancel:hover { border-color:#8b949e; color:#e6edf3; }
+
+.hidden { display:none !important; }
+
+.final-banner {
+  text-align:center; padding:20px; background:#1a2a1a;
+  border:1px solid #2ea043; border-radius:12px; margin-bottom:24px;
+}
+.final-banner h2 { color:#4caf50; font-size:1.5rem; margin-bottom:4px; }
+.final-banner p { color:#8b949e; font-size:0.9rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="room-code-area">
+    <span class="room-code-label">룸코드</span>
+    <span class="room-code-value" id="roomCode">------</span>
+    <button class="btn-copy" onclick="copyRoomCode()">📋 복사</button>
+  </div>
+  <div class="game-controls">
+    <button class="btn-start" id="startBtn" onclick="startGame()">▶ 게임 시작</button>
+    <button class="btn-end" id="endBtn" onclick="endGame()" disabled>■ 종료</button>
+  </div>
+  <div class="settings-area">
+    <button class="btn-settings" onclick="openSettings()" title="설정">⚙️</button>
+  </div>
+</header>
+
+<main>
+  <div class="status-bar" id="statusBar"></div>
+
+  <div id="generatingView" class="generating-view hidden">
+    <div class="spinner"></div>
+    <h3 style="color:#e6edf3">AI 문제 생성 중...</h3>
+    <p>지도서를 분석하여 문제를 만들고 있어요</p>
+    <p id="genProgress" style="color:#4caf50;margin-top:8px;"></p>
+  </div>
+
+  <div id="timerSection" class="timer-section hidden">
+    <div class="timer-display" id="timerDisplay">00:00</div>
+    <div class="timer-bar"><div class="timer-fill" id="timerFill" style="width:100%"></div></div>
+  </div>
+
+  <div id="finalBanner" class="final-banner hidden">
+    <h2>🏁 게임 종료!</h2>
+    <p>최종 결과입니다</p>
+  </div>
+
+  <div id="listSection">
+    <p class="section-label" id="listTitle">접속한 학생</p>
+    <div class="student-grid" id="studentGrid">
+      <div class="empty-state">
+        <div class="e-icon">👋</div>
+        <p>학생이 룸코드로 접속하면 여기에 표시됩니다</p>
+        <p style="margin-top:8px;font-size:0.85rem">룸코드: <strong style="color:#4caf50;font-family:monospace;font-size:1.1rem" id="emptyRoomCode">------</strong></p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Settings Modal -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal">
+    <h2>⚙️ 게임 설정</h2>
+
+    <div class="form-group">
+      <label>📚 지도서 선택</label>
+      <select id="bookSelect">
+        <option value="">불러오는 중...</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>❓ 생성할 문제 수</label>
+      <input type="number" id="questionCount" value="20" min="5" max="50">
+    </div>
+
+    <div class="form-group">
+      <label>⏱ 게임 시간 (분)</label>
+      <input type="number" id="gameTime" value="5" min="1" max="30">
+    </div>
+
+    <div class="form-group">
+      <label>🎯 난이도</label>
+      <div class="diff-group">
+        <button class="diff-btn" onclick="setDiff(this,'하')">하</button>
+        <button class="diff-btn active" onclick="setDiff(this,'중')">중</button>
+        <button class="diff-btn" onclick="setDiff(this,'상')">상</button>
+        <button class="diff-btn" onclick="setDiff(this,'종합')">종합</button>
+      </div>
+    </div>
+
+    <hr class="divider">
+    <p class="section-hint">🔑 API 설정 (최초 1회만 입력하면 저장됩니다)</p>
+
+    <div class="form-group">
+      <label>Grok API 키 (xAI)</label>
+      <input type="password" id="claudeApiKey" placeholder="xai-...">
+      <small style="color:#8b949e;font-size:0.75rem;margin-top:4px;display:block">console.x.ai 에서 무료로 발급 가능</small>
+    </div>
+
+    <div class="form-group">
+      <label>Firebase Realtime DB URL</label>
+      <input type="text" id="firebaseUrl" placeholder="https://프로젝트명-default-rtdb.firebaseio.com">
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeSettings()">취소</button>
+      <button class="btn-save" onclick="saveSettings()">✓ 저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────
+let cfg = JSON.parse(localStorage.getItem('sq_cfg') || '{}');
+let roomCode = localStorage.getItem('sq_room') || genRoom();
+let students = {};
+let gameStatus = 'waiting';
+let timerInterval = null;
+let pollInterval = null;
+let totalMs = 0;
+let endTime = 0;
+let selectedDiff = cfg.difficulty || '중';
+
+localStorage.setItem('sq_room', roomCode);
+document.getElementById('roomCode').textContent = roomCode;
+document.getElementById('emptyRoomCode').textContent = roomCode;
+
+function genRoom() {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+// ── Settings ───────────────────────────────────────────────────────
+function openSettings() {
+  loadCfgToForm();
+  loadBooks();
+  document.getElementById('settingsModal').classList.add('open');
+}
+function closeSettings() {
+  document.getElementById('settingsModal').classList.remove('open');
+}
+function loadCfgToForm() {
+  if (cfg.questionCount) document.getElementById('questionCount').value = cfg.questionCount;
+  if (cfg.gameTime) document.getElementById('gameTime').value = cfg.gameTime;
+  if (cfg.claudeApiKey) document.getElementById('claudeApiKey').value = cfg.claudeApiKey;
+  if (cfg.firebaseUrl) document.getElementById('firebaseUrl').value = cfg.firebaseUrl;
+  selectedDiff = cfg.difficulty || '중';
+  document.querySelectorAll('.diff-btn').forEach(b => {
+    b.classList.toggle('active', b.textContent === selectedDiff);
+  });
+}
+function setDiff(btn, val) {
+  document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  selectedDiff = val;
+}
+function saveSettings() {
+  cfg = {
+    book: document.getElementById('bookSelect').value,
+    questionCount: parseInt(document.getElementById('questionCount').value) || 20,
+    gameTime: parseInt(document.getElementById('gameTime').value) || 5,
+    difficulty: selectedDiff,
+    claudeApiKey: document.getElementById('claudeApiKey').value.trim(),
+    firebaseUrl: document.getElementById('firebaseUrl').value.trim().replace(/\/$/, ''),
+  };
+  localStorage.setItem('sq_cfg', JSON.stringify(cfg));
+  closeSettings();
+  showStatus('설정이 저장되었습니다.', 'success');
+  startPolling();
+}
+
+async function loadBooks() {
+  try {
+    const r = await fetch('./books/manifest.json');
+    const m = await r.json();
+    const sel = document.getElementById('bookSelect');
+    sel.innerHTML = '<option value="">지도서를 선택하세요...</option>';
+    m.books.forEach(b => {
+      const o = document.createElement('option');
+      o.value = b.file;
+      o.textContent = `${b.subject ? '['+b.subject+'] ' : ''}${b.name}`;
+      if (cfg.book === b.file) o.selected = true;
+      sel.appendChild(o);
+    });
+  } catch {
+    document.getElementById('bookSelect').innerHTML = '<option value="">books/manifest.json 없음</option>';
+  }
+}
+
+// ── Firebase REST ──────────────────────────────────────────────────
+function fbUrl(path) {
+  return `${cfg.firebaseUrl}/rooms/${roomCode}/${path}.json`;
+}
+async function fbSet(path, data) {
+  await fetch(fbUrl(path), { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) });
+}
+async function fbPatch(path, data) {
+  await fetch(fbUrl(path), { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) });
+}
+async function fbGet(path) {
+  const r = await fetch(fbUrl(path));
+  return r.json();
+}
+
+// ── Polling ────────────────────────────────────────────────────────
+function startPolling() {
+  if (pollInterval) clearInterval(pollInterval);
+  if (!cfg.firebaseUrl) return;
+  pollInterval = setInterval(fetchStudents, 2000);
+}
+
+async function fetchStudents() {
+  try {
+    const data = await fbGet('students');
+    if (data && typeof data === 'object') {
+      students = data;
+      renderStudents();
+    }
+  } catch {}
+}
+
+function renderStudents() {
+  const grid = document.getElementById('studentGrid');
+  const entries = Object.entries(students);
+  if (!entries.length) {
+    grid.innerHTML = `<div class="empty-state"><div class="e-icon">👋</div><p>학생이 룸코드로 접속하면 여기에 표시됩니다</p><p style="margin-top:8px;font-size:0.85rem">룸코드: <strong style="color:#4caf50;font-family:monospace;font-size:1.1rem">${roomCode}</strong></p></div>`;
+    return;
+  }
+  entries.sort((a,b) => (b[1].score||0) - (a[1].score||0));
+  const rankEmoji = ['🥇','🥈','🥉'];
+  grid.innerHTML = entries.map(([,s], i) => `
+    <div class="student-card ${i===0?'rank1':i===1?'rank2':i===2?'rank3':''}">
+      <div class="s-rank">${rankEmoji[i] || (i+1)+'위'}</div>
+      <div class="s-name" title="${esc(s.name||'익명')}">${esc(s.name||'익명')}</div>
+      <div class="s-score">${s.score||0}점</div>
+      ${gameStatus==='active'?`<div class="s-answered">${s.answered||0}문제</div>`:''}
+    </div>
+  `).join('');
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Copy room code ─────────────────────────────────────────────────
+function copyRoomCode() {
+  navigator.clipboard.writeText(roomCode).then(() => showStatus('룸코드가 복사되었습니다!','success'));
+}
+
+// ── Game Start ─────────────────────────────────────────────────────
+async function startGame() {
+  if (!cfg.firebaseUrl) return showStatus('⚙️ 설정에서 Firebase URL을 입력해주세요.','error');
+  if (!cfg.claudeApiKey) return showStatus('⚙️ 설정에서 Claude API 키를 입력해주세요.','error');
+  if (!cfg.book) return showStatus('⚙️ 설정에서 지도서를 선택해주세요.','error');
+
+  document.getElementById('startBtn').disabled = true;
+  document.getElementById('generatingView').classList.remove('hidden');
+  document.getElementById('listSection').classList.add('hidden');
+  document.getElementById('statusBar').style.display = 'none';
+
+  try {
+    setGenProgress('지도서 불러오는 중...');
+    const content = await loadBookContent(cfg.book);
+    setGenProgress('AI가 문제를 생성하는 중... (20~40초 소요)');
+    const questions = await generateQuestions(content, cfg.questionCount||20, cfg.difficulty||'중', cfg.claudeApiKey);
+
+    setGenProgress('Firebase에 게임 데이터 저장 중...');
+    totalMs = (cfg.gameTime||5) * 60 * 1000;
+    endTime = Date.now() + totalMs;
+
+    await fbSet('game', {
+      status: 'active',
+      questions,
+      endTime,
+      startTime: Date.now()
+    });
+    // Reset all student scores
+    const stuEntries = Object.entries(students);
+    for (const [id] of stuEntries) {
+      await fbPatch(`students/${id}`, { score: 0, answered: 0, currentIndex: 0 });
+    }
+
+    gameStatus = 'active';
+    document.getElementById('generatingView').classList.add('hidden');
+    document.getElementById('listSection').classList.remove('hidden');
+    document.getElementById('listTitle').textContent = '실시간 점수';
+    document.getElementById('timerSection').classList.remove('hidden');
+    document.getElementById('endBtn').disabled = false;
+    startTimer();
+    showStatus(`게임 시작! ${questions.length}문제 준비 완료 ✅`, 'success');
+  } catch (e) {
+    console.error(e);
+    document.getElementById('generatingView').classList.add('hidden');
+    document.getElementById('listSection').classList.remove('hidden');
+    document.getElementById('startBtn').disabled = false;
+    showStatus('오류: ' + e.message, 'error');
+  }
+}
+
+function setGenProgress(msg) {
+  document.getElementById('genProgress').textContent = msg;
+}
+
+async function loadBookContent(bookFile) {
+  const r = await fetch(`./books/${bookFile}`);
+  if (!r.ok) throw new Error(`지도서 파일을 불러올 수 없습니다: ${bookFile}`);
+  if (bookFile.toLowerCase().endsWith('.pdf')) {
+    const buf = await r.arrayBuffer();
+    return extractPdfText(buf);
+  }
+  return r.text();
+}
+
+async function extractPdfText(buf) {
+  if (!window.pdfjsLib) {
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  let text = '';
+  for (let i = 1; i <= Math.min(pdf.numPages, 60); i++) {
+    const page = await pdf.getPage(i);
+    const c = await page.getTextContent();
+    text += c.items.map(x => x.str).join(' ') + '\n';
+  }
+  return text;
+}
+
+function loadScript(src) {
+  return new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = src; s.onload = res; s.onerror = rej;
+    document.head.appendChild(s);
+  });
+}
+
+async function generateQuestions(content, count, diff, apiKey) {
+  const diffMap = { '하':'쉬움(초등 저학년 수준)', '중':'보통(초등 고학년 수준)', '상':'어려움(중학생 수준)', '종합':'쉬움~어려움 골고루' };
+  const prompt = `다음 교과서/지도서 내용을 바탕으로 학습 퀴즈 ${count}개를 만들어주세요.
+
+난이도: ${diff} - ${diffMap[diff]||'보통'}
+객관식(4지선다) ${Math.round(count*0.7)}개 + 단답형 ${count - Math.round(count*0.7)}개
+
+규칙:
+- 반드시 교과서 내용 기반으로만 출제
+- 한국어로 작성
+- 객관식: choices 배열(4개), answer는 0~3 정수 인덱스
+- 단답형: choices 없음, answer는 짧은 답변(10자 이내)
+- 다양한 유형으로 고르게 출제
+
+JSON만 응답(다른 텍스트 없이):
+{"questions":[
+  {"type":"multiple_choice","question":"질문","choices":["선택1","선택2","선택3","선택4"],"answer":0},
+  {"type":"short_answer","question":"질문","answer":"정답"}
+]}
+
+교과서 내용(최대 6000자):
+${content.substring(0,6000)}`;
+
+  const res = await fetch('https://api.x.ai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: 'grok-3-mini',
+      max_tokens: 4096,
+      messages: [
+        { role: 'system', content: '당신은 교육 전문가입니다. 요청한 JSON 형식으로만 응답하세요.' },
+        { role: 'user', content: prompt }
+      ]
+    })
+  });
+
+  if (!res.ok) {
+    const e = await res.json().catch(() => ({}));
+    throw new Error(e.error?.message || `Grok API 오류 (${res.status})`);
+  }
+  const data = await res.json();
+  const text = data.choices[0].message.content.trim();
+  const m = text.match(/\{[\s\S]*\}/);
+  if (!m) throw new Error('AI 응답을 파싱할 수 없습니다.');
+  const parsed = JSON.parse(m[0]);
+  if (!parsed.questions?.length) throw new Error('문제가 생성되지 않았습니다.');
+  return parsed.questions;
+}
+
+// ── Timer ──────────────────────────────────────────────────────────
+function startTimer() {
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    const rem = endTime - Date.now();
+    if (rem <= 0) { clearInterval(timerInterval); endGame(); return; }
+    const secs = Math.ceil(rem / 1000);
+    const m = Math.floor(secs/60), s = secs%60;
+    const display = document.getElementById('timerDisplay');
+    const fill = document.getElementById('timerFill');
+    display.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    fill.style.width = `${Math.max(0, rem/totalMs*100)}%`;
+    if (secs <= 10) {
+      display.classList.add('warning');
+      fill.classList.add('warning');
+    }
+  }, 200);
+}
+
+// ── Game End ───────────────────────────────────────────────────────
+async function endGame() {
+  if (timerInterval) clearInterval(timerInterval);
+  gameStatus = 'ended';
+  try { await fbPatch('game', { status: 'ended' }); } catch {}
+
+  document.getElementById('endBtn').disabled = true;
+  document.getElementById('startBtn').disabled = false;
+  document.getElementById('timerSection').classList.add('hidden');
+  document.getElementById('finalBanner').classList.remove('hidden');
+  document.getElementById('listTitle').textContent = '최종 순위';
+  renderStudents();
+}
+
+// ── Status ─────────────────────────────────────────────────────────
+function showStatus(msg, type) {
+  const el = document.getElementById('statusBar');
+  el.textContent = msg;
+  el.className = 'status-bar ' + type;
+  if (type === 'success') setTimeout(() => { el.style.display='none'; }, 3000);
+}
+
+// ── Init ───────────────────────────────────────────────────────────
+startPolling();
+</script>
+</body>
+</html>
