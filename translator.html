@@ -24,7 +24,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
 ══════════════════════════════ */
 #libraryScreen {
   position: fixed; inset: 0;
-  background: linear-gradient(160deg, #3a2008 0%, #5a3510 40%, #3d2209 100%);
+  background: linear-gradient(160deg, #f5f0e8 0%, #ede4d0 50%, #f0ead8 100%);
   display: flex; flex-direction: column;
   overflow-y: auto;
   z-index: 1000;
@@ -33,18 +33,18 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
 .lib-header {
   padding: 20px 24px 12px;
   display: flex; align-items: center; justify-content: space-between;
-  background: rgba(0,0,0,.25);
+  background: rgba(255,255,255,.6);
   backdrop-filter: blur(8px);
-  border-bottom: 1px solid rgba(255,255,255,.08);
+  border-bottom: 1px solid rgba(0,0,0,.08);
   flex-shrink: 0;
 }
 .lib-header h1 {
   font-size: 1.4rem; font-weight: 800;
-  color: #f5deb3;
-  text-shadow: 0 2px 6px rgba(0,0,0,.5);
+  color: #5a3510;
+  text-shadow: 0 1px 3px rgba(255,255,255,.5);
   letter-spacing: .5px;
 }
-.lib-header-sub { font-size: .75rem; color: rgba(245,222,179,.6); margin-top: 2px; }
+.lib-header-sub { font-size: .75rem; color: rgba(90,53,16,.6); margin-top: 2px; }
 
 .bookshelf-container {
   flex: 1;
@@ -64,7 +64,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
   gap: 10px;
   align-items: flex-end;
   padding: 20px 16px 6px;
-  background: linear-gradient(180deg, rgba(90,53,16,.4) 0%, rgba(60,30,8,.5) 100%);
+  background: linear-gradient(180deg, rgba(240,228,210,.7) 0%, rgba(220,205,180,.8) 100%);
   border-radius: 4px 4px 0 0;
   min-height: 260px;
   overflow: hidden;
@@ -75,7 +75,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
   position: absolute;
   left: 0; right: 0; bottom: 0;
   height: 22px;
-  background: linear-gradient(180deg, #8B6526 0%, #6B4F12 60%, #4a3008 100%);
+  background: linear-gradient(180deg, #c8a96e 0%, #a87e3c 60%, #8a6220 100%);
   border-radius: 0 0 6px 6px;
   box-shadow: 0 6px 18px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,200,80,.18);
 }
@@ -128,7 +128,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
   z-index: 1;
 }
 .book-title {
-  font-size: .72rem; color: #d4a55a;
+  font-size: .72rem; color: #5a3510;
   text-align: center; margin-top: 7px;
   width: 90%;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -459,7 +459,6 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
 .pop-tts:hover { color: var(--accent); transform: scale(1.2); }
 .pop-tts.speaking { color: #81c784; animation: pulse .6s ease infinite alternate; }
 @keyframes pulse { from { opacity: 1; } to { opacity: .4; } }
-.canvas-wrap.mode-pen { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36' viewBox='0 0 36 36'%3E%3Crect x='2' y='22' width='28' height='10' rx='2' fill='%23ffe033' fill-opacity='.9'/%3E%3Crect x='2' y='22' width='28' height='10' rx='2' fill='none' stroke='%23c8a800' stroke-width='1.2'/%3E%3Cline x1='2' y1='27' x2='30' y2='27' stroke='%23c8a800' stroke-width='.8' stroke-opacity='.5'/%3E%3C/svg%3E") 2 27, text; }
 .trans-popup .pop-rus { font-size: .9rem; color: var(--accent); font-weight: 600; line-height: 1.6; margin-bottom: 10px; }
 .pop-loading { font-size: .8rem; color: var(--sub); text-align: center; padding: 6px 0; }
 .pop-apply {
@@ -638,13 +637,6 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
       <div style="display:flex;gap:8px">
         <button id="btnPage1" class="page-layout-btn active" onclick="setPageLayout(1)">1페이지</button>
         <button id="btnPage2" class="page-layout-btn" onclick="setPageLayout(2)">2페이지</button>
-      </div>
-    </div>
-    <div class="toggle-row" style="margin-bottom:12px">
-      <label>✏️ 영역 선택 방식</label>
-      <div style="display:flex;gap:8px">
-        <button id="btnSelDrag" class="page-layout-btn active" onclick="setSelMode('drag')">드래그</button>
-        <button id="btnSelPen"  class="page-layout-btn"        onclick="setSelMode('pen')">형광펜</button>
       </div>
     </div>
     <div class="toggle-row">
@@ -952,8 +944,6 @@ let isPanning = false, panStart = {x:0,y:0};
 let lastPinchDist = null;
 let viewMode = 'select';
 let isSelecting = false, selStart = {x:0,y:0}, selEnd = {x:0,y:0};
-let selMode = 'drag'; // 'drag' | 'pen'
-let penPoints = []; // image-coord points for pen mode
 
 const canvas  = document.getElementById('viewerCanvas');
 const ctx     = canvas.getContext('2d');
@@ -996,8 +986,6 @@ window.onload = async () => {
   document.getElementById('popLangLabel').textContent = '🌐 ' + LANG_NAMES[targetLang];
   const pl = parseInt(localStorage.getItem('page_layout')||'1');
   if (pl === 2) setPageLayout(2);
-  const sm = localStorage.getItem('sel_mode') || 'drag';
-  setSelMode(sm);
   initViewer();
   renderSlot();
   // 라이브러리 초기화
@@ -1164,19 +1152,6 @@ function applyScanFilter(el, on) {
   else     el.classList.remove('scan-filter');
 }
 
-/* ══════════════════════════════
-   Selection mode
-══════════════════════════════ */
-function setSelMode(m) {
-  selMode = m;
-  localStorage.setItem('sel_mode', m);
-  document.getElementById('btnSelDrag').classList.toggle('active', m==='drag');
-  document.getElementById('btnSelPen').classList.toggle('active',  m==='pen');
-  const wrap = document.getElementById('canvasWrap');
-  if (wrap.classList.contains('visible')) {
-    wrap.className = 'canvas-wrap visible' + (m==='pen' ? ' mode-pen' : ' mode-select');
-  }
-}
 
 /* ══════════════════════════════
    TTS
@@ -1349,7 +1324,7 @@ function renderSlot(fitToView) {
 
   emptySlot.style.display = 'none';
   canvasWrap.classList.add('visible');
-  canvasWrap.className = 'canvas-wrap visible ' + (selMode==='pen' ? 'mode-pen' : 'mode-select');
+  canvasWrap.className = 'canvas-wrap visible mode-select';
   zoomBar.classList.remove('hidden');
   if (dlBtn) dlBtn.style.display = '';
 
@@ -1546,11 +1521,7 @@ function initViewer() {
         applyTransform();
       }
     }
-    else if (viewMode==='select'&&isSelecting) {
-      selEnd=imgPos(e);
-      if (selMode==='pen') drawPenHighlight();
-      else drawSel();
-    }
+    else if (viewMode==='select'&&isSelecting) { selEnd=imgPos(e); drawSel(); }
   });
 
   window.addEventListener('mouseup', e => {
@@ -1651,10 +1622,6 @@ function drawSel() {
   const ww=wrap.offsetWidth; const half=Math.floor(ww/2);
   const baseX = getTwoPageMode() && activePane===1 ? half : 0;
 
-  if (selMode==='pen') {
-    drawLineHighlight(v, baseX);
-    return;
-  }
   const sx=selStart.x*v.zoom+v.panX+baseX, sy=selStart.y*v.zoom+v.panY;
   const ex=selEnd.x*v.zoom+v.panX+baseX,   ey=selEnd.y*v.zoom+v.panY;
   const x=Math.min(sx,ex),y=Math.min(sy,ey),w=Math.abs(ex-sx),h=Math.abs(ey-sy);
@@ -1668,161 +1635,6 @@ function drawSel() {
 }
 
 /* 브라우저 텍스트 선택처럼 줄마다 개별 하이라이트 */
-function drawLineHighlight(v, baseX) {
-  const slotIdx = (getTwoPageMode() && activePane===1) ? currentSlot+1 : currentSlot;
-  const page = slots[slotIdx];
-  if (!page) return;
-
-  const goDown = selEnd.y >= selStart.y;
-  const startPt = goDown ? selStart : selEnd;
-  const endPt   = goDown ? selEnd   : selStart;
-
-  const y0 = Math.max(0, Math.round(startPt.y));
-  const y1 = Math.min(page.height - 1, Math.round(endPt.y));
-  if (y1 <= y0) return;
-
-  const data = page.original.data, W = page.width;
-  const DARK = 155, STEP = 4;
-
-  // 행별 텍스트 여부
-  const rowHasText = new Uint8Array(y1 - y0 + 1);
-  for (let row = y0; row <= y1; row++) {
-    let dark = 0, total = 0;
-    for (let c = 0; c < W; c += STEP) {
-      const i = (row * W + c) * 4;
-      if ((data[i]+data[i+1]+data[i+2])/3 < DARK) dark++;
-      total++;
-    }
-    rowHasText[row - y0] = (dark / total > 0.02) ? 1 : 0;
-  }
-
-  // 연속 텍스트 행 → 줄 그룹
-  const lines = [];
-  let inLine = false, ls = 0;
-  for (let i = 0; i <= rowHasText.length; i++) {
-    if (rowHasText[i] && !inLine) { inLine=true; ls=i; }
-    else if ((!rowHasText[i] || i===rowHasText.length) && inLine) {
-      inLine=false;
-      const top = y0+ls, bottom = y0+i-1;
-      let left=W, right=0;
-      for (let row=top; row<=bottom; row++) {
-        for (let c=0; c<W; c+=STEP) {
-          const idx=(row*W+c)*4;
-          if ((data[idx]+data[idx+1]+data[idx+2])/3 < DARK) {
-            if(c<left) left=c; if(c>right) right=c;
-          }
-        }
-      }
-      if (right>left) lines.push({top, bottom, left:left-4, right:right+4});
-    }
-  }
-
-  selCtx.fillStyle = 'rgba(255,220,0,0.45)';
-  lines.forEach((ln, idx) => {
-    // 첫 줄은 드래그 시작 X부터, 마지막 줄은 드래그 끝 X까지
-    let lx = (idx===0) ? Math.max(ln.left, startPt.x) : ln.left;
-    let rx = (idx===lines.length-1) ? Math.min(ln.right, endPt.x) : ln.right;
-    if (rx <= lx) return;
-    const px = lx * v.zoom + v.panX + baseX;
-    const py = (ln.top - 2) * v.zoom + v.panY;
-    const pw = (rx - lx) * v.zoom;
-    const ph = (ln.bottom - ln.top + 5) * v.zoom;
-    selCtx.fillRect(px, py, pw, ph);
-  });
-}
-
-/* 형광펜 모드: 탭/클릭 지점에서 텍스트 줄 자동 감지 */
-function detectTextLine(imgPoint) {
-  const slotIdx = (getTwoPageMode() && activePane===1) ? currentSlot+1 : currentSlot;
-  const page = slots[slotIdx];
-  if (!page) return null;
-
-  const px = Math.round(imgPoint.x), py = Math.round(imgPoint.y);
-  if (px < 0 || py < 0 || px >= page.width || py >= page.height) return null;
-
-  const data = page.original.data;
-  const W = page.width, H = page.height;
-  const DARK = 160; // 이 값보다 어두우면 텍스트로 판정
-  const MIN_DARK_FRAC = 0.03; // 행에서 최소 3% 이상 어두운 픽셀
-
-  function rowHasDark(row) {
-    if (row < 0 || row >= H) return false;
-    let dark = 0;
-    for (let c = 0; c < W; c++) {
-      const i = (row * W + c) * 4;
-      if ((data[i]+data[i+1]+data[i+2])/3 < DARK) dark++;
-    }
-    return dark / W > MIN_DARK_FRAC;
-  }
-
-  // 클릭 위치에서 위아래로 텍스트 행 확장
-  let top = py, bottom = py;
-  while (top > 0    && rowHasDark(top - 1)) top--;
-  while (bottom < H-1 && rowHasDark(bottom + 1)) bottom++;
-
-  // 텍스트 없는 빈 행이면 주변 탐색 (±40px)
-  if (!rowHasDark(top) && !rowHasDark(bottom)) {
-    let found = false;
-    for (let d = 1; d <= 40; d++) {
-      if (rowHasDark(py - d)) { top = bottom = py - d; found = true; break; }
-      if (rowHasDark(py + d)) { top = bottom = py + d; found = true; break; }
-    }
-    if (!found) return null;
-    while (top > 0    && rowHasDark(top - 1)) top--;
-    while (bottom < H-1 && rowHasDark(bottom + 1)) bottom++;
-  }
-
-  // 행 높이가 너무 크면 단일 줄로 제한
-  if (bottom - top > 120) {
-    top    = Math.max(0,   py - 30);
-    bottom = Math.min(H-1, py + 30);
-  }
-
-  // 해당 행 범위에서 실제 텍스트 열 범위 (좌우 여백 제거)
-  let left = W, right = 0;
-  for (let row = top; row <= bottom; row++) {
-    for (let c = 0; c < W; c++) {
-      const i = (row * W + c) * 4;
-      if ((data[i]+data[i+1]+data[i+2])/3 < DARK) {
-        if (c < left)  left  = c;
-        if (c > right) right = c;
-      }
-    }
-  }
-  if (right <= left) { left = 0; right = W - 1; }
-
-  // 약간의 패딩 추가
-  const pad = 8;
-  return {
-    x: Math.max(0, left - pad),
-    y: Math.max(0, top  - pad),
-    w: Math.min(W, right - left + pad*2),
-    h: Math.min(H, bottom - top  + pad*2)
-  };
-}
-
-function drawDetectedLine(rect) {
-  const wrap = document.getElementById('canvasWrap');
-  selCanvas.width = wrap.offsetWidth; selCanvas.height = wrap.offsetHeight;
-  selCtx.clearRect(0,0,selCanvas.width,selCanvas.height);
-  if (!rect) return;
-  const v = av();
-  const ww = wrap.offsetWidth; const half = Math.floor(ww/2);
-  const baseX = getTwoPageMode() && activePane===1 ? half : 0;
-  const sx = rect.x*v.zoom + v.panX + baseX;
-  const sy = rect.y*v.zoom + v.panY;
-  const sw = rect.w*v.zoom;
-  const sh = rect.h*v.zoom;
-  selCtx.fillStyle = 'rgba(255,235,59,0.35)';
-  selCtx.fillRect(sx, sy, sw, sh);
-  selCtx.strokeStyle = '#f5c800';
-  selCtx.lineWidth = 2;
-  selCtx.setLineDash([5,3]);
-  selCtx.strokeRect(sx, sy, sw, sh);
-  selCtx.setLineDash([]);
-}
-
-function penBBox() { return null; } // legacy stub
 
 /* ══════════════════════════════
    Area translate
