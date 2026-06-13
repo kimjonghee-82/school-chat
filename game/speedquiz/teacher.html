@@ -455,42 +455,31 @@ function parseBookStructure(text) {
   const body = text.slice(skipLen);
   const bodyOffset = skipLen;
 
-  // Collect ALL positions of each unit number in the body
-  // Use negative lookbehind to avoid matching "23단원" from page-number artifacts
-  const unitRegex = /(?<!\d)([1-9])\s*단원/g;
-  const allHits = {};
-  let m;
-  while ((m = unitRegex.exec(body)) !== null) {
-    const num = parseInt(m[1]);
-    if (!allHits[num]) allHits[num] = [];
-    allHits[num].push(m.index);
+  // Find unit headers by scanning lines — only short lines containing "N단원" count
+  // This avoids matching mid-sentence references like "3단원에서 배운 내용"
+  const lines = body.split('\n');
+  const allHits = {}; // num → first matching line position
+  let linePos = 0;
+  for (const line of lines) {
+    const trimmed = line.trim();
+    // Unit header line: ≤ 40 chars, starts with or primarily is "N단원"
+    if (trimmed.length <= 40) {
+      const hm = trimmed.match(/(?<!\d)([1-9])\s*단원/);
+      if (hm) {
+        const num = parseInt(hm[1]);
+        // Only record first occurrence (actual chapter start comes before inline refs)
+        if (!allHits[num]) allHits[num] = linePos + line.indexOf(hm[0]);
+      }
+    }
+    linePos += line.length + 1;
   }
 
   const nums = Object.keys(allHits).map(Number).sort((a, b) => a - b);
   if (!nums.length) return { units: [] };
 
-  // For each unit number, pick the occurrence where distance to next unit is largest
-  // (TOC occurrences are clustered; actual unit pages are far apart)
+  // Use chosen positions as-is (first short-line occurrence per unit)
   const chosen = {};
-  for (let i = 0; i < nums.length; i++) {
-    const num = nums[i];
-    const hits = allHits[num];
-    const nextNum = nums[i + 1];
-    const nextHits = nextNum ? allHits[nextNum] : null;
-
-    let best = hits[0];
-    let bestGap = 0;
-    for (const pos of hits) {
-      // gap = distance to nearest occurrence of next unit that is AFTER this position
-      let gap = body.length - pos;
-      if (nextHits) {
-        const after = nextHits.filter(p => p > pos);
-        if (after.length) gap = Math.min(...after) - pos;
-      }
-      if (gap > bestGap) { bestGap = gap; best = pos; }
-    }
-    chosen[num] = best;
-  }
+  nums.forEach(n => { chosen[n] = allHits[n]; });
 
   // Build unit spans using chosen positions (sorted)
   const sortedNums = nums.sort((a, b) => chosen[a] - chosen[b]);
