@@ -459,17 +459,17 @@ async function loadBookStructure(bookId, fbBase) {
 }
 
 async function extractStructureWithAI(text, apiKey) {
-  // Send first 4000 chars — usually contains the table of contents
-  const sample = text.substring(0, 4000);
-  const prompt = `다음은 초등학교 교과서/지도서에서 추출한 텍스트입니다(PDF 추출이라 다소 지저분할 수 있음).
-목차 또는 내용에서 단원과 차시 구조를 파악해 JSON으로 반환하세요.
+  // Send first 8000 chars — covers cover page + TOC in most Korean textbooks
+  const sample = text.substring(0, 8000);
+  const prompt = `다음은 초등학교 교과서/지도서에서 PDF로 추출한 텍스트입니다. 텍스트가 지저분할 수 있습니다.
 
-규칙:
-- 단원은 보통 6개 이하
-- 차시는 "1차시", "2~3차시" 등의 형태
-- 확실하지 않으면 lessons를 빈 배열로
-- JSON만 반환 (설명 없이):
-{"units":[{"num":1,"name":"단원 제목","lessons":["1차시","2~3차시","4차시"]},{"num":2,"name":"...","lessons":["1차시",...]}]}
+【중요 규칙】
+- 텍스트에 실제로 존재하는 단원과 차시만 추출하세요. 절대 추측하거나 만들어내지 마세요.
+- 단원 번호와 차시 번호는 텍스트에서 직접 찾은 것만 사용하세요.
+- 단원별로 차시 수가 다를 수 있습니다 (어떤 단원은 1차시만, 어떤 단원은 1~2차시, 3~4차시 등).
+- 차시를 찾을 수 없으면 lessons를 빈 배열로 두세요.
+- JSON만 반환 (다른 텍스트 없이):
+{"units":[{"num":1,"name":"실제 단원 제목","lessons":["1차시","2~3차시"]},{"num":2,"name":"실제 단원 제목","lessons":["1~2차시","3차시","4~5차시"]}]}
 
 텍스트:
 ${sample}`;
