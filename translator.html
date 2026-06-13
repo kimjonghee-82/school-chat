@@ -1520,12 +1520,10 @@ function initViewer() {
     if (viewMode==='pan') {
       isPanning=true; panStart={x:e.clientX-v.panX, y:e.clientY-v.panY};
       wrap.classList.add('grabbing');
-    } else if (selMode === 'pen') {
-      closePopup();
-      const r = detectTextLine(imgPos(e));
-      if (r) { drawDetectedLine(r); translateSel(r, e.clientX, e.clientY); }
     } else {
-      isSelecting=true; selStart=imgPos(e); selEnd=selStart; closePopup();
+      isSelecting=true;
+      selStart=imgPos(e); selEnd=selStart;
+      closePopup();
     }
   });
 
@@ -1548,17 +1546,28 @@ function initViewer() {
         applyTransform();
       }
     }
-    else if (viewMode==='select'&&isSelecting) { selEnd=imgPos(e); drawSel(); }
+    else if (viewMode==='select'&&isSelecting) {
+      selEnd=imgPos(e);
+      if (selMode==='pen') drawPenHighlight();
+      else drawSel();
+    }
   });
 
   window.addEventListener('mouseup', e => {
     document.getElementById('canvasWrap').classList.remove('grabbing');
     if (viewMode==='pan') { isPanning=false; }
     else if (viewMode==='select'&&isSelecting) {
-      isSelecting=false; selEnd=imgPos(e); drawSel();
-      const r=selRect();
-      if(r.w>20&&r.h>20) translateSel(r, e.clientX, e.clientY);
-      else selCtx.clearRect(0,0,selCanvas.width,selCanvas.height);
+      isSelecting=false; selEnd=imgPos(e);
+      if (selMode==='pen') {
+        const r = getPenSelRect();
+        if (r && r.w>10 && r.h>6) translateSel(r, e.clientX, e.clientY);
+        else selCtx.clearRect(0,0,selCanvas.width,selCanvas.height);
+      } else {
+        drawSel();
+        const r=selRect();
+        if(r.w>20&&r.h>20) translateSel(r, e.clientX, e.clientY);
+        else selCtx.clearRect(0,0,selCanvas.width,selCanvas.height);
+      }
     }
   });
 
@@ -1567,11 +1576,6 @@ function initViewer() {
       selectPane(e.touches[0].clientX);
       const v=av();
       if(viewMode==='pan'){isPanning=true;panStart={x:e.touches[0].clientX-v.panX,y:e.touches[0].clientY-v.panY};}
-      else if(selMode==='pen'){
-        closePopup();
-        const r=detectTextLine(imgPosTouch(e.touches[0]));
-        if(r){drawDetectedLine(r);translateSel(r,e.touches[0].clientX,e.touches[0].clientY+60);}
-      }
       else{isSelecting=true;selStart=imgPosTouch(e.touches[0]);selEnd=selStart;closePopup();}
     } else if(e.touches.length===2){lastPinchDist=pdist(e);}
     e.preventDefault();
@@ -1591,7 +1595,10 @@ function initViewer() {
           renderCurrentPage(false);
         }else{panX=e.touches[0].clientX-panStart.x;panY=e.touches[0].clientY-panStart.y;clampPan();applyTransform();}
       }
-      else if(viewMode==='select'&&isSelecting){selEnd=imgPosTouch(e.touches[0]);drawSel();}
+      else if(viewMode==='select'&&isSelecting){
+        selEnd=imgPosTouch(e.touches[0]);
+        if(selMode==='pen') drawPenHighlight(); else drawSel();
+      }
     } else if(e.touches.length===2&&lastPinchDist){
       const d=pdist(e);
       const cx=(e.touches[0].clientX+e.touches[1].clientX)/2;
@@ -1606,12 +1613,19 @@ function initViewer() {
     if(e.touches.length<2) lastPinchDist=null;
     if(e.touches.length===0){
       if(viewMode==='select'&&isSelecting){
-        isSelecting=false; drawSel();
-        const r=selRect();
+        isSelecting=false;
         const v=av();
         const px=selEnd.x*v.zoom+v.panX, py=selEnd.y*v.zoom+v.panY+52;
-        if(r.w>20&&r.h>20) translateSel(r, px, py);
-        else selCtx.clearRect(0,0,selCanvas.width,selCanvas.height);
+        if(selMode==='pen'){
+          const r=getPenSelRect();
+          if(r&&r.w>10&&r.h>6) translateSel(r, px, py);
+          else selCtx.clearRect(0,0,selCanvas.width,selCanvas.height);
+        } else {
+          drawSel();
+          const r=selRect();
+          if(r.w>20&&r.h>20) translateSel(r, px, py);
+          else selCtx.clearRect(0,0,selCanvas.width,selCanvas.height);
+        }
       }
       isPanning=false;
     }
@@ -1661,6 +1675,89 @@ function drawSel() {
   selCtx.lineWidth=2;
   selCtx.setLineDash([6,3]);
   selCtx.strokeRect(x,y,w,h);
+}
+
+/* ── 형광펜 모드: 드래그 범위 안 텍스트 행 하이라이트 ── */
+function getPenTextRows() {
+  const slotIdx = (getTwoPageMode() && activePane===1) ? currentSlot+1 : currentSlot;
+  const page = slots[slotIdx];
+  if (!page) return [];
+  const y0 = Math.max(0, Math.round(Math.min(selStart.y, selEnd.y)));
+  const y1 = Math.min(page.height-1, Math.round(Math.max(selStart.y, selEnd.y)));
+  const data = page.original.data, W = page.width;
+  const DARK = 160, MIN_FRAC = 0.02;
+
+  // 각 행이 텍스트 행인지 판정
+  const hasText = [];
+  for (let row = y0; row <= y1; row++) {
+    let dark = 0;
+    for (let c = 0; c < W; c++) {
+      const i = (row*W+c)*4;
+      if ((data[i]+data[i+1]+data[i+2])/3 < DARK) dark++;
+    }
+    hasText.push(dark/W > MIN_FRAC);
+  }
+
+  // 연속 텍스트 행 묶기 → [{top, bottom, left, right}]
+  const groups = [];
+  let inLine = false, lineStart = 0;
+  for (let i = 0; i <= hasText.length; i++) {
+    if (hasText[i] && !inLine) { inLine=true; lineStart=i; }
+    else if (!hasText[i] && inLine) {
+      inLine=false;
+      const top = y0+lineStart, bottom = y0+i-1;
+      // 열 범위 계산
+      let left=W, right=0;
+      for (let row=top; row<=bottom; row++) {
+        for (let c=0; c<W; c++) {
+          const idx=(row*W+c)*4;
+          if ((data[idx]+data[idx+1]+data[idx+2])/3 < DARK) {
+            if(c<left) left=c; if(c>right) right=c;
+          }
+        }
+      }
+      if (right>left) groups.push({top, bottom, left:Math.max(0,left-4), right:Math.min(W-1,right+4)});
+    }
+  }
+  return groups;
+}
+
+function drawPenHighlight() {
+  const wrap = document.getElementById('canvasWrap');
+  selCanvas.width = wrap.offsetWidth; selCanvas.height = wrap.offsetHeight;
+  selCtx.clearRect(0,0,selCanvas.width,selCanvas.height);
+  const v = av();
+  const ww = wrap.offsetWidth; const half = Math.floor(ww/2);
+  const baseX = getTwoPageMode() && activePane===1 ? half : 0;
+
+  // 드래그 중 세로 범위 표시 (연한 파랑)
+  const sy = Math.min(selStart.y,selEnd.y)*v.zoom+v.panY;
+  const ey = Math.max(selStart.y,selEnd.y)*v.zoom+v.panY;
+  selCtx.fillStyle = 'rgba(124,131,224,0.08)';
+  selCtx.fillRect(baseX, sy, (getTwoPageMode()?half:selCanvas.width), ey-sy);
+
+  // 텍스트 행 형광펜 하이라이트
+  const rows = getPenTextRows();
+  selCtx.fillStyle = 'rgba(255,235,59,0.55)';
+  for (const g of rows) {
+    const rx = g.left*v.zoom + v.panX + baseX;
+    const ry = g.top*v.zoom  + v.panY;
+    const rw = (g.right-g.left)*v.zoom;
+    const rh = (g.bottom-g.top+1)*v.zoom;
+    selCtx.fillRect(rx, ry, rw, rh);
+  }
+}
+
+function getPenSelRect() {
+  const rows = getPenTextRows();
+  if (!rows.length) return null;
+  const slotIdx = (getTwoPageMode() && activePane===1) ? currentSlot+1 : currentSlot;
+  const page = slots[slotIdx];
+  const left   = Math.min(...rows.map(r=>r.left));
+  const right  = Math.max(...rows.map(r=>r.right));
+  const top    = rows[0].top;
+  const bottom = rows[rows.length-1].bottom;
+  return {x:left, y:top, w:right-left, h:bottom-top};
 }
 
 /* 형광펜 모드: 탭/클릭 지점에서 텍스트 줄 자동 감지 */
