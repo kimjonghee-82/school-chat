@@ -642,12 +642,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
     <input type="password" id="apiInput" placeholder="gsk_...">
     <div class="toggle-row" style="margin-bottom:12px">
       <label>🔊 TTS 목소리</label>
-      <select id="ttsVoiceType" onchange="saveTtsVoice()" style="background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:.85rem;cursor:pointer">
-        <option value="female_adult">여자 어른</option>
-        <option value="male_adult">남자 어른</option>
-        <option value="female_child">여자 아이</option>
-        <option value="male_child">남자 아이</option>
-      </select>
+      <span style="font-size:.85rem;color:var(--text)">여자 어른</span>
     </div>
     <div class="toggle-row" style="margin-bottom:12px">
       <label>📖 페이지 구성</label>
@@ -1003,8 +998,6 @@ window.onload = async () => {
   document.getElementById('popLangLabel').textContent = '🌐 ' + LANG_NAMES[targetLang];
   const pl = parseInt(localStorage.getItem('page_layout')||'1');
   if (pl === 2) setPageLayout(2);
-  const tv = localStorage.getItem('tts_voice') || 'female_adult';
-  ttsVoiceType = tv; document.getElementById('ttsVoiceType').value = tv;
   initViewer();
   renderSlot();
   // 라이브러리 초기화
@@ -1178,28 +1171,6 @@ function applyScanFilter(el, on) {
 let ttsSynth = window.speechSynthesis;
 let ttsUtterance = null;
 
-let ttsVoiceType = 'female_adult';
-
-function saveTtsVoice() {
-  ttsVoiceType = document.getElementById('ttsVoiceType').value;
-  localStorage.setItem('tts_voice', ttsVoiceType);
-}
-
-function pickVoice(voices) {
-  const koVoices = voices.filter(v => v.lang.startsWith('ko'));
-  if (!koVoices.length) return null;
-  const isFemale = v => /female|woman|여성|girl/i.test(v.name);
-  const isMale   = v => /male|man|남성|boy/i.test(v.name);
-  // 아이 목소리는 별도 샘플이 없으므로 여자/남자 어른 목소리 기반으로 pitch 조정
-  switch (ttsVoiceType) {
-    case 'female_adult': return koVoices.find(v => isFemale(v)) || koVoices[0];
-    case 'male_adult':   return koVoices.find(v => isMale(v))   || koVoices[koVoices.length-1] || koVoices[0];
-    case 'female_child': return koVoices.find(v => isFemale(v)) || koVoices[0];
-    case 'male_child':   return koVoices.find(v => isMale(v))   || koVoices[koVoices.length-1] || koVoices[0];
-    default: return koVoices[0];
-  }
-}
-
 function speakKorean() {
   const text = document.getElementById('popKor').textContent;
   if (!text || text === '인식 실패') return;
@@ -1207,30 +1178,20 @@ function speakKorean() {
 
   ttsUtterance = new SpeechSynthesisUtterance(text);
   ttsUtterance.lang = 'ko-KR';
+  ttsUtterance.rate  = 0.90;
+  ttsUtterance.pitch = 1.05;
 
-  // 목소리 타입별 pitch/rate 조정
-  // ※ 브라우저 Web Speech API에는 한국어 아이 전용 음성이 없어 pitch로 시뮬레이션
-  const cfg = {
-    female_adult: {rate:0.90, pitch:1.05},
-    male_adult:   {rate:0.85, pitch:0.75},
-    female_child: {rate:1.10, pitch:1.80},
-    male_child:   {rate:1.05, pitch:1.50},
-  }[ttsVoiceType] || {rate:0.9, pitch:1.0};
-  ttsUtterance.rate  = cfg.rate;
-  ttsUtterance.pitch = cfg.pitch;
-
-  // 목소리 로드 지연 대응
   const trySpeak = () => {
     const voices = ttsSynth.getVoices();
-    const chosen = pickVoice(voices);
-    if (chosen) ttsUtterance.voice = chosen;
+    const koVoices = voices.filter(v => v.lang.startsWith('ko'));
+    const female = koVoices.find(v => /female|woman|여성|girl/i.test(v.name)) || koVoices[0];
+    if (female) ttsUtterance.voice = female;
     ttsUtterance.onstart = () => setTtsIcon(true);
     ttsUtterance.onend   = () => setTtsIcon(false);
     ttsUtterance.onerror = () => setTtsIcon(false);
     ttsSynth.speak(ttsUtterance);
   };
-  const voices = ttsSynth.getVoices();
-  if (voices.length) { trySpeak(); }
+  if (ttsSynth.getVoices().length) trySpeak();
   else { ttsSynth.onvoiceschanged = () => { ttsSynth.onvoiceschanged = null; trySpeak(); }; }
 }
 
