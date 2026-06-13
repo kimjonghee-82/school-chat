@@ -276,6 +276,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
   <!-- Canvas -->
   <div class="canvas-wrap mode-select" id="canvasWrap">
     <canvas id="viewerCanvas"></canvas>
+    <canvas id="viewerCanvas2" style="display:none"></canvas>
     <canvas id="selCanvas"></canvas>
     <div class="trans-popup" id="transPopup" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()">
       <button class="pop-close" onclick="closePopup()">✕</button>
@@ -378,8 +379,13 @@ let isSelecting = false, selStart = {x:0,y:0}, selEnd = {x:0,y:0};
 
 const canvas = document.getElementById('viewerCanvas');
 const ctx = canvas.getContext('2d');
+const canvas2 = document.getElementById('viewerCanvas2');
+const ctx2 = canvas2.getContext('2d');
 const selCanvas = document.getElementById('selCanvas');
 const selCtx = selCanvas.getContext('2d');
+
+function isLandscape() { return window.innerWidth > window.innerHeight; }
+function isTwoPage() { return isLandscape() && slots.filter(s=>s&&!s.pdfRef).length + (pdfDoc ? pdfDoc.numPages : 0) > 1 || (isLandscape() && slots.length > 1); }
 
 // ── Language ──
 const LANG_NAMES = { ru:'러시아어', mn:'몽골어', kk:'카자흐어', en:'영어', vi:'베트남어' };
@@ -470,18 +476,24 @@ async function handlePdf(file) {
 }
 
 async function renderPdfSlot(idx, fitToView) {
-  const slot = slots[idx];
-  if (!slot || !slot.pdfRef) return; // 이미 렌더된 슬롯이면 패스
-  showLoading(`페이지 렌더링 중... (${slot.pageNum}/${slot.pdfRef.numPages})`);
-  try {
+  // 현재 페이지 렌더
+  async function renderOne(i) {
+    const slot = slots[i];
+    if (!slot || !slot.pdfRef) return;
+    showLoading(`페이지 렌더링 중... (${slot.pageNum}/${slot.pdfRef.numPages})`);
     const pdfPage = await slot.pdfRef.getPage(slot.pageNum);
-    const scale = Math.min(2, 1600 / pdfPage.getViewport({scale:1}).width); // 최대 1600px
+    const scale = Math.min(2, 1600 / pdfPage.getViewport({scale:1}).width);
     const vp = pdfPage.getViewport({scale});
     const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
     await pdfPage.render({canvasContext: c.getContext('2d'), viewport: vp}).promise;
     const original = c.getContext('2d').getImageData(0, 0, c.width, c.height);
     const processed = scanEffect(original, c.width, c.height);
-    slots[idx] = {original, processed, width: c.width, height: c.height};
+    slots[i] = {original, processed, width: c.width, height: c.height};
+  }
+  try {
+    await renderOne(idx);
+    // 가로 모드면 다음 페이지도 미리 렌더
+    if (isLandscape() && slots[idx+1]?.pdfRef) await renderOne(idx+1);
   } finally { hideLoading(); }
   renderSlot(fitToView);
   updateNav();
@@ -534,12 +546,14 @@ function scanEffect(imageData, w, h) {
 
 // ── Navigation ──
 function goPage(dir) {
-  const next = currentSlot + dir;
+  // 가로 모드면 두 페이지씩 이동
+  const step = (isLandscape() && slots.length > 1) ? dir * 2 : dir;
+  const next = currentSlot + step;
   if (next < 0) return;
 
   if (dir === 1) {
     if (next >= slots.length) {
-      if (pdfDoc) return; // PDF 모드: 마지막 페이지 이상 불가
+      if (pdfDoc) return;
       slots.push(null);
     }
   }
@@ -548,7 +562,7 @@ function goPage(dir) {
   document.getElementById('viewer').addEventListener('animationend', () =>
     document.getElementById('viewer').classList.remove('flip-anim'), {once: true});
 
-  currentSlot = next;
+  currentSlot = Math.max(0, Math.min(next, slots.length - 1));
   closePopup();
 
   if (slots[currentSlot]?.pdfRef) {
@@ -610,22 +624,47 @@ function renderCurrentPage(fitToView) {
   const page = slots[currentSlot];
   if (!page) return;
   const scanOn = document.getElementById('scanToggle').checked;
-  canvas.width = page.width; canvas.height = page.height;
-  ctx.putImageData(scanOn ? page.processed : page.original, 0, 0);
-
   const wrap = document.getElementById('canvasWrap');
-  selCanvas.width = wrap.offsetWidth || window.innerWidth;
-  selCanvas.height = wrap.offsetHeight || window.innerHeight;
+  const ww = wrap.offsetWidth || window.innerWidth;
+  const wh = wrap.offsetHeight || (window.innerHeight - 52);
 
-  if (fitToView) {
-    const ww = wrap.offsetWidth || window.innerWidth;
-    const wh = wrap.offsetHeight || (window.innerHeight - 52);
-    zoom = Math.min(ww / page.width, wh / page.height);
-    panX = (ww - page.width * zoom) / 2;
-    panY = (wh - page.height * zoom) / 2;
-    clampPan();
+  selCanvas.width = ww; selCanvas.height = wh;
+
+  // 두 페이지 모드 여부 (가로 화면 + 오른쪽에 페이지 있을 때)
+  const nextPage = slots[currentSlot + 1];
+  const showTwo = isLandscape() && nextPage && !nextPage.pdfRef;
+
+  if (showTwo) {
+    // 왼쪽 페이지
+    canvas.width = page.width; canvas.height = page.height;
+    ctx.putImageData(scanOn ? page.processed : page.original, 0, 0);
+    // 오른쪽 페이지
+    canvas2.width = nextPage.width; canvas2.height = nextPage.height;
+    ctx2.putImageData(scanOn ? nextPage.processed : nextPage.original, 0, 0);
+    canvas2.style.display = 'block';
+    if (fitToView) {
+      const half = ww / 2;
+      zoom = Math.min(half / page.width, wh / page.height);
+      panX = (half - page.width * zoom) / 2;
+      panY = (wh - page.height * zoom) / 2;
+    }
+    canvas.style.transform = `translate(${panX}px,${panY}px) scale(${zoom})`;
+    const rx = ww / 2 + (ww / 2 - nextPage.width * zoom) / 2;
+    canvas2.style.transform = `translate(${rx}px,${panY}px) scale(${zoom})`;
+    canvas2.style.transformOrigin = '0 0';
+  } else {
+    canvas2.style.display = 'none';
+    canvas.width = page.width; canvas.height = page.height;
+    ctx.putImageData(scanOn ? page.processed : page.original, 0, 0);
+    if (fitToView) {
+      zoom = Math.min(ww / page.width, wh / page.height);
+      panX = (ww - page.width * zoom) / 2;
+      panY = (wh - page.height * zoom) / 2;
+      clampPan();
+    }
+    applyTransform();
   }
-  applyTransform();
+  document.getElementById('zoomLabel').textContent = Math.round(zoom*100) + '%';
 }
 
 function applyTransform() {
