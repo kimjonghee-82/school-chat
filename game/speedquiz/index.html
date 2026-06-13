@@ -40,7 +40,6 @@ a.card.student:hover { transform:translateY(-4px); box-shadow:0 8px 30px rgba(92
 .back { color:#8b949e; font-size:0.85rem; text-decoration:none; }
 .back:hover { color:#ccc; }
 
-/* Upload section */
 .upload-section {
   background:#161b22;
   border:2px dashed #30363d;
@@ -65,70 +64,34 @@ a.card.student:hover { transform:translateY(-4px); box-shadow:0 8px 30px rgba(92
 }
 .btn-upload:hover { background:#e3b341; color:#0d1117; }
 .upload-hint { color:#8b949e; font-size:0.82rem; margin-top:10px; }
-.upload-progress {
-  margin-top:14px;
-  display:none;
-}
+.upload-progress { margin-top:14px; display:none; }
 .progress-bar-bg {
-  height:8px;
-  background:#30363d;
-  border-radius:4px;
-  overflow:hidden;
-  margin-bottom:8px;
+  height:8px; background:#30363d; border-radius:4px; overflow:hidden; margin-bottom:8px;
 }
 .progress-bar-fill {
-  height:100%;
-  background:linear-gradient(90deg,#e3b341,#f0c060);
-  border-radius:4px;
-  width:0%;
-  transition:width 0.3s;
+  height:100%; background:linear-gradient(90deg,#e3b341,#f0c060);
+  border-radius:4px; width:0%; transition:width 0.3s;
 }
 .progress-msg { color:#8b949e; font-size:0.85rem; }
-.upload-result {
-  margin-top:12px;
-  font-size:0.85rem;
-  display:none;
-}
+.upload-result { margin-top:12px; font-size:0.85rem; display:none; }
 .upload-result.success { color:#4caf50; }
 .upload-result.error { color:#f47067; }
 
-/* Book list */
-.book-list {
-  margin-top:16px;
-  text-align:left;
-  max-height:200px;
-  overflow-y:auto;
-}
+.book-list { margin-top:16px; text-align:left; max-height:200px; overflow-y:auto; }
 .book-list-title {
-  color:#8b949e;
-  font-size:0.75rem;
-  text-transform:uppercase;
-  letter-spacing:1px;
-  margin-bottom:8px;
+  color:#8b949e; font-size:0.75rem; text-transform:uppercase;
+  letter-spacing:1px; margin-bottom:8px;
 }
 .book-item-row {
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:8px 10px;
-  background:#0d1117;
-  border-radius:8px;
-  margin-bottom:6px;
-  font-size:0.85rem;
-  color:#e6edf3;
+  display:flex; align-items:center; justify-content:space-between;
+  padding:8px 10px; background:#0d1117; border-radius:8px;
+  margin-bottom:6px; font-size:0.85rem; color:#e6edf3;
 }
 .book-item-row .book-name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .book-item-row .book-date { color:#8b949e; font-size:0.75rem; margin-left:8px; white-space:nowrap; }
 .btn-del-book {
-  background:transparent;
-  border:none;
-  color:#f47067;
-  cursor:pointer;
-  font-size:1rem;
-  padding:2px 6px;
-  border-radius:4px;
-  margin-left:6px;
-  opacity:0.6;
+  background:transparent; border:none; color:#f47067; cursor:pointer;
+  font-size:1rem; padding:2px 6px; border-radius:4px; margin-left:6px; opacity:0.6;
 }
 .btn-del-book:hover { opacity:1; background:#2a1a1a; }
 </style>
@@ -137,7 +100,7 @@ a.card.student:hover { transform:translateY(-4px); box-shadow:0 8px 30px rgba(92
 <a class="back" href="../">← 게임 목록</a>
 <div style="text-align:center">
   <h1>⚡ 스피드퀴즈</h1>
-  <p class="sub">지도서 기반 AI 문제 생성 실시간 퀴즈</p>
+  <p class="sub">교과서 기반 AI 문제 생성 실시간 퀴즈</p>
 </div>
 <div class="cards">
   <a class="card teacher" href="teacher.html">
@@ -152,13 +115,12 @@ a.card.student:hover { transform:translateY(-4px); box-shadow:0 8px 30px rgba(92
   </a>
 </div>
 
-<!-- Upload section -->
 <div class="upload-section">
   <button class="btn-upload" onclick="document.getElementById('pdfInput').click()">
-    📚 지도서 업로드
+    📚 교과서 업로드
   </button>
   <input type="file" id="pdfInput" accept=".pdf,.txt" style="display:none" onchange="handleUpload(this)">
-  <p class="upload-hint">PDF 또는 텍스트 파일 • 텍스트만 추출하여 Firebase에 저장됩니다</p>
+  <p class="upload-hint">PDF 또는 텍스트 파일 • Firebase에 저장 후 교사 설정에서 페이지 범위를 지정하세요</p>
 
   <div class="upload-progress" id="uploadProgress">
     <div class="progress-bar-bg">
@@ -169,27 +131,8 @@ a.card.student:hover { transform:translateY(-4px); box-shadow:0 8px 30px rgba(92
 
   <div class="upload-result" id="uploadResult"></div>
 
-  <!-- Page range selector (shown after PDF upload) -->
-  <div id="pageSection" style="display:none;margin-top:16px;text-align:left">
-    <p style="color:#e3b341;font-size:0.85rem;margin-bottom:10px">📄 이미지로 저장할 페이지 범위를 지정하세요 <span style="color:#8b949e">(최대 30페이지)</span></p>
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
-      <label style="color:#8b949e;font-size:0.82rem;white-space:nowrap">시작 페이지</label>
-      <input type="number" id="startPageInput" value="1" min="1" style="width:70px;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:6px 8px;color:#e6edf3;font-size:0.9rem">
-      <label style="color:#8b949e;font-size:0.82rem;white-space:nowrap">끝 페이지</label>
-      <input type="number" id="endPageInput" value="20" min="1" style="width:70px;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:6px 8px;color:#e6edf3;font-size:0.9rem">
-      <span style="color:#8b949e;font-size:0.82rem">/ 총 <span id="pageTotal">0</span>페이지</span>
-    </div>
-    <button onclick="savePageImages()" style="background:#e3b341;border:none;color:#0d1117;padding:8px 20px;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9rem">이미지 저장 시작</button>
-    <div id="pageProgress" style="display:none;margin-top:12px">
-      <div style="height:8px;background:#30363d;border-radius:4px;overflow:hidden;margin-bottom:6px">
-        <div id="pageProgressFill" style="height:100%;background:linear-gradient(90deg,#e3b341,#f0c060);border-radius:4px;width:0%;transition:width 0.3s"></div>
-      </div>
-      <p id="pageProgressMsg" style="color:#8b949e;font-size:0.82rem"></p>
-    </div>
-  </div>
-
   <div class="book-list" id="bookList" style="display:none">
-    <p class="book-list-title">📖 업로드된 지도서</p>
+    <p class="book-list-title">📖 업로드된 교과서</p>
     <div id="bookListItems"></div>
   </div>
 </div>
@@ -218,7 +161,7 @@ async function loadBookList() {
     document.getElementById('bookListItems').innerHTML = books.map(([id, b]) => `
       <div class="book-item-row">
         <span class="book-name" title="${esc(b.name)}">${esc(b.name)}</span>
-        <span class="book-date">${formatDate(b.uploadedAt)}</span>
+        <span class="book-date">${b.pageCount ? b.pageCount+'p' : ''} ${formatDate(b.uploadedAt)}</span>
         <button class="btn-del-book" onclick="deleteBook('${id}', '${esc(b.name)}')" title="삭제">🗑</button>
       </div>
     `).join('');
@@ -226,7 +169,7 @@ async function loadBookList() {
 }
 
 async function deleteBook(id, name) {
-  if (!confirm(`"${name}" 지도서를 삭제할까요?`)) return;
+  if (!confirm(`"${name}" 교과서를 삭제할까요?`)) return;
   await fetch(`${FB_URL}/books/${id}.json`, { method: 'DELETE' });
   loadBookList();
 }
@@ -253,57 +196,6 @@ function showResult(msg, type) {
   el.style.display = 'block';
 }
 
-function extractPageText(rawItems) {
-  const items = rawItems.filter(x => x.str && x.str.trim().length > 0);
-  if (!items.length) return '';
-
-  const xs = items.map(i => i.transform[4]);
-  const ys = items.map(i => i.transform[5]);
-  const minX = Math.min(...xs), maxX = Math.max(...xs);
-  const midX = (minX + maxX) / 2;
-
-  // Detect 2-column layout: both sides need enough items
-  const leftItems  = items.filter(i => i.transform[4] < midX - 10);
-  const rightItems = items.filter(i => i.transform[4] >= midX + 10);
-  const isTwoCol   = leftItems.length > 4 && rightItems.length > 4 &&
-                     rightItems.length / items.length > 0.2;
-
-  if (isTwoCol) {
-    return columnToText(leftItems) + '\n' + columnToText(rightItems);
-  }
-  return columnToText(items);
-}
-
-function columnToText(items) {
-  // Sort top-to-bottom (Y desc), then left-to-right (X asc)
-  const sorted = [...items].sort((a, b) => {
-    const dy = b.transform[5] - a.transform[5];
-    if (Math.abs(dy) > 4) return dy;
-    return a.transform[4] - b.transform[4];
-  });
-
-  const lines = [];
-  let curLine = [];
-  let lastY = null;
-
-  for (const item of sorted) {
-    const y = item.transform[5];
-    if (lastY === null || Math.abs(y - lastY) <= 4) {
-      curLine.push(item.str);
-    } else {
-      const lineStr = curLine.join(' ').trim();
-      // Filter out standalone page numbers (short numeric-only lines)
-      if (lineStr && !/^\d{1,3}$/.test(lineStr)) lines.push(lineStr);
-      curLine = [item.str];
-    }
-    lastY = y;
-  }
-  const last = curLine.join(' ').trim();
-  if (last && !/^\d{1,3}$/.test(last)) lines.push(last);
-
-  return lines.join('\n');
-}
-
 async function loadPdfJs() {
   if (window.pdfjsLib) return;
   await new Promise((res, rej) => {
@@ -316,118 +208,93 @@ async function loadPdfJs() {
     `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VER}/pdf.worker.min.js`;
 }
 
-let currentPdf = null;
-let currentBookId = null;
-
 async function handleUpload(input) {
   const file = input.files[0];
   if (!file) return;
   input.value = '';
 
   if (!FB_URL) return showResult('⚠️ Firebase URL을 불러올 수 없습니다.', 'error');
-  if (!file.name.toLowerCase().endsWith('.pdf') && !file.name.toLowerCase().endsWith('.txt')) {
-    return showResult('❌ PDF 또는 TXT 파일만 가능합니다.', 'error');
+
+  const isPdf = file.name.toLowerCase().endsWith('.pdf');
+  const isTxt = file.name.toLowerCase().endsWith('.txt');
+  if (!isPdf && !isTxt) return showResult('❌ PDF 또는 TXT 파일만 가능합니다.', 'error');
+
+  // 파일 크기 체크 (PDF는 6MB 이하 권장)
+  const mbSize = file.size / 1024 / 1024;
+  if (isPdf && mbSize > 8) {
+    return showResult(`❌ 파일이 너무 큽니다 (${mbSize.toFixed(1)}MB). 8MB 이하 PDF만 가능합니다. PDF 압축 후 다시 시도하세요.`, 'error');
   }
 
   document.getElementById('uploadProgress').style.display = 'block';
   document.getElementById('uploadResult').style.display = 'none';
-  document.getElementById('pageSection').style.display = 'none';
   setProgress(5, '파일 읽는 중...');
 
   try {
     const bookName = file.name.replace(/\.[^.]+$/, '');
-    currentBookId = 'book_' + Date.now();
+    const bookId = 'book_' + Date.now();
 
-    if (file.name.toLowerCase().endsWith('.pdf')) {
-      setProgress(10, 'PDF 로딩 중...');
+    if (isPdf) {
+      setProgress(15, 'PDF 분석 중...');
       await loadPdfJs();
       const buf = await file.arrayBuffer();
-      currentPdf = await pdfjsLib.getDocument({ data: buf }).promise;
-      const total = currentPdf.numPages;
-      setProgress(30, `총 ${total}페이지 확인됨`);
+      const pdf = await pdfjsLib.getDocument({ data: buf.slice(0) }).promise;
+      const pageCount = pdf.numPages;
 
-      // Save basic metadata to Firebase (no text extraction)
-      await fetch(`${FB_URL}/books/${currentBookId}.json`, {
+      setProgress(40, 'Base64 변환 중...');
+      const bytes = new Uint8Array(buf);
+      let binary = '';
+      const chunkSize = 8192;
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+        if (i % 100000 === 0) setProgress(40 + Math.round(i / bytes.length * 40), 'Base64 변환 중...');
+      }
+      const b64 = btoa(binary);
+
+      setProgress(80, 'Firebase에 저장 중...');
+      await fetch(`${FB_URL}/books/${bookId}.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: bookName, uploadedAt: Date.now(), pageCount: total, hasImages: false })
+        body: JSON.stringify({ name: bookName, uploadedAt: Date.now(), pageCount, type: 'pdf', pdfSize: Math.round(mbSize * 10) / 10 })
+      });
+
+      // PDF를 청크로 나눠 저장 (Firebase 노드 크기 제한 대응)
+      const chunkMb = 500000; // ~500KB per chunk
+      const chunks = Math.ceil(b64.length / chunkMb);
+      for (let i = 0; i < chunks; i++) {
+        const chunk = b64.slice(i * chunkMb, (i + 1) * chunkMb);
+        await fetch(`${FB_URL}/books/${bookId}/pdf/c${i}.json`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(chunk)
+        });
+        setProgress(80 + Math.round((i + 1) / chunks * 18), `PDF 저장 중... ${i+1}/${chunks}`);
+      }
+      await fetch(`${FB_URL}/books/${bookId}/pdf/chunks.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(chunks)
       });
 
       setProgress(100, '완료!');
-      showResult(`✅ "${bookName}" (${total}페이지) — 아래에서 출제 범위를 지정하세요`, 'success');
-
-      // Show page range selector
-      document.getElementById('pageTotal').textContent = total;
-      document.getElementById('endPageInput').value = Math.min(total, 20);
-      document.getElementById('startPageInput').max = total;
-      document.getElementById('endPageInput').max = total;
-      document.getElementById('pageSection').style.display = 'block';
+      showResult(`✅ "${bookName}" (${pageCount}페이지, ${mbSize.toFixed(1)}MB) 업로드 완료\n교사 설정에서 페이지 범위를 지정하고 문제를 생성하세요.`, 'success');
     } else {
+      setProgress(50, '텍스트 읽는 중...');
       const text = await file.text();
       setProgress(80, 'Firebase에 저장 중...');
-      await fetch(`${FB_URL}/books/${currentBookId}.json`, {
+      await fetch(`${FB_URL}/books/${bookId}.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: bookName, text, uploadedAt: Date.now(), pageCount: 0 })
+        body: JSON.stringify({ name: bookName, text, uploadedAt: Date.now(), pageCount: 0, type: 'text' })
       });
       setProgress(100, '완료!');
       showResult(`✅ "${bookName}" 업로드 완료`, 'success');
-      loadBookList();
     }
+    loadBookList();
   } catch (e) {
     showResult('❌ 오류: ' + e.message, 'error');
   }
 
   setTimeout(() => { document.getElementById('uploadProgress').style.display = 'none'; }, 1500);
-}
-
-async function savePageImages() {
-  if (!currentPdf || !currentBookId) return;
-  const start = parseInt(document.getElementById('startPageInput').value) || 1;
-  const end = parseInt(document.getElementById('endPageInput').value) || 1;
-  if (start < 1 || end < start) return alert('페이지 범위를 확인해주세요');
-  if (end - start > 29) return alert('최대 30페이지까지 선택 가능합니다');
-
-  const total = end - start + 1;
-  document.getElementById('pageProgress').style.display = 'block';
-
-  try {
-    for (let i = start; i <= end; i++) {
-      const pg = await currentPdf.getPage(i);
-      const vp = pg.getViewport({ scale: 1 });
-      // Scale so max width = 900px
-      const scale = Math.min(900 / vp.width, 1.5);
-      const scaled = pg.getViewport({ scale });
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.round(scaled.width);
-      canvas.height = Math.round(scaled.height);
-      await pg.render({ canvasContext: canvas.getContext('2d'), viewport: scaled }).promise;
-      // Compress to JPEG 65%
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.65);
-
-      await fetch(`${FB_URL}/books/${currentBookId}/images/p${i}.json`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dataUrl)
-      });
-
-      const done = i - start + 1;
-      document.getElementById('pageProgressMsg').textContent = `이미지 저장 중... ${done}/${total} (${i}페이지)`;
-      document.getElementById('pageProgressFill').style.width = `${Math.round(done/total*100)}%`;
-    }
-
-    // Update metadata
-    await fetch(`${FB_URL}/books/${currentBookId}.json`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ hasImages: true, imageStart: start, imageEnd: end })
-    });
-
-    document.getElementById('pageProgressMsg').textContent = `✅ ${total}페이지 저장 완료! 교사 모드에서 이 자료로 문제를 낼 수 있습니다.`;
-    loadBookList();
-  } catch(e) {
-    document.getElementById('pageProgressMsg').textContent = '❌ 오류: ' + e.message;
-  }
 }
 
 initFirebase().then(loadBookList);

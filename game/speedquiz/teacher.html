@@ -273,7 +273,17 @@ main { padding:24px; max-width:1400px; margin:0 auto; }
       <div id="rangeTags" style="background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:10px;font-size:0.85rem;">
         <span style="color:#8b949e;font-size:0.82rem">지도서를 선택하면 정보가 표시됩니다</span>
       </div>
-      <small style="color:#8b949e;font-size:0.75rem;margin-top:4px;display:block">저장 시 AI가 자동으로 문제를 생성합니다</small>
+    </div>
+
+    <div class="form-group" id="pageRangeGroup" style="display:none">
+      <label>📄 페이지 범위</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="number" id="startPage" placeholder="시작" min="1" style="width:80px">
+        <span style="color:#8b949e">~</span>
+        <input type="number" id="endPage" placeholder="끝" min="1" style="width:80px">
+        <span id="pageTotal" style="color:#8b949e;font-size:0.82rem"></span>
+      </div>
+      <small style="color:#8b949e;font-size:0.75rem;margin-top:4px;display:block">문제를 만들 페이지 범위를 입력하세요 (최대 20페이지 권장)</small>
     </div>
 
     <div class="form-group">
@@ -360,6 +370,8 @@ function loadCfgToForm() {
   if (cfg.gameTime) document.getElementById('gameTime').value = cfg.gameTime;
   if (cfg.claudeApiKey) document.getElementById('claudeApiKey').value = cfg.claudeApiKey;
   if (cfg.firebaseUrl) document.getElementById('firebaseUrl').value = cfg.firebaseUrl;
+  if (cfg.startPage) document.getElementById('startPage').value = cfg.startPage;
+  if (cfg.endPage) document.getElementById('endPage').value = cfg.endPage;
   selectedRanges = new Set(cfg.selectedRanges || []);
   selectedDiff = cfg.difficulty || '중';
   document.querySelectorAll('.diff-btn').forEach(b => {
@@ -371,16 +383,23 @@ function setDiff(btn, val) {
   btn.classList.add('active');
   selectedDiff = val;
 }
-function saveSettings() {
-  cfg = {
+function readFormCfg() {
+  return {
     book: document.getElementById('bookSelect').value,
-    selectedRanges: [...selectedRanges],
+    startPage: parseInt(document.getElementById('startPage').value) || 1,
+    endPage: parseInt(document.getElementById('endPage').value) || 1,
     questionCount: parseInt(document.getElementById('questionCount').value) || 20,
     gameTime: parseInt(document.getElementById('gameTime').value) || 5,
     difficulty: selectedDiff,
     claudeApiKey: document.getElementById('claudeApiKey').value.trim(),
     firebaseUrl: document.getElementById('firebaseUrl').value.trim().replace(/\/$/, ''),
+    bookType: cfg.bookType || '',
+    bookText: cfg.bookText || '',
   };
+}
+
+function saveSettings() {
+  cfg = readFormCfg();
   localStorage.setItem('sq_cfg', JSON.stringify(cfg));
   closeSettings();
   startPolling();
@@ -388,19 +407,14 @@ function saveSettings() {
 }
 
 function saveAndGenerate() {
-  cfg = {
-    book: document.getElementById('bookSelect').value,
-    selectedRanges: [...selectedRanges],
-    questionCount: parseInt(document.getElementById('questionCount').value) || 20,
-    gameTime: parseInt(document.getElementById('gameTime').value) || 5,
-    difficulty: selectedDiff,
-    claudeApiKey: document.getElementById('claudeApiKey').value.trim(),
-    firebaseUrl: document.getElementById('firebaseUrl').value.trim().replace(/\/$/, ''),
-  };
+  cfg = readFormCfg();
   localStorage.setItem('sq_cfg', JSON.stringify(cfg));
   if (!cfg.book) return alert('지도서를 선택해주세요.');
   if (!cfg.claudeApiKey) return alert('Groq API 키를 입력해주세요.');
   if (!cfg.firebaseUrl) return alert('Firebase URL을 입력해주세요.');
+  if (cfg.bookType === 'pdf') {
+    if (!cfg.startPage || !cfg.endPage || cfg.startPage > cfg.endPage) return alert('페이지 범위를 올바르게 입력해주세요.');
+  }
   closeSettings();
   startPolling();
   cachedQuestions = null;
@@ -431,29 +445,47 @@ async function loadBooks() {
   } catch {
     sel.innerHTML = '<option value="">Firebase 연결 실패</option>';
   }
+  if (cfg.book) setTimeout(() => loadBookStructure(cfg.book, fbBase), 0);
   sel.addEventListener('change', () => {
     bookTextCache = ''; bookStructure = null; selectedRanges.clear();
     const id = sel.value;
     if (id) loadBookStructure(id, fbBase);
-    else { document.getElementById('rangeTags').innerHTML = '<span style="color:#8b949e;font-size:0.82rem">지도서를 선택하면 정보가 표시됩니다</span>'; }
+    else {
+      document.getElementById('rangeTags').innerHTML = '<span style="color:#8b949e;font-size:0.82rem">지도서를 선택하면 정보가 표시됩니다</span>';
+      document.getElementById('pageRangeGroup').style.display = 'none';
+    }
   });
 }
 
 async function loadBookStructure(bookId, fbBase) {
   const container = document.getElementById('rangeTags');
+  const pageRangeGroup = document.getElementById('pageRangeGroup');
   container.innerHTML = '<span style="color:#8b949e;font-size:0.82rem">불러오는 중...</span>';
   try {
     const r = await fetch(`${fbBase}/books/${bookId}.json`);
     const data = await r.json();
     if (!data) { container.innerHTML = '<span style="color:#f47067">지도서를 불러올 수 없습니다</span>'; return; }
-    if (data.hasImages) {
-      const s = data.imageStart || 1, e = data.imageEnd || s;
-      container.innerHTML = `<span style="color:#4caf50;font-size:0.85rem">✅ 이미지 기반 — ${s}~${e}페이지 (${e-s+1}페이지) 저장됨<br><span style="color:#8b949e">저장 시 저장 버튼을 누르면 AI가 자동으로 문제를 생성합니다</span></span>`;
+
+    if (data.type === 'pdf') {
+      const pc = data.pageCount || '?';
+      container.innerHTML = `<span style="color:#4caf50;font-size:0.85rem">📄 PDF — 총 ${pc}페이지 (${data.pdfSize || '?'}MB)</span>`;
+      pageRangeGroup.style.display = 'block';
+      document.getElementById('pageTotal').textContent = `총 ${pc}페이지`;
+      if (!document.getElementById('endPage').value && pc) {
+        document.getElementById('startPage').value = cfg.startPage || 1;
+        document.getElementById('endPage').value = cfg.endPage || Math.min(10, pc);
+      }
+      cfg.bookType = 'pdf';
+      cfg.bookText = '';
     } else if (data.text) {
       bookTextCache = data.text;
-      container.innerHTML = '<span style="color:#8b949e;font-size:0.82rem">텍스트 기반 지도서 — 저장 시 AI가 자동으로 문제를 생성합니다</span>';
+      cfg.bookType = 'text';
+      cfg.bookText = data.text;
+      container.innerHTML = '<span style="color:#8b949e;font-size:0.82rem">📝 텍스트 기반 지도서 — 페이지 설정 없이 바로 문제 생성 가능합니다</span>';
+      pageRangeGroup.style.display = 'none';
     } else {
       container.innerHTML = '<span style="color:#f47067">내용 없음 — 지도서를 다시 업로드해주세요</span>';
+      pageRangeGroup.style.display = 'none';
     }
   } catch(e) {
     container.innerHTML = `<span style="color:#f47067">오류: ${e.message}</span>`;
@@ -532,6 +564,62 @@ function closeRoomPopup() {
   document.getElementById('roomPopup').style.display = 'none';
 }
 
+// ── PDF.js loader ──────────────────────────────────────────────────
+const PDFJS_VER = '3.11.174';
+async function loadPdfJs() {
+  if (window.pdfjsLib) return;
+  await new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VER}/pdf.min.js`;
+    s.onload = res; s.onerror = rej;
+    document.head.appendChild(s);
+  });
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+    `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VER}/pdf.worker.min.js`;
+}
+
+async function fetchPdfFromFirebase(fbBase, bookId) {
+  setGenProgress('PDF 청크 수 확인 중...');
+  const chunkCountRes = await fetch(`${fbBase}/books/${bookId}/pdf/chunks.json`);
+  const chunkCount = await chunkCountRes.json();
+  if (!chunkCount || chunkCount < 1) throw new Error('PDF 데이터가 없습니다. index.html에서 PDF를 업로드해주세요.');
+  let b64 = '';
+  for (let i = 0; i < chunkCount; i++) {
+    setGenProgress(`PDF 다운로드 중... ${i + 1}/${chunkCount} 청크`);
+    const cRes = await fetch(`${fbBase}/books/${bookId}/pdf/c${i}.json`);
+    const chunk = await cRes.json();
+    if (!chunk) throw new Error(`청크 ${i} 다운로드 실패`);
+    b64 += chunk;
+  }
+  // b64 → ArrayBuffer
+  const binary = atob(b64);
+  const buf = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) buf[i] = binary.charCodeAt(i);
+  return buf.buffer;
+}
+
+async function renderPdfPages(pdfBuf, startPage, endPage) {
+  await loadPdfJs();
+  const pdf = await pdfjsLib.getDocument({ data: pdfBuf }).promise;
+  const total = pdf.numPages;
+  const s = Math.max(1, startPage);
+  const e = Math.min(total, endPage);
+  const images = [];
+  for (let p = s; p <= e; p++) {
+    setGenProgress(`페이지 이미지화 중... ${p - s + 1}/${e - s + 1}페이지`);
+    const page = await pdf.getPage(p);
+    const scale = 1.5;
+    const viewport = page.getViewport({ scale });
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    const ctx = canvas.getContext('2d');
+    await page.render({ canvasContext: ctx, viewport }).promise;
+    images.push(canvas.toDataURL('image/jpeg', 0.85));
+  }
+  return images;
+}
+
 // ── Pre-generate questions ─────────────────────────────────────────
 async function pregenerateQuestions() {
   if (!cfg.book || !cfg.claudeApiKey || !cfg.firebaseUrl) return;
@@ -542,33 +630,31 @@ async function pregenerateQuestions() {
 
   try {
     const fbBase = cfg.firebaseUrl.replace(/\/$/, '');
-    setGenProgress('지도서 정보 불러오는 중...');
-    const bookRes = await fetch(`${fbBase}/books/${cfg.book}.json`);
-    const bookData = await bookRes.json();
-    if (!bookData) throw new Error('지도서를 불러올 수 없습니다.');
-
     const count = cfg.questionCount || 20;
     const diff = cfg.difficulty || '중';
 
-    if (bookData.hasImages) {
-      const start = bookData.imageStart || 1;
-      const end = bookData.imageEnd || start;
-      const images = [];
-      for (let p = start; p <= end; p++) {
-        setGenProgress(`이미지 로딩 중... ${p - start + 1}/${end - start + 1}페이지`);
-        const imgRes = await fetch(`${fbBase}/books/${cfg.book}/images/p${p}.json`);
-        const imgData = await imgRes.json();
-        if (imgData) images.push(imgData);
-      }
-      if (!images.length) throw new Error('저장된 이미지가 없습니다. 지도서 업로드 페이지에서 이미지를 저장해주세요.');
-      setGenProgress(`Vision AI가 ${images.length}페이지를 분석하는 중... (30~90초 소요)`);
-      cachedQuestions = await generateQuestionsFromImages(images, count, diff, cfg.claudeApiKey);
-    } else if (bookData.text) {
-      bookTextCache = bookData.text;
+    if (cfg.bookType === 'text' && cfg.bookText) {
       setGenProgress('AI가 문제를 생성하는 중... (20~40초 소요)');
-      cachedQuestions = await generateQuestions(bookData.text, count, diff, cfg.claudeApiKey);
+      cachedQuestions = await generateQuestions(cfg.bookText, count, diff, cfg.claudeApiKey);
     } else {
-      throw new Error('지도서에 내용이 없습니다. 다시 업로드해주세요.');
+      // PDF flow: fetch chunks → render pages → Vision AI
+      setGenProgress('지도서 정보 불러오는 중...');
+      const bookRes = await fetch(`${fbBase}/books/${cfg.book}.json`);
+      const bookData = await bookRes.json();
+      if (!bookData) throw new Error('지도서를 불러올 수 없습니다.');
+
+      if (bookData.type === 'text' || bookData.text) {
+        setGenProgress('AI가 문제를 생성하는 중...');
+        cachedQuestions = await generateQuestions(bookData.text || '', count, diff, cfg.claudeApiKey);
+      } else {
+        const pdfBuf = await fetchPdfFromFirebase(fbBase, cfg.book);
+        const startPage = cfg.startPage || 1;
+        const endPage = cfg.endPage || Math.min(10, bookData.pageCount || 10);
+        const images = await renderPdfPages(pdfBuf, startPage, endPage);
+        if (!images.length) throw new Error('페이지 이미지를 생성할 수 없습니다.');
+        setGenProgress(`Vision AI가 ${images.length}페이지를 분석하는 중... (30~90초 소요)`);
+        cachedQuestions = await generateQuestionsFromImages(images, count, diff, cfg.claudeApiKey);
+      }
     }
 
     if (!cachedQuestions?.length) throw new Error('문제를 생성할 수 없습니다.');
