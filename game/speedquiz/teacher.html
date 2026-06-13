@@ -175,6 +175,19 @@ main { padding:24px; max-width:1400px; margin:0 auto; }
 
 .hidden { display:none !important; }
 
+.ru { margin-bottom:3px; }
+.ru-header { display:flex; align-items:center; justify-content:space-between; padding:5px 8px; border-radius:6px; background:#161b22; cursor:pointer; user-select:none; }
+.ru-header:hover { background:#1c2128; }
+.ru-label { display:flex; align-items:center; gap:7px; font-size:0.84rem; color:#e6edf3; }
+.ru-label input[type=checkbox] { accent-color:#4caf50; cursor:pointer; }
+.ru-arrow { color:#8b949e; font-size:0.7rem; transition:transform 0.15s; }
+.ru-arrow.open { transform:rotate(90deg); }
+.ru-lessons { display:none; padding:3px 8px 3px 22px; }
+.ru-lessons.open { display:block; }
+.rl { display:flex; align-items:center; gap:7px; padding:4px 6px; border-radius:4px; color:#c9d1d9; cursor:pointer; }
+.rl:hover { background:#1c2128; }
+.rl input[type=checkbox] { accent-color:#5c6bc0; cursor:pointer; }
+
 
 .final-banner {
   text-align:center; padding:20px; background:#1a2a1a;
@@ -251,9 +264,11 @@ main { padding:24px; max-width:1400px; margin:0 auto; }
     </div>
 
     <div class="form-group">
-      <label>출제 범위</label>
-      <input type="text" id="rangeInput" placeholder="예) 3단원 1~2차시 / 2단원 전체 / 4단원 날씨와 우리 생활">
-      <small style="color:#8b949e;font-size:0.75rem;margin-top:4px;display:block">단원명, 차시를 직접 입력 — AI가 해당 내용에 집중해서 문제를 냅니다</small>
+      <label>출제 범위 <span id="rangeLoading" style="color:#e3b341;font-size:0.75rem;display:none">분석 중...</span></label>
+      <div id="rangePicker" style="background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:10px;max-height:230px;overflow-y:auto;font-size:0.84rem;">
+        <span style="color:#8b949e">지도서를 선택하면 단원/차시가 표시됩니다</span>
+      </div>
+      <div id="rangeSummary" style="font-size:0.75rem;color:#58a6ff;margin-top:6px;"></div>
     </div>
 
     <div class="form-group">
@@ -309,6 +324,8 @@ let totalMs = 0;
 let endTime = 0;
 let selectedDiff = cfg.difficulty || '중';
 let bookTextCache = '';
+let bookStructure = null;
+let selectedRanges = new Set(cfg.selectedRanges || []);
 
 localStorage.setItem('sq_room', roomCode);
 document.getElementById('roomCode').textContent = roomCode;
@@ -332,7 +349,7 @@ function loadCfgToForm() {
   if (cfg.gameTime) document.getElementById('gameTime').value = cfg.gameTime;
   if (cfg.claudeApiKey) document.getElementById('claudeApiKey').value = cfg.claudeApiKey;
   if (cfg.firebaseUrl) document.getElementById('firebaseUrl').value = cfg.firebaseUrl;
-  if (cfg.range) document.getElementById('rangeInput').value = cfg.range;
+  selectedRanges = new Set(cfg.selectedRanges || []);
   selectedDiff = cfg.difficulty || '중';
   document.querySelectorAll('.diff-btn').forEach(b => {
     b.classList.toggle('active', b.textContent === selectedDiff);
@@ -346,7 +363,7 @@ function setDiff(btn, val) {
 function saveSettings() {
   cfg = {
     book: document.getElementById('bookSelect').value,
-    range: document.getElementById('rangeInput').value.trim(),
+    selectedRanges: [...selectedRanges],
     questionCount: parseInt(document.getElementById('questionCount').value) || 20,
     gameTime: parseInt(document.getElementById('gameTime').value) || 5,
     difficulty: selectedDiff,
@@ -383,7 +400,138 @@ async function loadBooks() {
   } catch {
     sel.innerHTML = '<option value="">Firebase 연결 실패</option>';
   }
-  sel.addEventListener('change', () => { bookTextCache = ''; });
+  sel.addEventListener('change', () => {
+    bookTextCache = ''; bookStructure = null; selectedRanges.clear();
+    const id = sel.value;
+    if (id) loadBookStructure(id, fbBase);
+    else { document.getElementById('rangePicker').innerHTML = '<span style="color:#8b949e">지도서를 선택하면 단원/차시가 표시됩니다</span>'; document.getElementById('rangeSummary').textContent = ''; }
+  });
+}
+
+async function loadBookStructure(bookId, fbBase) {
+  const picker = document.getElementById('rangePicker');
+  const loading = document.getElementById('rangeLoading');
+  picker.innerHTML = '<span style="color:#8b949e">불러오는 중...</span>';
+  loading.style.display = 'inline';
+  try {
+    const r = await fetch(`${fbBase}/books/${bookId}.json`);
+    const data = await r.json();
+    if (!data?.text) { picker.innerHTML = '<span style="color:#f47067">텍스트 없음 — 다시 업로드해주세요</span>'; return; }
+    bookTextCache = data.text;
+    loading.textContent = 'AI 분석 중...';
+    bookStructure = cfg.claudeApiKey ? await extractStructureWithAI(data.text, cfg.claudeApiKey) : null;
+    if (!bookStructure?.units?.length) {
+      picker.innerHTML = '<span style="color:#8b949e">구조 인식 불가 — API 키 확인 후 지도서를 다시 선택해주세요</span>';
+      loading.style.display = 'none'; return;
+    }
+    renderRangePicker();
+  } catch(e) {
+    picker.innerHTML = `<span style="color:#f47067">오류: ${e.message}</span>`;
+  }
+  loading.style.display = 'none';
+}
+
+async function extractStructureWithAI(text, apiKey) {
+  const sample = text.substring(0, 8000);
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},
+    body: JSON.stringify({
+      model:'llama-3.3-70b-versatile', max_tokens:1024,
+      messages:[
+        {role:'system', content:'초등학교 교과서 구조 분석 전문가입니다. JSON만 반환하세요.'},
+        {role:'user', content:`다음은 초등 지도서에서 추출한 텍스트입니다. 실제로 텍스트에 존재하는 단원과 차시만 추출하세요. 절대 추측 금지. 단원별 차시 수가 다를 수 있음. 차시 없으면 lessons 빈 배열.\nJSON만 반환:\n{"units":[{"num":1,"name":"실제 단원명","lessons":["1차시","2~3차시"]},...]}\n\n텍스트:\n${sample}`}
+      ]
+    })
+  });
+  if (!res.ok) return null;
+  const d = await res.json();
+  const m = (d.choices?.[0]?.message?.content || '').match(/\{[\s\S]*\}/);
+  if (!m) return null;
+  const p = JSON.parse(m[0]);
+  if (!p.units?.length) return null;
+  return {
+    units: p.units.map(u => ({
+      id:`u${u.num}`, num:u.num,
+      name:`${u.num}단원 ${u.name||''}`.trim(),
+      lessons:(u.lessons||[]).map((l,j)=>({id:`u${u.num}_l${j}`,name:String(l)}))
+    }))
+  };
+}
+
+function renderRangePicker() {
+  const picker = document.getElementById('rangePicker');
+  picker.innerHTML = bookStructure.units.map(unit => `
+    <div class="ru">
+      <div class="ru-header" onclick="toggleRU('${unit.id}')">
+        <label class="ru-label" onclick="event.stopPropagation()">
+          <input type="checkbox" id="chk_${unit.id}" onchange="onUnitChk('${unit.id}')">
+          <span>${unit.name} 전체</span>
+        </label>
+        <span class="ru-arrow" id="arr_${unit.id}">▸</span>
+      </div>
+      <div class="ru-lessons" id="les_${unit.id}">
+        ${unit.lessons.length ? unit.lessons.map(l=>`
+          <label class="rl">
+            <input type="checkbox" id="chk_${l.id}" onchange="onLessonChk('${unit.id}','${l.id}')">
+            <span>${l.name}</span>
+          </label>`).join('') : '<span style="color:#8b949e;font-size:0.78rem;padding:2px 0;display:block">차시 정보 없음</span>'}
+      </div>
+    </div>`).join('');
+  // Restore selections
+  selectedRanges.forEach(id => { const el = document.getElementById('chk_'+id); if(el) el.checked=true; });
+  updateRangeSummary();
+}
+
+function toggleRU(uid) {
+  document.getElementById('les_'+uid).classList.toggle('open');
+  document.getElementById('arr_'+uid).classList.toggle('open');
+}
+function onUnitChk(uid) {
+  const unit = bookStructure.units.find(u=>u.id===uid);
+  const on = document.getElementById('chk_'+uid).checked;
+  if (on) { selectedRanges.add(uid); unit.lessons.forEach(l=>{ selectedRanges.delete(l.id); const el=document.getElementById('chk_'+l.id); if(el) el.checked=false; }); }
+  else selectedRanges.delete(uid);
+  updateRangeSummary();
+}
+function onLessonChk(uid, lid) {
+  const on = document.getElementById('chk_'+lid).checked;
+  if (on) { selectedRanges.add(lid); selectedRanges.delete(uid); const el=document.getElementById('chk_'+uid); if(el) el.checked=false; }
+  else selectedRanges.delete(lid);
+  updateRangeSummary();
+}
+function updateRangeSummary() {
+  const el = document.getElementById('rangeSummary');
+  if (!el||!bookStructure) return;
+  if (!selectedRanges.size) { el.textContent='선택 없음 (전체 내용으로 출제)'; return; }
+  const names=[];
+  bookStructure.units.forEach(u=>{
+    if(selectedRanges.has(u.id)){names.push(u.name+' 전체');return;}
+    u.lessons.forEach(l=>{if(selectedRanges.has(l.id))names.push(u.name+' '+l.name);});
+  });
+  el.textContent='선택: '+names.join(', ');
+}
+function getSelectedText() {
+  if (!bookStructure||!bookTextCache||!selectedRanges.size) return bookTextCache||'';
+  // Use unit/lesson names as search markers in the full text
+  const parts=[];
+  const body=bookTextCache;
+  const skip=Math.floor(body.length*0.08);
+  bookStructure.units.forEach(u=>{
+    const uIdx=body.indexOf(`${u.num}단원`,skip);
+    if(uIdx===-1) return;
+    const nextU=bookStructure.units.find(nu=>nu.num>u.num);
+    const uEnd=nextU?(body.indexOf(`${nextU.num}단원`,uIdx+10)||body.length):body.length;
+    if(selectedRanges.has(u.id)){parts.push(body.slice(uIdx,uEnd));return;}
+    u.lessons.forEach((l,j)=>{
+      if(!selectedRanges.has(l.id)) return;
+      const lIdx=body.indexOf(l.name,uIdx);
+      const nextL=u.lessons[j+1];
+      const lEnd=nextL?(body.indexOf(nextL.name,lIdx>-1?lIdx+5:uIdx)||uEnd):uEnd;
+      parts.push(body.slice(lIdx>-1?lIdx:uIdx,lEnd));
+    });
+  });
+  return parts.join('\n\n')||bookTextCache;
 }
 
 
@@ -476,10 +624,10 @@ async function startGame() {
       const fbBase = cfg.firebaseUrl.replace(/\/$/, '');
       const r = await fetch(`${fbBase}/books/${cfg.book}.json`);
       const data = await r.json();
-      if (!data || !data.text) throw new Error('지도서 텍스트가 없습니다. 다시 업로드해주세요.');
+      if (!data?.text) throw new Error('지도서 텍스트가 없습니다. 다시 업로드해주세요.');
       bookTextCache = data.text;
     }
-    const content = bookTextCache;
+    const content = getSelectedText();
     setGenProgress('AI가 문제를 생성하는 중... (20~40초 소요)');
     const questions = await generateQuestions(content, cfg.questionCount||20, cfg.difficulty||'중', cfg.claudeApiKey);
 
@@ -555,10 +703,9 @@ function loadScript(src) {
 
 async function generateQuestions(content, count, diff, apiKey) {
   const diffMap = { '하':'쉬움(초등 저학년 수준)', '중':'보통(초등 고학년 수준)', '상':'어려움(중학생 수준)', '종합':'쉬움~어려움 골고루' };
-  const rangeNote = cfg.range ? `\n출제 범위: ${cfg.range} (이 범위에 해당하는 내용 위주로 출제)` : '';
   const prompt = `다음 교과서/지도서 내용을 바탕으로 학습 퀴즈 ${count}개를 만들어주세요.
 
-난이도: ${diff} - ${diffMap[diff]||'보통'}${rangeNote}
+난이도: ${diff} - ${diffMap[diff]||'보통'}
 객관식(4지선다) ${Math.round(count*0.7)}개 + 단답형 ${count - Math.round(count*0.7)}개
 
 규칙:
