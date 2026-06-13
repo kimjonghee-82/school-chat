@@ -9,284 +9,361 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
   --primary: #5c6bc0;
-  --green: #43a047;
-  --orange: #fb8c00;
-  --red: #e53935;
-  --gray: #607d8b;
-  --bg: #eceff1;
-  --card: #fff;
-  --text: #263238;
-  --sub: #78909c;
-  --border: #cfd8dc;
+  --bg: #1e1e2e;
+  --card: #2a2a3e;
+  --text: #e0e0f0;
+  --sub: #9090b0;
+  --border: #3a3a5e;
+  --accent: #7c83e0;
 }
-body { font-family: 'Segoe UI','Apple SD Gothic Neo',sans-serif; background:var(--bg); min-height:100vh; color:var(--text); overflow-x:hidden; }
 
-.header { background:var(--primary); color:white; padding:14px 18px; display:flex; align-items:center; gap:10px; box-shadow:0 2px 8px rgba(0,0,0,.2); position:sticky; top:0; z-index:100; }
-.header h1 { font-size:1.1rem; font-weight:700; flex:1; }
-.badge { background:rgba(255,255,255,.2); border-radius:20px; padding:3px 10px; font-size:.75rem; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: 'Segoe UI','Apple SD Gothic Neo',sans-serif; }
 
-.main { max-width:900px; margin:0 auto; padding:14px; }
+/* ── Header ── */
+.header {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+  height: 52px;
+  background: rgba(30,30,46,0.92);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 16px; gap: 10px;
+}
+.header-title { font-size: 1rem; font-weight: 700; color: var(--text); flex: 1; display: flex; align-items: center; gap: 8px; }
+.header-title span { font-size: 1.2rem; }
+.header-actions { display: flex; gap: 8px; align-items: center; }
+.icon-btn {
+  width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--card); color: var(--text); cursor: pointer; font-size: 1rem;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .2s;
+}
+.icon-btn:hover { background: var(--border); }
+.icon-btn.active { background: var(--primary); border-color: var(--primary); }
 
-.card { background:var(--card); border-radius:14px; padding:14px 16px; box-shadow:0 1px 6px rgba(0,0,0,.08); margin-bottom:12px; }
-.card-title { font-size:.78rem; font-weight:700; color:var(--sub); text-transform:uppercase; letter-spacing:.5px; margin-bottom:8px; }
+.mode-label {
+  font-size: .72rem; color: var(--sub); padding: 4px 10px;
+  background: var(--card); border: 1px solid var(--border); border-radius: 20px;
+}
 
-.api-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-.api-row input { flex:1; min-width:180px; padding:8px 12px; border:1.5px solid var(--border); border-radius:8px; font-size:.88rem; outline:none; transition:border .2s; }
-.api-row input:focus { border-color:var(--primary); }
+/* ── Main viewer ── */
+.viewer {
+  position: fixed; top: 52px; left: 0; right: 0; bottom: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg);
+  touch-action: none;
+}
 
-.btn { padding:8px 14px; border:none; border-radius:8px; cursor:pointer; font-size:.85rem; font-weight:600; transition:filter .15s,transform .1s; white-space:nowrap; display:inline-flex; align-items:center; gap:5px; }
-.btn:hover { filter:brightness(1.08); transform:translateY(-1px); }
-.btn:active { transform:translateY(0); }
-.btn-primary { background:var(--primary); color:white; }
-.btn-green { background:var(--green); color:white; }
-.btn-red { background:var(--red); color:white; }
-.btn-gray { background:var(--gray); color:white; }
-.btn-sm { padding:6px 12px; font-size:.78rem; }
-.btn:disabled { background:#b0bec5; cursor:not-allowed; transform:none; filter:none; }
+/* ── Empty slot ── */
+.empty-slot {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  width: 100%; height: 100%;
+}
+.add-btn {
+  width: 160px; height: 200px;
+  border: 2.5px dashed #4a4a70;
+  border-radius: 20px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--sub); gap: 10px;
+  background: rgba(255,255,255,.03);
+  transition: border-color .2s, background .2s, transform .2s;
+  user-select: none;
+}
+.add-btn:hover { border-color: var(--accent); background: rgba(124,131,224,.08); transform: scale(1.03); }
+.add-btn .plus { font-size: 2.8rem; color: var(--accent); line-height: 1; }
+.add-btn .label { font-size: .85rem; color: var(--sub); }
 
-.status-chip { padding:4px 10px; border-radius:20px; font-size:.75rem; font-weight:600; }
-.status-chip.ok { background:#e8f5e9; color:#2e7d32; }
-.status-chip.no { background:#ffebee; color:#c62828; }
+/* Upload menu */
+.upload-menu {
+  display: none; position: fixed; z-index: 300;
+  background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+  padding: 8px; box-shadow: 0 8px 32px rgba(0,0,0,.5);
+  flex-direction: column; gap: 4px; min-width: 180px;
+}
+.upload-menu.visible { display: flex; }
+.upload-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; border-radius: 10px; cursor: pointer;
+  font-size: .88rem; color: var(--text); transition: background .15s;
+}
+.upload-item:hover { background: var(--border); }
+.upload-item .icon { font-size: 1.2rem; width: 24px; text-align: center; }
 
-.hint { background:#e3f2fd; border-left:3px solid var(--primary); border-radius:0 8px 8px 0; padding:10px 14px; font-size:.82rem; color:#1565c0; line-height:1.7; margin-bottom:12px; }
-.hint a { color:var(--primary); font-weight:600; }
+/* Canvas viewer */
+.canvas-wrap {
+  position: absolute; inset: 0;
+  overflow: hidden;
+  display: none;
+  cursor: grab;
+}
+.canvas-wrap.visible { display: block; }
+.canvas-wrap.mode-select { cursor: crosshair; }
+.canvas-wrap.grabbing { cursor: grabbing; }
+#viewerCanvas { position: absolute; transform-origin: 0 0; display: block; }
+#selCanvas { position: absolute; top: 0; left: 0; pointer-events: none; }
 
-.upload-zone { border:2.5px dashed var(--border); border-radius:14px; padding:28px 20px; text-align:center; cursor:pointer; transition:border-color .2s,background .2s; background:var(--card); margin-bottom:12px; }
-.upload-zone:hover,.upload-zone.drag-over { border-color:var(--primary); background:#f3f4ff; }
-.upload-zone .icon { font-size:2.6rem; margin-bottom:8px; }
-.upload-zone p { color:var(--sub); font-size:.88rem; margin-bottom:12px; }
-.btn-group { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
+/* ── Nav arrows ── */
+.nav-arrow {
+  position: fixed; top: 50%; transform: translateY(-50%);
+  width: 44px; height: 80px;
+  background: rgba(92,107,192,.18);
+  border: 1px solid rgba(92,107,192,.3);
+  border-radius: 0 12px 12px 0;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: rgba(255,255,255,.7); font-size: 1.3rem;
+  transition: background .2s, color .2s;
+  z-index: 150; user-select: none;
+  backdrop-filter: blur(4px);
+}
+.nav-arrow:hover { background: rgba(92,107,192,.4); color: white; }
+.nav-arrow.right { right: 0; border-radius: 12px 0 0 12px; }
+.nav-arrow.left { left: 0; }
+.nav-arrow.hidden { display: none; }
 
-/* Pages strip */
-.pages-section { margin-bottom:12px; display:none; }
-.pages-section.visible { display:block; }
-.pages-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
-.pages-header span { font-weight:700; font-size:.88rem; }
-.pages-strip { display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; scrollbar-width:thin; }
-.page-thumb { flex-shrink:0; width:72px; height:90px; border-radius:8px; overflow:hidden; border:2.5px solid transparent; cursor:pointer; position:relative; background:#eceff1; transition:border-color .2s; }
-.page-thumb.active { border-color:var(--primary); }
-.page-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
-.page-thumb .del-btn { position:absolute; top:2px; right:2px; background:rgba(229,57,53,.85); color:white; border:none; border-radius:50%; width:18px; height:18px; font-size:11px; cursor:pointer; display:none; align-items:center; justify-content:center; }
-.page-thumb:hover .del-btn { display:flex; }
-.page-num { position:absolute; bottom:0; left:0; right:0; background:rgba(0,0,0,.5); color:white; font-size:.65rem; text-align:center; padding:2px 0; }
-.add-page-btn { flex-shrink:0; width:72px; height:90px; border-radius:8px; border:2px dashed var(--border); display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; color:var(--sub); font-size:.7rem; gap:3px; background:white; transition:border-color .2s,color .2s; }
-.add-page-btn:hover { border-color:var(--primary); color:var(--primary); }
+/* Page indicator */
+.page-indicator {
+  position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+  background: rgba(30,30,46,.85); border: 1px solid var(--border);
+  border-radius: 20px; padding: 5px 14px; font-size: .78rem; color: var(--sub);
+  backdrop-filter: blur(6px); z-index: 150; pointer-events: none;
+}
 
-/* Viewer */
-.viewer-section { margin-bottom:12px; display:none; }
-.viewer-section.visible { display:block; }
-.viewer-card { background:var(--card); border-radius:14px; box-shadow:0 1px 6px rgba(0,0,0,.08); overflow:hidden; }
-.viewer-toolbar { display:flex; align-items:center; gap:8px; padding:10px 14px; border-bottom:1px solid var(--border); flex-wrap:wrap; }
-.page-indicator { flex:1; font-size:.82rem; color:var(--sub); font-weight:600; text-align:center; }
+/* Zoom controls */
+.zoom-bar {
+  position: fixed; bottom: 16px; right: 16px;
+  display: flex; gap: 4px; align-items: center;
+  background: rgba(30,30,46,.85); border: 1px solid var(--border);
+  border-radius: 12px; padding: 5px 8px;
+  backdrop-filter: blur(6px); z-index: 150;
+}
+.zoom-bar.hidden { display: none; }
+.z-btn {
+  width: 28px; height: 28px; border-radius: 6px; border: none;
+  background: var(--border); color: var(--text); cursor: pointer; font-size: 1rem;
+  display: flex; align-items: center; justify-content: center;
+}
+.z-btn:hover { background: var(--primary); }
+.z-label { font-size: .75rem; color: var(--sub); min-width: 38px; text-align: center; }
 
-/* Mode toggle */
-.mode-row { display:flex; gap:8px; padding:10px 14px; border-bottom:1px solid var(--border); }
-.mode-btn { flex:1; padding:8px; border:2px solid var(--border); border-radius:8px; background:white; cursor:pointer; font-size:.82rem; font-weight:600; color:var(--sub); transition:all .2s; text-align:center; }
-.mode-btn.active { border-color:var(--primary); background:#f0f1ff; color:var(--primary); }
+/* Translate button */
+.translate-fab {
+  position: fixed; bottom: 16px; left: 16px;
+  background: #fb8c00; color: white; border: none; border-radius: 12px;
+  padding: 10px 18px; font-size: .85rem; font-weight: 700; cursor: pointer;
+  box-shadow: 0 4px 16px rgba(251,140,0,.4);
+  display: none; align-items: center; gap: 6px;
+  z-index: 150; transition: filter .15s, transform .1s;
+}
+.translate-fab:hover { filter: brightness(1.1); transform: translateY(-1px); }
+.translate-fab.visible { display: flex; }
 
-.viewer-wrap { position:relative; background:#37474f; overflow:hidden; height:420px; touch-action:none; }
-.viewer-wrap.mode-pan { cursor:grab; }
-.viewer-wrap.mode-pan.grabbing { cursor:grabbing; }
-.viewer-wrap.mode-select { cursor:crosshair; }
+/* ── Settings modal ── */
+.modal-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6);
+  z-index: 500; align-items: center; justify-content: center;
+  backdrop-filter: blur(4px);
+}
+.modal-overlay.visible { display: flex; }
+.modal {
+  background: var(--card); border: 1px solid var(--border); border-radius: 20px;
+  padding: 24px; width: 90%; max-width: 400px;
+  box-shadow: 0 8px 40px rgba(0,0,0,.5);
+}
+.modal h2 { font-size: 1rem; margin-bottom: 18px; display: flex; align-items: center; gap: 8px; }
+.modal label { font-size: .82rem; color: var(--sub); display: block; margin-bottom: 6px; }
+.modal input {
+  width: 100%; padding: 10px 14px; background: var(--bg);
+  border: 1.5px solid var(--border); border-radius: 10px;
+  color: var(--text); font-size: .88rem; outline: none; margin-bottom: 14px;
+}
+.modal input:focus { border-color: var(--primary); }
+.modal-hint { font-size: .78rem; color: var(--sub); line-height: 1.6; margin-bottom: 16px; }
+.modal-hint a { color: var(--accent); }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.btn { padding: 9px 18px; border: none; border-radius: 10px; cursor: pointer; font-size: .85rem; font-weight: 600; }
+.btn-primary { background: var(--primary); color: white; }
+.btn-ghost { background: var(--border); color: var(--text); }
+.status-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.chip { padding: 4px 10px; border-radius: 20px; font-size: .72rem; font-weight: 600; }
+.chip.ok { background: rgba(67,160,71,.2); color: #81c784; }
+.chip.no { background: rgba(229,57,53,.2); color: #ef9a9a; }
 
-#viewerCanvas { display:block; position:absolute; transform-origin:0 0; }
-
-/* Selection overlay */
-#selectionCanvas { display:block; position:absolute; top:0; left:0; pointer-events:none; }
+/* Scan toggle in settings */
+.toggle-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.toggle-row label { font-size: .85rem; }
+.toggle { position: relative; width: 42px; height: 22px; flex-shrink: 0; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-slider { position: absolute; inset: 0; background: #4a4a70; border-radius: 22px; cursor: pointer; transition: background .2s; }
+.toggle-slider::before { content: ''; position: absolute; width: 16px; height: 16px; background: white; border-radius: 50%; top: 3px; left: 3px; transition: transform .2s; }
+.toggle input:checked + .toggle-slider { background: var(--primary); }
+.toggle input:checked + .toggle-slider::before { transform: translateX(20px); }
 
 /* Translation popup */
 .trans-popup {
-  display:none;
-  position:absolute;
-  background:white;
-  border-radius:12px;
-  box-shadow:0 4px 24px rgba(0,0,0,.25);
-  padding:14px 16px;
-  max-width:320px;
-  min-width:200px;
-  z-index:50;
-  border:2px solid var(--primary);
+  display: none; position: fixed; z-index: 400;
+  background: var(--card); border: 1px solid var(--primary);
+  border-radius: 14px; padding: 14px 16px; max-width: 300px; min-width: 180px;
+  box-shadow: 0 6px 28px rgba(0,0,0,.5);
 }
-.trans-popup.visible { display:block; }
-.trans-popup .pop-title { font-size:.72rem; color:var(--sub); font-weight:700; margin-bottom:6px; text-transform:uppercase; }
-.trans-popup .pop-kor { font-size:.82rem; color:var(--text); margin-bottom:8px; border-bottom:1px solid var(--border); padding-bottom:8px; line-height:1.6; }
-.trans-popup .pop-rus { font-size:.88rem; color:var(--primary); font-weight:600; line-height:1.6; }
-.trans-popup .pop-close { position:absolute; top:8px; right:10px; background:none; border:none; cursor:pointer; font-size:1rem; color:var(--sub); }
-.trans-popup .pop-loading { text-align:center; color:var(--sub); font-size:.82rem; padding:8px 0; }
+.trans-popup.visible { display: block; }
+.trans-popup .pop-close { position: absolute; top: 8px; right: 10px; background: none; border: none; cursor: pointer; color: var(--sub); font-size: 1rem; }
+.trans-popup .pop-lang { font-size: .68rem; font-weight: 700; color: var(--sub); text-transform: uppercase; margin-bottom: 4px; }
+.trans-popup .pop-kor { font-size: .82rem; color: var(--text); margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 8px; line-height: 1.6; }
+.trans-popup .pop-rus { font-size: .9rem; color: var(--accent); font-weight: 600; line-height: 1.6; }
+.pop-loading { font-size: .8rem; color: var(--sub); text-align: center; padding: 6px 0; }
 
-.viewer-nav { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-top:1px solid var(--border); }
-.nav-btn { background:var(--primary); color:white; border:none; border-radius:8px; padding:7px 16px; font-size:.82rem; cursor:pointer; display:flex; align-items:center; gap:5px; }
-.nav-btn:hover { filter:brightness(1.1); }
-.nav-btn:disabled { background:#b0bec5; cursor:not-allowed; }
-.zoom-controls { display:flex; gap:5px; align-items:center; }
-.zoom-btn { background:#eceff1; border:none; border-radius:6px; width:30px; height:30px; font-size:1rem; cursor:pointer; display:flex; align-items:center; justify-content:center; }
-.zoom-btn:hover { background:#cfd8dc; }
-.zoom-label { font-size:.78rem; color:var(--sub); min-width:40px; text-align:center; }
+/* Results panel */
+.results-panel {
+  display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 300;
+  background: var(--card); border-top: 1px solid var(--border);
+  border-radius: 20px 20px 0 0;
+  padding: 16px; max-height: 45vh; overflow-y: auto;
+  box-shadow: 0 -4px 24px rgba(0,0,0,.4);
+}
+.results-panel.visible { display: block; }
+.results-panel .drag-handle { width: 40px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 14px; cursor: pointer; }
+.results-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media(max-width:500px) { .results-grid { grid-template-columns: 1fr; } }
+.res-card { background: var(--bg); border-radius: 10px; padding: 12px; }
+.res-card h4 { font-size: .78rem; color: var(--sub); margin-bottom: 8px; }
+.res-card textarea { width: 100%; min-height: 120px; background: transparent; border: none; color: var(--text); font-size: .82rem; line-height: 1.6; resize: none; outline: none; }
+.res-actions { display: flex; gap: 6px; margin-top: 6px; }
+.btn-sm { padding: 5px 12px; font-size: .75rem; background: var(--border); color: var(--text); border: none; border-radius: 8px; cursor: pointer; }
+.btn-sm:hover { background: var(--primary); color: white; }
+.close-results { float: right; background: none; border: none; color: var(--sub); cursor: pointer; font-size: 1rem; }
 
-.scan-row { display:flex; align-items:center; gap:10px; padding:8px 14px; border-top:1px solid var(--border); }
-.scan-row label { font-size:.82rem; flex:1; }
-.toggle { position:relative; width:42px; height:22px; }
-.toggle input { opacity:0; width:0; height:0; }
-.toggle-slider { position:absolute; inset:0; background:#b0bec5; border-radius:22px; cursor:pointer; transition:background .2s; }
-.toggle-slider::before { content:''; position:absolute; width:16px; height:16px; background:white; border-radius:50%; top:3px; left:3px; transition:transform .2s; box-shadow:0 1px 3px rgba(0,0,0,.3); }
-.toggle input:checked + .toggle-slider { background:var(--primary); }
-.toggle input:checked + .toggle-slider::before { transform:translateX(20px); }
+/* Loading overlay */
+.loading { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 9999; align-items: center; justify-content: center; flex-direction: column; gap: 14px; }
+.loading.visible { display: flex; }
+.spinner { width: 44px; height: 44px; border: 4px solid rgba(255,255,255,.2); border-top-color: white; border-radius: 50%; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading p { color: white; font-size: .9rem; font-weight: 600; }
 
-/* Full page translate button */
-.translate-wrap { text-align:center; margin-bottom:12px; }
-.btn-orange { background:var(--orange); color:white; font-size:.95rem; padding:11px 28px; }
-.btn-orange:hover { filter:brightness(1.08); transform:translateY(-1px); }
-
-/* Results */
-.result-grid { display:none; gap:12px; margin-bottom:12px; }
-.result-grid.visible { display:grid; grid-template-columns:1fr 1fr; }
-@media(max-width:560px) { .result-grid.visible { grid-template-columns:1fr; } }
-.result-card { background:var(--card); border-radius:14px; padding:14px; box-shadow:0 1px 6px rgba(0,0,0,.08); }
-.result-card h3 { font-size:.85rem; color:var(--sub); margin-bottom:8px; display:flex; align-items:center; gap:6px; }
-.result-card textarea { width:100%; min-height:160px; border:1.5px solid var(--border); border-radius:8px; padding:10px 12px; font-size:.85rem; line-height:1.65; resize:vertical; outline:none; color:var(--text); }
-.result-card textarea:focus { border-color:var(--primary); }
-.char-count { font-size:.7rem; color:var(--sub); text-align:right; margin-top:3px; }
-.result-actions { display:flex; gap:6px; margin-top:6px; }
-
-.error { display:none; background:#ffebee; border:1px solid #ef9a9a; border-radius:8px; padding:10px 14px; color:#b71c1c; font-size:.82rem; margin-bottom:10px; }
-.error.visible { display:block; }
-
-.loading { display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:9999; align-items:center; justify-content:center; flex-direction:column; gap:14px; }
-.loading.visible { display:flex; }
-.spinner { width:46px; height:46px; border:4px solid rgba(255,255,255,.25); border-top-color:white; border-radius:50%; animation:spin .7s linear infinite; }
-@keyframes spin { to { transform:rotate(360deg); } }
-.loading p { color:white; font-size:.95rem; font-weight:600; }
-
-.flip-anim { animation:flipPage .3s ease; }
-@keyframes flipPage { 0%{opacity:1;transform:perspective(600px) rotateY(0)} 50%{opacity:.3;transform:perspective(600px) rotateY(90deg)} 100%{opacity:1;transform:perspective(600px) rotateY(0)} }
-
-.select-hint { font-size:.78rem; color:var(--sub); text-align:center; padding:6px; background:#f8f9fa; }
+/* Flip animation */
+.flip-anim { animation: flip .3s ease; }
+@keyframes flip { 0%{opacity:1;transform:perspective(600px) rotateY(0)} 50%{opacity:.2;transform:perspective(600px) rotateY(90deg)} 100%{opacity:1;transform:perspective(600px) rotateY(0)} }
 </style>
 </head>
 <body>
 
+<!-- Header -->
 <div class="header">
-  <span style="font-size:1.3rem">📚</span>
-  <h1>교과서 번역기</h1>
-  <span class="badge">한국어 → 러시아어</span>
+  <div class="header-title">
+    <span>📚</span> 교과서 번역기
+  </div>
+  <div class="header-actions">
+    <span class="mode-label" id="modeLabel">이동 모드</span>
+    <button class="icon-btn" id="btnPan" title="이동/확대" onclick="setMode('pan')">✋</button>
+    <button class="icon-btn" id="btnSelect" title="영역 선택 번역" onclick="setMode('select')">🔲</button>
+    <button class="icon-btn" title="설정" onclick="openSettings()">⚙️</button>
+  </div>
 </div>
 
-<div class="main">
+<!-- Main viewer -->
+<div class="viewer" id="viewer">
+  <!-- Empty slot -->
+  <div class="empty-slot" id="emptySlot">
+    <div class="add-btn" id="addBtn" onclick="showUploadMenu(event)">
+      <div class="plus">+</div>
+      <div class="label">추가</div>
+    </div>
+  </div>
 
-  <div class="card">
-    <div class="card-title">🔑 Groq API 키</div>
-    <div class="api-row">
-      <input type="password" id="apiKeyInput" placeholder="gsk_...로 시작하는 Groq API 키 입력">
+  <!-- Canvas -->
+  <div class="canvas-wrap mode-pan" id="canvasWrap">
+    <canvas id="viewerCanvas"></canvas>
+    <canvas id="selCanvas"></canvas>
+    <div class="trans-popup" id="transPopup">
+      <button class="pop-close" onclick="closePopup()">✕</button>
+      <div class="pop-lang">🇰🇷 한국어</div>
+      <div class="pop-kor" id="popKor"></div>
+      <div class="pop-lang">🇷🇺 러시아어</div>
+      <div class="pop-rus" id="popRus"></div>
+      <div class="pop-loading" id="popLoading" style="display:none">번역 중...</div>
+    </div>
+  </div>
+</div>
+
+<!-- Upload menu -->
+<div class="upload-menu" id="uploadMenu">
+  <div class="upload-item" onclick="triggerCamera()"><span class="icon">📸</span> 카메라 촬영</div>
+  <div class="upload-item" onclick="triggerFile()"><span class="icon">🖼️</span> 사진 선택</div>
+  <div class="upload-item" onclick="triggerPdf()"><span class="icon">📄</span> PDF 선택</div>
+</div>
+
+<!-- Nav arrows -->
+<div class="nav-arrow left hidden" id="navLeft" onclick="goPage(-1)">◀</div>
+<div class="nav-arrow right" id="navRight" onclick="goPage(1)">▶</div>
+
+<!-- Page indicator -->
+<div class="page-indicator" id="pageIndicator" style="display:none">1 / 1</div>
+
+<!-- Zoom bar -->
+<div class="zoom-bar hidden" id="zoomBar">
+  <button class="z-btn" onclick="zoomOut()">−</button>
+  <span class="z-label" id="zoomLabel">100%</span>
+  <button class="z-btn" onclick="zoomIn()">+</button>
+  <button class="z-btn" onclick="resetZoom()" title="맞춤">⊙</button>
+</div>
+
+<!-- Translate FAB -->
+<button class="translate-fab" id="translateFab" onclick="doTranslate()">🔄 전체 번역</button>
+
+<!-- Results panel -->
+<div class="results-panel" id="resultsPanel">
+  <div class="drag-handle" onclick="closeResults()"></div>
+  <button class="close-results" onclick="closeResults()">✕</button>
+  <div class="results-grid">
+    <div class="res-card">
+      <h4>🇰🇷 인식된 한국어</h4>
+      <textarea id="korText" readonly></textarea>
+      <div class="res-actions">
+        <button class="btn-sm" onclick="copyText('korText')">📋 복사</button>
+      </div>
+    </div>
+    <div class="res-card">
+      <h4>🇷🇺 러시아어 번역</h4>
+      <textarea id="rusText" readonly></textarea>
+      <div class="res-actions">
+        <button class="btn-sm" onclick="copyText('rusText')">📋 복사</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Settings modal -->
+<div class="modal-overlay" id="settingsModal" onclick="closeSettingsOutside(event)">
+  <div class="modal">
+    <h2>⚙️ 설정</h2>
+    <div class="status-row">
+      <span style="font-size:.85rem">API 키 상태:</span>
+      <span class="chip no" id="apiChip">미설정</span>
+    </div>
+    <label>Groq API 키 (<a href="https://console.groq.com/keys" target="_blank">무료 발급</a>)</label>
+    <input type="password" id="apiInput" placeholder="gsk_...">
+    <div class="toggle-row">
+      <label>🔲 스캔 보정 (문서처럼 평평하게)</label>
+      <label class="toggle">
+        <input type="checkbox" id="scanToggle" checked onchange="onScanToggle()">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+    <div class="modal-hint">
+      Groq API는 완전 무료입니다. 카드 등록 불필요.<br>
+      하루 14,400회 번역 가능합니다.
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeSettings()">닫기</button>
       <button class="btn btn-primary" onclick="saveApiKey()">저장</button>
-      <span class="status-chip no" id="apiStatus">미설정</span>
     </div>
   </div>
-
-  <div class="hint">
-    📌 <a href="https://console.groq.com/keys" target="_blank">console.groq.com</a>에서 무료 API 키 발급 (카드 불필요)<br>
-    🖱️ <strong>영역 선택 모드</strong>: 번역할 부분을 드래그하면 해당 부분만 번역됩니다
-  </div>
-
-  <div class="error" id="errorMsg"></div>
-
-  <div class="upload-zone" id="uploadZone">
-    <div class="icon">📷</div>
-    <p>교과서 사진이나 PDF를 끌어다 놓거나 아래 버튼을 눌러 추가하세요</p>
-    <div class="btn-group">
-      <button class="btn btn-green" onclick="triggerCamera()">📸 카메라</button>
-      <button class="btn btn-primary" onclick="triggerFile()">📁 사진 선택</button>
-      <button class="btn btn-gray" onclick="triggerPdf()">📄 PDF 선택</button>
-    </div>
-  </div>
-  <input type="file" id="fileInput" accept="image/*" multiple onchange="handleFiles(this.files)">
-  <input type="file" id="cameraInput" accept="image/*" capture="environment" onchange="handleFiles(this.files)">
-  <input type="file" id="pdfInput" accept="application/pdf" onchange="handlePdf(this.files[0])">
-
-  <div class="pages-section" id="pagesSection">
-    <div class="pages-header">
-      <span id="pagesTitle">페이지 목록</span>
-      <button class="btn btn-red btn-sm" onclick="clearAll()">🗑 전체 삭제</button>
-    </div>
-    <div class="pages-strip" id="pagesStrip"></div>
-  </div>
-
-  <div class="viewer-section" id="viewerSection">
-    <div class="viewer-card">
-      <div class="viewer-toolbar">
-        <div class="zoom-controls">
-          <button class="zoom-btn" onclick="zoomOut()">−</button>
-          <span class="zoom-label" id="zoomLabel">100%</span>
-          <button class="zoom-btn" onclick="zoomIn()">+</button>
-          <button class="zoom-btn" onclick="resetZoom()" title="맞춤">⊙</button>
-        </div>
-        <div class="page-indicator" id="pageIndicator">1 / 1</div>
-        <button class="btn btn-sm btn-primary" onclick="triggerFile()">+ 추가</button>
-      </div>
-
-      <!-- Mode toggle -->
-      <div class="mode-row">
-        <div class="mode-btn active" id="modePan" onclick="setMode('pan')">✋ 이동/확대</div>
-        <div class="mode-btn" id="modeSelect" onclick="setMode('select')">🔲 영역 선택 번역</div>
-      </div>
-
-      <div class="select-hint" id="selectHint" style="display:none">드래그하여 번역할 영역을 선택하세요</div>
-
-      <div class="viewer-wrap mode-pan" id="viewerWrap">
-        <canvas id="viewerCanvas"></canvas>
-        <canvas id="selectionCanvas"></canvas>
-        <div class="trans-popup" id="transPopup">
-          <button class="pop-close" onclick="closePopup()">✕</button>
-          <div class="pop-title">🇰🇷 인식된 한국어</div>
-          <div class="pop-kor" id="popKor"></div>
-          <div class="pop-title">🇷🇺 러시아어 번역</div>
-          <div class="pop-rus" id="popRus"></div>
-          <div class="pop-loading" id="popLoading">번역 중...</div>
-        </div>
-      </div>
-
-      <div class="scan-row">
-        <label>🔲 스캔 보정</label>
-        <label class="toggle">
-          <input type="checkbox" id="scanToggle" checked onchange="renderCurrentPage()">
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-
-      <div class="viewer-nav">
-        <button class="nav-btn" id="prevBtn" onclick="goPage(-1)" disabled>◀ 이전</button>
-        <span style="font-size:.82rem;color:var(--sub)" id="navLabel">1 / 1페이지</span>
-        <button class="nav-btn" id="nextBtn" onclick="goPage(1)" disabled>다음 ▶</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="translate-wrap">
-    <button class="btn btn-orange" id="translateBtn" onclick="doTranslate()" disabled>
-      🔄 전체 페이지 번역
-    </button>
-  </div>
-
-  <div class="result-grid" id="resultGrid">
-    <div class="result-card">
-      <h3>🇰🇷 인식된 한국어</h3>
-      <textarea id="koreanText" placeholder="인식된 한국어..."></textarea>
-      <div class="char-count" id="korCount">0자</div>
-      <div class="result-actions">
-        <button class="btn btn-gray btn-sm" onclick="copyText('koreanText')">📋 복사</button>
-      </div>
-    </div>
-    <div class="result-card">
-      <h3>🇷🇺 러시아어 번역</h3>
-      <textarea id="russianText" placeholder="러시아어 번역..."></textarea>
-      <div class="char-count" id="rusCount">0자</div>
-      <div class="result-actions">
-        <button class="btn btn-gray btn-sm" onclick="copyText('russianText')">📋 복사</button>
-      </div>
-    </div>
-  </div>
-
 </div>
 
+<!-- Hidden inputs -->
+<input type="file" id="fileInput" accept="image/*" multiple onchange="handleFiles(this.files)">
+<input type="file" id="cameraInput" accept="image/*" capture="environment" onchange="handleFiles(this.files)">
+<input type="file" id="pdfInput" accept="application/pdf" onchange="handlePdf(this.files[0])">
+
+<!-- Loading -->
 <div class="loading" id="loading">
   <div class="spinner"></div>
   <p id="loadingText">처리 중...</p>
@@ -296,54 +373,68 @@ body { font-family: 'Segoe UI','Apple SD Gothic Neo',sans-serif; background:var(
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 // ── State ──
-const pages = [];
-let currentPage = 0;
+const slots = [null]; // each slot: null (empty) or page data object
+let currentSlot = 0;
 let zoom = 1, panX = 0, panY = 0;
 let isPanning = false, panStart = {x:0,y:0};
 let lastPinchDist = null;
-let viewMode = 'pan'; // 'pan' | 'select'
-
-// Selection state
-let isSelecting = false;
-let selStart = {x:0,y:0}, selEnd = {x:0,y:0};
+let viewMode = 'pan';
+let isSelecting = false, selStart = {x:0,y:0}, selEnd = {x:0,y:0};
 
 const canvas = document.getElementById('viewerCanvas');
 const ctx = canvas.getContext('2d');
-const selCanvas = document.getElementById('selectionCanvas');
+const selCanvas = document.getElementById('selCanvas');
 const selCtx = selCanvas.getContext('2d');
 
 // ── Init ──
 window.onload = () => {
   const k = localStorage.getItem('gemini_api_key');
-  if (k) { document.getElementById('apiKeyInput').value = k; updateApiStatus(true); }
+  if (k) { document.getElementById('apiInput').value = k; updateApiChip(true); }
   initViewer();
+  renderSlot();
 };
 
-// ── API Key ──
+// ── Settings ──
+function openSettings() { document.getElementById('settingsModal').classList.add('visible'); }
+function closeSettings() { document.getElementById('settingsModal').classList.remove('visible'); }
+function closeSettingsOutside(e) { if (e.target === document.getElementById('settingsModal')) closeSettings(); }
+
 function saveApiKey() {
-  const k = document.getElementById('apiKeyInput').value.trim();
-  if (!k) { showError('API 키를 입력해주세요.'); return; }
+  const k = document.getElementById('apiInput').value.trim();
+  if (!k) return;
   localStorage.setItem('gemini_api_key', k);
-  updateApiStatus(true);
-  hideError();
+  updateApiChip(true);
+  closeSettings();
 }
-function updateApiStatus(ok) {
-  const el = document.getElementById('apiStatus');
+function updateApiChip(ok) {
+  const el = document.getElementById('apiChip');
   el.textContent = ok ? '저장됨 ✓' : '미설정';
-  el.className = 'status-chip ' + (ok ? 'ok' : 'no');
+  el.className = 'chip ' + (ok ? 'ok' : 'no');
 }
+function onScanToggle() { if (slots[currentSlot]) renderCurrentPage(); }
+
+// ── Upload menu ──
+function showUploadMenu(e) {
+  const menu = document.getElementById('uploadMenu');
+  const btn = document.getElementById('addBtn').getBoundingClientRect();
+  menu.style.top = (btn.top - menu.offsetHeight - 8) + 'px';
+  menu.style.left = (btn.left + btn.width/2 - 90) + 'px';
+  menu.classList.add('visible');
+  e.stopPropagation();
+}
+document.addEventListener('click', () => document.getElementById('uploadMenu').classList.remove('visible'));
+
+function triggerCamera() { document.getElementById('uploadMenu').classList.remove('visible'); document.getElementById('cameraInput').click(); }
+function triggerFile() { document.getElementById('uploadMenu').classList.remove('visible'); document.getElementById('fileInput').click(); }
+function triggerPdf() { document.getElementById('uploadMenu').classList.remove('visible'); document.getElementById('pdfInput').click(); }
 
 // ── File handling ──
-function triggerCamera() { document.getElementById('cameraInput').click(); }
-function triggerFile() { document.getElementById('fileInput').click(); }
-function triggerPdf() { document.getElementById('pdfInput').click(); }
-
 function handleFiles(files) {
   if (!files?.length) return;
   Array.from(files).forEach(f => {
     if (!f.type.startsWith('image/')) return;
     const reader = new FileReader();
-    reader.onload = e => addPageFromDataUrl(e.target.result);
+    reader.onload = e => addImageToCurrentSlot(e.target.result);
     reader.readAsDataURL(f);
   });
 }
@@ -352,288 +443,297 @@ async function handlePdf(file) {
   if (!file) return;
   showLoading('PDF 변환 중...');
   try {
-    const arrayBuffer = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({data: buf}).promise;
     for (let i = 1; i <= pdf.numPages; i++) {
       document.getElementById('loadingText').textContent = `PDF 변환 중... (${i}/${pdf.numPages})`;
       const page = await pdf.getPage(i);
-      const scale = 2;
-      const viewport = page.getViewport({ scale });
-      const offCanvas = document.createElement('canvas');
-      offCanvas.width = viewport.width;
-      offCanvas.height = viewport.height;
-      const offCtx = offCanvas.getContext('2d');
-      await page.render({ canvasContext: offCtx, viewport }).promise;
-      addPageFromDataUrl(offCanvas.toDataURL('image/jpeg', 0.92));
+      const vp = page.getViewport({scale: 2});
+      const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
+      await page.render({canvasContext: c.getContext('2d'), viewport: vp}).promise;
+      if (i === 1) {
+        addImageToCurrentSlot(c.toDataURL('image/jpeg', 0.92));
+      } else {
+        // Add new slots for extra pages
+        addNewSlotWithImage(c.toDataURL('image/jpeg', 0.92));
+      }
     }
-  } catch(e) {
-    showError('PDF 오류: ' + e.message);
-  } finally {
-    hideLoading();
-  }
+  } catch(e) { alert('PDF 오류: ' + e.message); }
+  finally { hideLoading(); }
 }
 
-function addPageFromDataUrl(dataUrl) {
+function addImageToCurrentSlot(dataUrl) {
   const img = new Image();
   img.onload = () => {
     const c = document.createElement('canvas');
     c.width = img.naturalWidth; c.height = img.naturalHeight;
-    const cx = c.getContext('2d');
-    cx.drawImage(img, 0, 0);
-    const original = cx.getImageData(0, 0, c.width, c.height);
+    c.getContext('2d').drawImage(img, 0, 0);
+    const original = c.getContext('2d').getImageData(0, 0, c.width, c.height);
     const processed = scanEffect(original, c.width, c.height);
-    const idx = pages.length;
-    pages.push({ original, processed, dataUrl, width: c.width, height: c.height });
-    renderThumb(idx);
-    selectPage(idx);
-    updateUI();
+    slots[currentSlot] = {original, processed, width: c.width, height: c.height};
+    renderSlot(true);
+    updateNav();
+  };
+  img.src = dataUrl;
+}
+
+function addNewSlotWithImage(dataUrl) {
+  const img = new Image();
+  img.onload = () => {
+    const c = document.createElement('canvas');
+    c.width = img.naturalWidth; c.height = img.naturalHeight;
+    c.getContext('2d').drawImage(img, 0, 0);
+    const original = c.getContext('2d').getImageData(0, 0, c.width, c.height);
+    const processed = scanEffect(original, c.width, c.height);
+    // Insert before the trailing null (or at end)
+    const insertIdx = slots[slots.length-1] === null ? slots.length - 1 : slots.length;
+    slots.splice(insertIdx, 0, {original, processed, width: c.width, height: c.height});
+    updateNav();
   };
   img.src = dataUrl;
 }
 
 // ── Scan effect ──
 function scanEffect(imageData, w, h) {
-  const src = imageData.data;
-  const out = new Uint8ClampedArray(src.length);
+  const src = imageData.data, out = new Uint8ClampedArray(src.length);
   for (let i = 0; i < src.length; i += 4) {
-    const r = src[i], g = src[i+1], b = src[i+2];
-    const avg = (r+g+b)/3;
-    let nr = Math.min(255, r*1.3+15), ng = Math.min(255, g*1.3+15), nb = Math.min(255, b*1.3+15);
-    nr = nr*.6+avg*.4; ng = ng*.6+avg*.4; nb = nb*.6+avg*.4;
-    if (nr>200&&ng>200&&nb>200) { const w2=Math.min(1,(Math.min(nr,ng,nb)-180)/40); nr+=(255-nr)*w2; ng+=(255-ng)*w2; nb+=(255-nb)*w2; }
-    out[i]=Math.round(nr); out[i+1]=Math.round(ng); out[i+2]=Math.round(nb); out[i+3]=src[i+3];
+    const r=src[i],g=src[i+1],b=src[i+2];
+    const avg=(r+g+b)/3;
+    let nr=Math.min(255,r*1.3+15),ng=Math.min(255,g*1.3+15),nb=Math.min(255,b*1.3+15);
+    nr=nr*.6+avg*.4; ng=ng*.6+avg*.4; nb=nb*.6+avg*.4;
+    if(nr>200&&ng>200&&nb>200){const w2=Math.min(1,(Math.min(nr,ng,nb)-180)/40);nr+=(255-nr)*w2;ng+=(255-ng)*w2;nb+=(255-nb)*w2;}
+    out[i]=Math.round(nr);out[i+1]=Math.round(ng);out[i+2]=Math.round(nb);out[i+3]=src[i+3];
   }
   return new ImageData(out, w, h);
 }
 
-// ── Thumbnails ──
-function renderThumb(idx) {
-  if (document.getElementById('thumb-'+idx)) return;
-  const page = pages[idx];
-  const tc = document.createElement('canvas'); tc.width=72; tc.height=90;
-  const tx = tc.getContext('2d');
-  const tmp = document.createElement('canvas'); tmp.width=page.width; tmp.height=page.height;
-  tmp.getContext('2d').putImageData(page.processed,0,0);
-  const ratio=page.width/page.height, tr=72/90;
-  let sx,sy,sw,sh;
-  if(ratio>tr){sh=page.height;sw=sh*tr;sx=(page.width-sw)/2;sy=0;}
-  else{sw=page.width;sh=sw/tr;sx=0;sy=(page.height-sh)/2;}
-  tx.drawImage(tmp,sx,sy,sw,sh,0,0,72,90);
-  const div=document.createElement('div');
-  div.className='page-thumb'; div.id='thumb-'+idx;
-  div.onclick=()=>selectPage(idx);
-  div.innerHTML=`<img src="${tc.toDataURL()}" alt="p${idx+1}"><div class="page-num">${idx+1}</div><button class="del-btn" onclick="deletePage(event,${idx})">×</button>`;
-  const addBtn=document.getElementById('addPageBtn');
-  if(addBtn) document.getElementById('pagesStrip').insertBefore(div,addBtn);
-  else document.getElementById('pagesStrip').appendChild(div);
-}
-
-function rebuildThumbs() {
-  const strip=document.getElementById('pagesStrip'); strip.innerHTML='';
-  pages.forEach((_,i)=>renderThumb(i));
-  const addBtn=document.createElement('div');
-  addBtn.className='add-page-btn'; addBtn.id='addPageBtn';
-  addBtn.innerHTML='<span style="font-size:1.4rem">+</span><span>추가</span>';
-  addBtn.onclick=()=>triggerFile();
-  strip.appendChild(addBtn);
-}
-
-function deletePage(e,idx) {
-  e.stopPropagation();
-  pages.splice(idx,1);
-  if(currentPage>=pages.length) currentPage=Math.max(0,pages.length-1);
-  rebuildThumbs();
-  if(pages.length>0) selectPage(currentPage);
-  updateUI();
-}
-
-function clearAll() {
-  pages.length=0; currentPage=0;
-  document.getElementById('pagesStrip').innerHTML='';
-  document.getElementById('pagesSection').classList.remove('visible');
-  document.getElementById('viewerSection').classList.remove('visible');
-  document.getElementById('translateBtn').disabled=true;
-  document.getElementById('resultGrid').classList.remove('visible');
-  updateUI();
-}
-
-// ── Page navigation ──
-function selectPage(idx) {
-  currentPage=idx;
-  document.querySelectorAll('.page-thumb').forEach((el,i)=>el.classList.toggle('active',i===idx));
-  closePopup();
-  renderCurrentPage(true);
-  updateNavButtons();
-}
-
+// ── Navigation ──
 function goPage(dir) {
-  const next=currentPage+dir;
-  if(next<0||next>=pages.length) return;
-  const wrap=document.getElementById('viewerWrap');
-  wrap.classList.add('flip-anim');
-  wrap.addEventListener('animationend',()=>wrap.classList.remove('flip-anim'),{once:true});
-  selectPage(next);
+  const next = currentSlot + dir;
+  if (next < 0) return;
+
+  if (dir === 1) {
+    // Going right: ensure next slot exists
+    if (next >= slots.length) slots.push(null);
+  } else {
+    if (next < 0) return;
+  }
+
+  // Flip animation
+  document.getElementById('viewer').classList.add('flip-anim');
+  document.getElementById('viewer').addEventListener('animationend', () =>
+    document.getElementById('viewer').classList.remove('flip-anim'), {once: true});
+
+  currentSlot = next;
+  closePopup();
+  closeResults();
+  renderSlot(true);
+  updateNav();
 }
 
-function updateNavButtons() {
-  document.getElementById('prevBtn').disabled=currentPage<=0;
-  document.getElementById('nextBtn').disabled=currentPage>=pages.length-1;
-  document.getElementById('pageIndicator').textContent=`${currentPage+1} / ${pages.length}`;
-  document.getElementById('navLabel').textContent=`${currentPage+1} / ${pages.length}페이지`;
+function updateNav() {
+  document.getElementById('navLeft').classList.toggle('hidden', currentSlot <= 0);
+  // Right arrow always visible (can always go to next page)
+  document.getElementById('navRight').classList.remove('hidden');
+
+  const totalFilled = slots.filter(s => s !== null).length;
+  const indicator = document.getElementById('pageIndicator');
+  if (totalFilled > 0) {
+    indicator.style.display = 'block';
+    // Show position among filled pages
+    const filledBefore = slots.slice(0, currentSlot+1).filter(s=>s!==null).length;
+    indicator.textContent = slots[currentSlot] ? `${filledBefore} / ${totalFilled}` : `${totalFilled + 1}페이지 추가`;
+  } else {
+    indicator.style.display = 'none';
+  }
+}
+
+// ── Render current slot ──
+function renderSlot(fitToView) {
+  const page = slots[currentSlot];
+  const emptySlot = document.getElementById('emptySlot');
+  const canvasWrap = document.getElementById('canvasWrap');
+  const fab = document.getElementById('translateFab');
+  const zoomBar = document.getElementById('zoomBar');
+
+  if (!page) {
+    emptySlot.style.display = 'flex';
+    canvasWrap.classList.remove('visible');
+    fab.classList.remove('visible');
+    zoomBar.classList.add('hidden');
+    return;
+  }
+
+  emptySlot.style.display = 'none';
+  canvasWrap.classList.add('visible');
+  fab.classList.add('visible');
+  zoomBar.classList.remove('hidden');
+
+  renderCurrentPage(fitToView);
+}
+
+function renderCurrentPage(fitToView) {
+  const page = slots[currentSlot];
+  if (!page) return;
+  const scanOn = document.getElementById('scanToggle').checked;
+  canvas.width = page.width; canvas.height = page.height;
+  ctx.putImageData(scanOn ? page.processed : page.original, 0, 0);
+
+  const wrap = document.getElementById('canvasWrap');
+  selCanvas.width = wrap.offsetWidth || window.innerWidth;
+  selCanvas.height = wrap.offsetHeight || window.innerHeight;
+
+  if (fitToView) {
+    const ww = window.innerWidth, wh = window.innerHeight - 52;
+    zoom = Math.min(ww / page.width, wh / page.height, 1);
+    panX = (ww - page.width * zoom) / 2;
+    panY = (wh - page.height * zoom) / 2;
+    clampPan();
+  }
+  applyTransform();
+}
+
+function applyTransform() {
+  canvas.style.transform = `translate(${panX}px,${panY}px) scale(${zoom})`;
+  document.getElementById('zoomLabel').textContent = Math.round(zoom*100) + '%';
+}
+
+function clampPan() {
+  const page = slots[currentSlot]; if (!page) return;
+  const ww = window.innerWidth, wh = window.innerHeight - 52;
+  const pw = page.width*zoom, ph = page.height*zoom;
+  panX = Math.max(Math.min(panX, 20), ww-pw-20);
+  panY = Math.max(Math.min(panY, 20), wh-ph-20);
+}
+
+function zoomIn(){setZoom(zoom*1.25);}
+function zoomOut(){setZoom(zoom/1.25);}
+function resetZoom(){renderCurrentPage(true);}
+function setZoom(nz,cx,cy){
+  const prev=zoom; zoom=Math.max(0.2,Math.min(5,nz));
+  if(cx!==undefined){panX=cx-(cx-panX)*zoom/prev;panY=cy-(cy-panY)*zoom/prev;clampPan();}
+  applyTransform();
 }
 
 // ── Mode ──
-function setMode(mode) {
-  viewMode=mode;
-  document.getElementById('modePan').classList.toggle('active',mode==='pan');
-  document.getElementById('modeSelect').classList.toggle('active',mode==='select');
-  const wrap=document.getElementById('viewerWrap');
-  wrap.className='viewer-wrap mode-'+mode;
-  document.getElementById('selectHint').style.display=mode==='select'?'block':'none';
+function setMode(m) {
+  viewMode = m;
+  document.getElementById('btnPan').classList.toggle('active', m==='pan');
+  document.getElementById('btnSelect').classList.toggle('active', m==='select');
+  document.getElementById('modeLabel').textContent = m==='pan' ? '이동 모드' : '영역 선택';
+  const wrap = document.getElementById('canvasWrap');
+  wrap.className = 'canvas-wrap visible mode-' + m;
   selCtx.clearRect(0,0,selCanvas.width,selCanvas.height);
   closePopup();
 }
 
-// ── Viewer ──
+// ── Viewer interaction ──
 function initViewer() {
-  const wrap=document.getElementById('viewerWrap');
+  const wrap = document.getElementById('canvasWrap');
 
-  // Pan: mouse
   wrap.addEventListener('mousedown', e => {
-    if(viewMode==='pan') {
+    if (viewMode==='pan') {
       isPanning=true; panStart={x:e.clientX-panX,y:e.clientY-panY};
       wrap.classList.add('grabbing');
     } else {
-      const pos=canvasPos(e);
-      isSelecting=true; selStart=pos; selEnd=pos;
-      closePopup();
+      isSelecting=true; selStart=imgPos(e); selEnd=selStart; closePopup();
     }
   });
+
   window.addEventListener('mousemove', e => {
-    if(viewMode==='pan'&&isPanning) {
-      panX=e.clientX-panStart.x; panY=e.clientY-panStart.y;
-      clampPan(); applyTransform();
-    } else if(viewMode==='select'&&isSelecting) {
-      selEnd=canvasPos(e);
-      drawSelection();
-    }
+    if (viewMode==='pan'&&isPanning) { panX=e.clientX-panStart.x; panY=e.clientY-panStart.y; clampPan(); applyTransform(); }
+    else if (viewMode==='select'&&isSelecting) { selEnd=imgPos(e); drawSel(); }
   });
+
   window.addEventListener('mouseup', e => {
-    document.getElementById('viewerWrap').classList.remove('grabbing');
-    if(viewMode==='pan') { isPanning=false; }
-    else if(viewMode==='select'&&isSelecting) {
-      isSelecting=false;
-      selEnd=canvasPos(e);
-      drawSelection();
-      const rect=getSelectionRect();
-      if(rect.w>20&&rect.h>20) translateSelection(rect);
+    document.getElementById('canvasWrap').classList.remove('grabbing');
+    if (viewMode==='pan') { isPanning=false; }
+    else if (viewMode==='select'&&isSelecting) {
+      isSelecting=false; selEnd=imgPos(e); drawSel();
+      const r=selRect(); if(r.w>20&&r.h>20) translateSel(r, e.clientX, e.clientY);
     }
   });
 
-  // Pan: touch
-  wrap.addEventListener('touchstart', e => {
-    if(e.touches.length===1) {
-      if(viewMode==='pan') {
-        isPanning=true; panStart={x:e.touches[0].clientX-panX,y:e.touches[0].clientY-panY};
-      } else {
-        const pos=canvasPosTouch(e.touches[0]);
-        isSelecting=true; selStart=pos; selEnd=pos; closePopup();
-      }
-    } else if(e.touches.length===2) {
-      lastPinchDist=pinchDist(e);
-    }
+  wrap.addEventListener('touchstart', e=>{
+    if(e.touches.length===1){
+      if(viewMode==='pan'){isPanning=true;panStart={x:e.touches[0].clientX-panX,y:e.touches[0].clientY-panY};}
+      else{isSelecting=true;selStart=imgPosTouch(e.touches[0]);selEnd=selStart;closePopup();}
+    } else if(e.touches.length===2){lastPinchDist=pdist(e);}
     e.preventDefault();
   },{passive:false});
 
-  wrap.addEventListener('touchmove', e => {
-    if(e.touches.length===1) {
-      if(viewMode==='pan'&&isPanning) {
-        panX=e.touches[0].clientX-panStart.x; panY=e.touches[0].clientY-panStart.y;
-        clampPan(); applyTransform();
-      } else if(viewMode==='select'&&isSelecting) {
-        selEnd=canvasPosTouch(e.touches[0]); drawSelection();
-      }
-    } else if(e.touches.length===2&&lastPinchDist) {
-      const d=pinchDist(e); setZoom(zoom*(d/lastPinchDist)); lastPinchDist=d;
-    }
+  wrap.addEventListener('touchmove', e=>{
+    if(e.touches.length===1){
+      if(viewMode==='pan'&&isPanning){panX=e.touches[0].clientX-panStart.x;panY=e.touches[0].clientY-panStart.y;clampPan();applyTransform();}
+      else if(viewMode==='select'&&isSelecting){selEnd=imgPosTouch(e.touches[0]);drawSel();}
+    } else if(e.touches.length===2&&lastPinchDist){const d=pdist(e);setZoom(zoom*(d/lastPinchDist));lastPinchDist=d;}
     e.preventDefault();
   },{passive:false});
 
-  wrap.addEventListener('touchend', e => {
+  wrap.addEventListener('touchend', e=>{
     if(e.touches.length<2) lastPinchDist=null;
-    if(e.touches.length===0) {
-      if(viewMode==='select'&&isSelecting) {
-        isSelecting=false; drawSelection();
-        const rect=getSelectionRect();
-        if(rect.w>20&&rect.h>20) translateSelection(rect);
+    if(e.touches.length===0){
+      if(viewMode==='select'&&isSelecting){
+        isSelecting=false;drawSel();
+        const r=selRect();
+        if(r.w>20&&r.h>20) translateSel(r, selEnd.x*zoom+panX, selEnd.y*zoom+panY+52);
       }
       isPanning=false;
     }
   });
 
-  // Wheel zoom
-  wrap.addEventListener('wheel', e => {
-    e.preventDefault();
-    setZoom(zoom+(e.deltaY>0?-0.15:0.15), e.clientX, e.clientY);
+  wrap.addEventListener('wheel', e=>{
+    e.preventDefault(); setZoom(zoom+(e.deltaY>0?-0.15:0.15),e.clientX,e.clientY-52);
   },{passive:false});
+
+  window.addEventListener('resize', ()=>{ if(slots[currentSlot]) renderCurrentPage(true); });
 }
 
-// ── Canvas coordinate helpers ──
-function canvasPos(e) {
-  const wrap=document.getElementById('viewerWrap');
-  const rect=wrap.getBoundingClientRect();
-  return { x:(e.clientX-rect.left-panX)/zoom, y:(e.clientY-rect.top-panY)/zoom };
+function imgPos(e) {
+  const wrap=document.getElementById('canvasWrap').getBoundingClientRect();
+  return {x:(e.clientX-wrap.left-panX)/zoom, y:(e.clientY-wrap.top-panY)/zoom};
 }
-function canvasPosTouch(t) {
-  const wrap=document.getElementById('viewerWrap');
-  const rect=wrap.getBoundingClientRect();
-  return { x:(t.clientX-rect.left-panX)/zoom, y:(t.clientY-rect.top-panY)/zoom };
+function imgPosTouch(t) {
+  const wrap=document.getElementById('canvasWrap').getBoundingClientRect();
+  return {x:(t.clientX-wrap.left-panX)/zoom, y:(t.clientY-wrap.top-panY)/zoom};
 }
-function getSelectionRect() {
-  const x=Math.min(selStart.x,selEnd.x), y=Math.min(selStart.y,selEnd.y);
-  const w=Math.abs(selEnd.x-selStart.x), h=Math.abs(selEnd.y-selStart.y);
-  return {x,y,w,h};
+function selRect() {
+  return {x:Math.max(0,Math.min(selStart.x,selEnd.x)),y:Math.max(0,Math.min(selStart.y,selEnd.y)),w:Math.abs(selEnd.x-selStart.x),h:Math.abs(selEnd.y-selStart.y)};
 }
+function pdist(e){const dx=e.touches[0].clientX-e.touches[1].clientX,dy=e.touches[0].clientY-e.touches[1].clientY;return Math.sqrt(dx*dx+dy*dy);}
 
-// ── Selection drawing ──
-function drawSelection() {
-  const wrap=document.getElementById('viewerWrap');
+function drawSel() {
+  const wrap=document.getElementById('canvasWrap');
   selCanvas.width=wrap.offsetWidth; selCanvas.height=wrap.offsetHeight;
   selCtx.clearRect(0,0,selCanvas.width,selCanvas.height);
-
-  const sx=(selStart.x*zoom+panX), sy=(selStart.y*zoom+panY);
-  const ex=(selEnd.x*zoom+panX), ey=(selEnd.y*zoom+panY);
-  const x=Math.min(sx,ex), y=Math.min(sy,ey);
-  const w=Math.abs(ex-sx), h=Math.abs(ey-sy);
-
-  selCtx.fillStyle='rgba(92,107,192,0.15)';
+  const sx=selStart.x*zoom+panX, sy=selStart.y*zoom+panY;
+  const ex=selEnd.x*zoom+panX, ey=selEnd.y*zoom+panY;
+  const x=Math.min(sx,ex),y=Math.min(sy,ey),w=Math.abs(ex-sx),h=Math.abs(ey-sy);
+  selCtx.fillStyle='rgba(124,131,224,.15)';
   selCtx.fillRect(x,y,w,h);
-  selCtx.strokeStyle='#5c6bc0';
+  selCtx.strokeStyle='#7c83e0';
   selCtx.lineWidth=2;
   selCtx.setLineDash([6,3]);
   selCtx.strokeRect(x,y,w,h);
 }
 
-// ── Selection translate ──
-async function translateSelection(rect) {
-  const apiKey=localStorage.getItem('gemini_api_key')||document.getElementById('apiKeyInput').value.trim();
-  if(!apiKey) { showError('API 키를 입력하고 저장해주세요.'); return; }
-  if(!pages.length) return;
+// ── Area translate ──
+async function translateSel(rect, popClientX, popClientY) {
+  const apiKey = localStorage.getItem('gemini_api_key') || document.getElementById('apiInput').value.trim();
+  if (!apiKey) { openSettings(); return; }
+  const page = slots[currentSlot]; if (!page) return;
 
-  const page=pages[currentPage];
   const cx=Math.max(0,Math.round(rect.x)), cy=Math.max(0,Math.round(rect.y));
-  const cw=Math.min(Math.round(rect.w),page.width-cx);
-  const ch=Math.min(Math.round(rect.h),page.height-cy);
+  const cw=Math.min(Math.round(rect.w),page.width-cx), ch=Math.min(Math.round(rect.h),page.height-cy);
   if(cw<=0||ch<=0) return;
 
-  // Show popup with loading
   const popup=document.getElementById('transPopup');
-  const wrap=document.getElementById('viewerWrap');
-  const wRect=wrap.getBoundingClientRect();
-  const popX=Math.min(selEnd.x*zoom+panX+10, wrap.offsetWidth-330);
-  const popY=Math.min(selEnd.y*zoom+panY+10, wrap.offsetHeight-200);
-  popup.style.left=Math.max(5,popX)+'px';
-  popup.style.top=Math.max(5,popY)+'px';
+  // Position popup
+  const pw=300, ph=160;
+  let px=Math.min(popClientX+10, window.innerWidth-pw-10);
+  let py=Math.min(popClientY+10, window.innerHeight-ph-10);
+  px=Math.max(8,px); py=Math.max(60,py);
+  popup.style.left=px+'px'; popup.style.top=py+'px';
   document.getElementById('popKor').textContent='';
   document.getElementById('popRus').textContent='';
   document.getElementById('popLoading').style.display='block';
@@ -641,50 +741,30 @@ async function translateSelection(rect) {
 
   try {
     const scanOn=document.getElementById('scanToggle').checked;
-    const srcData=scanOn?page.processed:page.original;
-    const tmp=document.createElement('canvas'); tmp.width=cw; tmp.height=ch;
-    const tmpCtx=tmp.getContext('2d');
     const full=document.createElement('canvas'); full.width=page.width; full.height=page.height;
-    full.getContext('2d').putImageData(srcData,0,0);
-    tmpCtx.drawImage(full,cx,cy,cw,ch,0,0,cw,ch);
-    const base64=tmp.toDataURL('image/jpeg',0.92).split(',')[1];
-
-    const prompt=`이 이미지에서 한국어 텍스트를 인식하고 러시아어로 번역하세요.
-
-형식:
-[KOREAN](인식된 한국어)[/KOREAN]
-[RUSSIAN](러시아어 번역)[/RUSSIAN]
-
-한국어가 없으면 [KOREAN]없음[/KOREAN][RUSSIAN]없음[/RUSSIAN]`;
+    full.getContext('2d').putImageData(scanOn?page.processed:page.original,0,0);
+    const crop=document.createElement('canvas'); crop.width=cw; crop.height=ch;
+    crop.getContext('2d').drawImage(full,cx,cy,cw,ch,0,0,cw,ch);
+    const b64=crop.toDataURL('image/jpeg',.92).split(',')[1];
 
     const res=await fetch('https://api.groq.com/openai/v1/chat/completions',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},
-      body:JSON.stringify({
-        model:'meta-llama/llama-4-scout-17b-16e-instruct',
-        max_tokens:1024,
+      body:JSON.stringify({model:'meta-llama/llama-4-scout-17b-16e-instruct',max_tokens:1024,
         messages:[{role:'user',content:[
-          {type:'text',text:prompt},
-          {type:'image_url',image_url:{url:`data:image/jpeg;base64,${base64}`}}
-        ]}]
-      })
+          {type:'text',text:'이 이미지에서 한국어를 인식하고 러시아어로 번역하세요.\n형식: [KOREAN](한국어)[/KOREAN][RUSSIAN](번역)[/RUSSIAN]'},
+          {type:'image_url',image_url:{url:`data:image/jpeg;base64,${b64}`}}
+        ]}]})
     });
-
-    if(!res.ok) {
-      const err=await res.json().catch(()=>({}));
-      throw new Error(`[${res.status}] ${err.error?.message||''}`);
-    }
-
+    if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(`[${res.status}] ${e.error?.message||''}`);}
     const json=await res.json();
     const text=json.choices?.[0]?.message?.content||'';
     const kor=(text.match(/\[KOREAN\]([\s\S]*?)\[\/KOREAN\]/)||[])[1]?.trim()||'인식 실패';
     const rus=(text.match(/\[RUSSIAN\]([\s\S]*?)\[\/RUSSIAN\]/)||[])[1]?.trim()||'번역 실패';
-
     document.getElementById('popKor').textContent=kor;
     document.getElementById('popRus').textContent=rus;
   } catch(e) {
     document.getElementById('popKor').textContent='오류: '+e.message;
-    document.getElementById('popRus').textContent='';
   } finally {
     document.getElementById('popLoading').style.display='none';
   }
@@ -695,168 +775,59 @@ function closePopup() {
   selCtx.clearRect(0,0,selCanvas.width,selCanvas.height);
 }
 
-// ── Render ──
-function renderCurrentPage(fitToView) {
-  if(!pages.length) return;
-  const page=pages[currentPage];
-  const scanOn=document.getElementById('scanToggle').checked;
-  canvas.width=page.width; canvas.height=page.height;
-  ctx.putImageData(scanOn?page.processed:page.original,0,0);
-
-  const wrap=document.getElementById('viewerWrap');
-  selCanvas.width=wrap.offsetWidth||wrap.clientWidth;
-  selCanvas.height=wrap.offsetHeight||420;
-
-  if(fitToView) {
-    const ww=wrap.clientWidth||wrap.offsetWidth||400;
-    const wh=wrap.clientHeight||420;
-    zoom=Math.min(ww/page.width,wh/page.height,1);
-    panX=(ww-page.width*zoom)/2;
-    panY=(wh-page.height*zoom)/2;
-    clampPan();
-  }
-  applyTransform();
-}
-
-function applyTransform() {
-  canvas.style.transform=`translate(${panX}px,${panY}px) scale(${zoom})`;
-  document.getElementById('zoomLabel').textContent=Math.round(zoom*100)+'%';
-}
-
-function clampPan() {
-  if(!pages.length) return;
-  const page=pages[currentPage];
-  const wrap=document.getElementById('viewerWrap');
-  const ww=wrap.clientWidth||400, wh=wrap.clientHeight||420;
-  const pw=page.width*zoom, ph=page.height*zoom;
-  panX=Math.max(Math.min(panX,20),ww-pw-20);
-  panY=Math.max(Math.min(panY,20),wh-ph-20);
-}
-
-function zoomIn(){setZoom(zoom*1.25);}
-function zoomOut(){setZoom(zoom/1.25);}
-function resetZoom(){if(pages.length)renderCurrentPage(true);}
-function setZoom(nz,cx,cy) {
-  const prev=zoom; zoom=Math.max(0.2,Math.min(5,nz));
-  if(cx!==undefined) {
-    const wrap=document.getElementById('viewerWrap');
-    const rect=wrap.getBoundingClientRect();
-    const wx=cx-rect.left, wy=cy-rect.top;
-    panX=wx-(wx-panX)*zoom/prev; panY=wy-(wy-panY)*zoom/prev;
-    clampPan();
-  }
-  applyTransform();
-}
-
-function pinchDist(e) {
-  const dx=e.touches[0].clientX-e.touches[1].clientX;
-  const dy=e.touches[0].clientY-e.touches[1].clientY;
-  return Math.sqrt(dx*dx+dy*dy);
-}
-
-// ── Full page translation ──
+// ── Full translate ──
 async function doTranslate() {
-  const apiKey=localStorage.getItem('gemini_api_key')||document.getElementById('apiKeyInput').value.trim();
-  if(!apiKey){showError('API 키를 입력하고 저장해주세요.');return;}
-  if(!pages.length) return;
+  const apiKey=localStorage.getItem('gemini_api_key')||document.getElementById('apiInput').value.trim();
+  if(!apiKey){openSettings();return;}
+  const page=slots[currentSlot]; if(!page) return;
 
-  showLoading('AI가 이미지를 분석 중...');
-  hideError();
-
+  showLoading('AI가 번역 중...');
   try {
-    const page=pages[currentPage];
-    const tmp=document.createElement('canvas'); tmp.width=page.width; tmp.height=page.height;
     const scanOn=document.getElementById('scanToggle').checked;
+    const tmp=document.createElement('canvas'); tmp.width=page.width; tmp.height=page.height;
     tmp.getContext('2d').putImageData(scanOn?page.processed:page.original,0,0);
-    const base64=tmp.toDataURL('image/jpeg',0.92).split(',')[1];
-
-    const prompt=`이 교과서 이미지에서 한국어 텍스트를 모두 인식하고 러시아어로 번역해주세요.
-
-정확히 다음 형식으로만 응답하세요:
-
-[KOREAN]
-(이미지에서 인식한 한국어 텍스트 전체)
-[/KOREAN]
-
-[RUSSIAN]
-(위 한국어의 러시아어 번역)
-[/RUSSIAN]
-
-주의:
-- 한국어가 없으면 [KOREAN]한국어 텍스트 없음[/KOREAN]
-- 수식, 영어, 숫자는 그대로 유지
-- 교과서 문체에 맞는 정확한 번역`;
+    const b64=tmp.toDataURL('image/jpeg',.92).split(',')[1];
 
     const res=await fetch('https://api.groq.com/openai/v1/chat/completions',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},
-      body:JSON.stringify({
-        model:'meta-llama/llama-4-scout-17b-16e-instruct',
-        max_tokens:4096,
+      body:JSON.stringify({model:'meta-llama/llama-4-scout-17b-16e-instruct',max_tokens:4096,
         messages:[{role:'user',content:[
-          {type:'text',text:prompt},
-          {type:'image_url',image_url:{url:`data:image/jpeg;base64,${base64}`}}
-        ]}]
-      })
+          {type:'text',text:`교과서 이미지의 한국어를 러시아어로 번역하세요.\n\n[KOREAN]\n(한국어 전체)\n[/KOREAN]\n\n[RUSSIAN]\n(러시아어 번역)\n[/RUSSIAN]`},
+          {type:'image_url',image_url:{url:`data:image/jpeg;base64,${b64}`}}
+        ]}]})
     });
-
-    if(!res.ok){
-      const err=await res.json().catch(()=>({}));
-      throw new Error(`[${res.status}] ${err.error?.message||''}`);
-    }
-
+    if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(`[${res.status}] ${e.error?.message||''}`);}
     const json=await res.json();
     const text=json.choices?.[0]?.message?.content||'';
     const kor=(text.match(/\[KOREAN\]([\s\S]*?)\[\/KOREAN\]/)||[])[1]?.trim()||'인식 실패';
     const rus=(text.match(/\[RUSSIAN\]([\s\S]*?)\[\/RUSSIAN\]/)||[])[1]?.trim()||'번역 실패';
-
-    document.getElementById('koreanText').value=kor;
-    document.getElementById('russianText').value=rus;
-    document.getElementById('korCount').textContent=kor.length+'자';
-    document.getElementById('rusCount').textContent=rus.length+'자';
-    const grid=document.getElementById('resultGrid');
-    grid.classList.add('visible');
-    setTimeout(()=>grid.scrollIntoView({behavior:'smooth',block:'start'}),100);
-
+    document.getElementById('korText').value=kor;
+    document.getElementById('rusText').value=rus;
+    document.getElementById('resultsPanel').classList.add('visible');
   } catch(e) {
     alert('번역 오류: '+e.message);
-    showError('오류: '+e.message);
   } finally {
     hideLoading();
   }
 }
 
-// ── Helpers ──
+function closeResults() { document.getElementById('resultsPanel').classList.remove('visible'); }
+
 function copyText(id) {
   const el=document.getElementById(id); el.select(); document.execCommand('copy');
-  const btn=el.closest('.result-card').querySelector('.btn-gray');
-  const orig=btn.textContent; btn.textContent='✅ 복사됨!';
-  setTimeout(()=>btn.textContent=orig,1500);
+  const btn=el.closest('.res-card').querySelector('.btn-sm');
+  const o=btn.textContent; btn.textContent='✅ 복사됨!'; setTimeout(()=>btn.textContent=o,1500);
 }
+
 function showLoading(t){document.getElementById('loadingText').textContent=t;document.getElementById('loading').classList.add('visible');}
 function hideLoading(){document.getElementById('loading').classList.remove('visible');}
-function showError(m){const e=document.getElementById('errorMsg');e.textContent=m;e.classList.add('visible');}
-function hideError(){document.getElementById('errorMsg').classList.remove('visible');}
-
-function updateUI() {
-  const has=pages.length>0;
-  document.getElementById('pagesSection').classList.toggle('visible',has);
-  document.getElementById('viewerSection').classList.toggle('visible',has);
-  document.getElementById('translateBtn').disabled=!has;
-  document.getElementById('pagesTitle').textContent=`페이지 목록 (${pages.length}장)`;
-  if(!has) document.getElementById('resultGrid').classList.remove('visible');
-  updateNavButtons();
-  if(has&&!document.getElementById('addPageBtn')) rebuildThumbs();
-}
 
 // ── Drag & drop ──
-const zone=document.getElementById('uploadZone');
-zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('drag-over');});
-zone.addEventListener('dragleave',()=>zone.classList.remove('drag-over'));
-zone.addEventListener('drop',e=>{
-  e.preventDefault();zone.classList.remove('drag-over');
-  const file=e.dataTransfer.files[0];
-  if(!file) return;
+document.addEventListener('dragover', e=>e.preventDefault());
+document.addEventListener('drop', e=>{
+  e.preventDefault();
+  const file=e.dataTransfer.files[0]; if(!file) return;
   if(file.type==='application/pdf') handlePdf(file);
   else handleFiles(e.dataTransfer.files);
 });
