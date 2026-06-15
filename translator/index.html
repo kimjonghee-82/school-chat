@@ -930,8 +930,10 @@ function ctxOpen() {
   hideCtxMenu();
 }
 function ctxDelete() {
-  if (ctxTargetId) showDeletePopup(ctxTargetId, ctxX, ctxY);
+  const id = ctxTargetId, x = ctxX, y = ctxY;
   hideCtxMenu();
+  // setTimeout으로 클릭 이벤트 버블링이 끝난 후 팝업 표시
+  setTimeout(() => showDeletePopup(id, x, y), 50);
 }
 document.addEventListener('click', () => hideCtxMenu());
 document.addEventListener('keydown', e => { if (e.key === 'Escape') hideCtxMenu(); });
