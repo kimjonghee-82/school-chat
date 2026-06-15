@@ -930,10 +930,15 @@ function ctxOpen() {
   hideCtxMenu();
 }
 function ctxDelete() {
-  const id = ctxTargetId, x = ctxX, y = ctxY;
+  const id = ctxTargetId;
   hideCtxMenu();
-  // setTimeout으로 클릭 이벤트 버블링이 끝난 후 팝업 표시
-  setTimeout(() => showDeletePopup(id, x, y), 50);
+  setTimeout(async () => {
+    if (!id) return;
+    if (!confirm('이 책을 삭제하시겠습니까?')) return;
+    await dbDelete(id);
+    bookList = bookList.filter(b => b.id !== id);
+    renderBookshelf();
+  }, 50);
 }
 document.addEventListener('click', () => hideCtxMenu());
 document.addEventListener('keydown', e => { if (e.key === 'Escape') hideCtxMenu(); });
