@@ -279,6 +279,22 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
 #selCanvas { position: absolute; top: 0; left: 0; pointer-events: none; }
 .scan-filter { filter: contrast(1.18) brightness(1.06) saturate(0.85); }
 
+/* ── Scrollbars ── */
+.sv-scrollbar {
+  position: absolute; z-index: 50; border-radius: 4px;
+  background: rgba(0,0,0,0.12); pointer-events: all;
+}
+.sv-h { bottom: 6px; left: 8px; right: 8px; height: 10px; }
+.sv-v { right: 6px; top: 8px; bottom: 8px; width: 10px; }
+.sv-thumb {
+  position: absolute; border-radius: 4px;
+  background: rgba(0,0,0,0.45); cursor: pointer;
+  transition: background 0.15s;
+}
+.sv-thumb:hover, .sv-thumb.dragging { background: rgba(92,107,192,0.85); }
+.sv-h .sv-thumb { height: 100%; top: 0; min-width: 24px; }
+.sv-v .sv-thumb { width: 100%; left: 0; min-height: 24px; }
+
 /* ── Nav arrows ── */
 .nav-arrow {
   position: fixed; top: 50%; transform: translateY(-50%);
@@ -576,6 +592,9 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
     <canvas id="viewerCanvas"></canvas>
     <canvas id="viewerCanvas2" style="display:none"></canvas>
     <canvas id="selCanvas"></canvas>
+    <!-- Scrollbars -->
+    <div class="sv-scrollbar sv-h" id="sbH" style="display:none"><div class="sv-thumb" id="sbHThumb"></div></div>
+    <div class="sv-scrollbar sv-v" id="sbV" style="display:none"><div class="sv-thumb" id="sbVThumb"></div></div>
     <div class="trans-popup" id="transPopup" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()">
       <div class="pop-header">
         <div class="pop-lang" style="margin:0">🇰🇷 한국어 &nbsp;<button class="pop-tts" id="popTts" onclick="speakKorean()" title="한국어 읽기">🔊</button></div>
@@ -1488,7 +1507,110 @@ function applyTransform() {
     canvas.style.transform = `translate(${panX}px,${panY}px) scale(${zoom})`;
     document.getElementById('zoomLabel').textContent = Math.round(zoom*100) + '%';
   }
+  updateScrollbars();
 }
+
+function updateScrollbars() {
+  const page = slots[currentSlot]; if (!page) return;
+  const wrap = document.getElementById('canvasWrap');
+  const ww = wrap.offsetWidth || window.innerWidth;
+  const wh = (wrap.offsetHeight || window.innerHeight) - 52;
+  const showTwo = getTwoPageMode();
+  const v = showTwo ? vL : { zoom, panX, panY };
+  const pw = page.width * v.zoom, ph = page.height * v.zoom;
+
+  // Horizontal scrollbar
+  const sbH = document.getElementById('sbH');
+  const thumbH = document.getElementById('sbHThumb');
+  if (pw > ww + 2) {
+    const trackW = ww - 16;
+    const thumbW = Math.max(24, trackW * ww / pw);
+    const maxScroll = pw - ww;
+    const pos = (-v.panX / maxScroll) * (trackW - thumbW);
+    sbH.style.display = 'block';
+    thumbH.style.width = thumbW + 'px';
+    thumbH.style.left = Math.max(0, Math.min(trackW - thumbW, pos)) + 'px';
+  } else {
+    sbH.style.display = 'none';
+  }
+
+  // Vertical scrollbar
+  const sbV = document.getElementById('sbV');
+  const thumbV = document.getElementById('sbVThumb');
+  if (ph > wh + 2) {
+    const trackH = wh - 16;
+    const thumbH2 = Math.max(24, trackH * wh / ph);
+    const maxScroll = ph - wh;
+    const pos = (-v.panY / maxScroll) * (trackH - thumbH2);
+    sbV.style.display = 'block';
+    thumbV.style.height = thumbH2 + 'px';
+    thumbV.style.top = Math.max(0, Math.min(trackH - thumbH2, pos)) + 'px';
+  } else {
+    sbV.style.display = 'none';
+  }
+}
+
+// Scrollbar drag
+(function() {
+  let dragging = null; // 'h' or 'v'
+  let dragStart = 0, panAtStart = 0;
+
+  function onThumbDown(axis, e) {
+    e.stopPropagation(); e.preventDefault();
+    dragging = axis;
+    dragStart = axis === 'h' ? (e.touches ? e.touches[0].clientX : e.clientX)
+                             : (e.touches ? e.touches[0].clientY : e.clientY);
+    panAtStart = axis === 'h' ? panX : panY;
+    document.getElementById(axis === 'h' ? 'sbHThumb' : 'sbVThumb').classList.add('dragging');
+  }
+
+  function onMove(e) {
+    if (!dragging) return;
+    const page = slots[currentSlot]; if (!page) return;
+    const wrap = document.getElementById('canvasWrap');
+    const ww = wrap.offsetWidth || window.innerWidth;
+    const wh = (wrap.offsetHeight || window.innerHeight) - 52;
+    const v = getTwoPageMode() ? vL : { zoom, panX, panY };
+    const cx = e.touches ? e.touches[0].clientX : e.clientX;
+    const cy = e.touches ? e.touches[0].clientY : e.clientY;
+
+    if (dragging === 'h') {
+      const pw = page.width * v.zoom;
+      const trackW = ww - 16;
+      const thumbW = Math.max(24, trackW * ww / pw);
+      const maxScroll = pw - ww;
+      const delta = cx - dragStart;
+      const scrollDelta = delta / (trackW - thumbW) * maxScroll;
+      panX = Math.max(ww - pw, Math.min(0, panAtStart - scrollDelta));
+    } else {
+      const ph = page.height * v.zoom;
+      const trackH = wh - 16;
+      const thumbH = Math.max(24, trackH * wh / ph);
+      const maxScroll = ph - wh;
+      const delta = cy - dragStart;
+      const scrollDelta = delta / (trackH - thumbH) * maxScroll;
+      panY = Math.max(wh - ph, Math.min(0, panAtStart - scrollDelta));
+    }
+    applyTransform();
+  }
+
+  function onUp() {
+    if (!dragging) return;
+    document.getElementById(dragging === 'h' ? 'sbHThumb' : 'sbVThumb').classList.remove('dragging');
+    dragging = null;
+  }
+
+  window.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('sbHThumb').addEventListener('mousedown', e => onThumbDown('h', e));
+    document.getElementById('sbVThumb').addEventListener('mousedown', e => onThumbDown('v', e));
+    document.getElementById('sbHThumb').addEventListener('touchstart', e => onThumbDown('h', e), { passive: false });
+    document.getElementById('sbVThumb').addEventListener('touchstart', e => onThumbDown('v', e), { passive: false });
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('touchmove', onMove, { passive: false });
+    window.addEventListener('mouseup', onUp);
+    window.addEventListener('touchend', onUp);
+  });
+})();
 
 function clampPan() {
   const page = slots[currentSlot]; if (!page) return;
