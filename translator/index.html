@@ -1982,14 +1982,17 @@ async function translateSel(rect, popClientX, popClientY) {
         const res2=await fetch('https://api.groq.com/openai/v1/chat/completions',{
           method:'POST',
           headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},
-          body:JSON.stringify({model:'meta-llama/llama-4-scout-17b-16e-instruct',max_tokens:512,
+          body:JSON.stringify({model:'meta-llama/llama-4-scout-17b-16e-instruct',max_tokens:512,temperature:0,
             messages:[
-              {role:'system',content:`You are a phonetic transcription expert. Your only job is to convert text into Korean phonetic pronunciation (한글 발음). Rules:
-- Output ONLY Korean characters (한글). No exceptions.
-- Do NOT output any foreign letters (Latin, Cyrillic, Arabic, Mongolian, etc.)
-- Transcribe every word phonetically into Korean syllables.
-- Examples: "Привет" → "쁘리볫", "Вы можете" → "브이 모줴쩨", "Hello" → "헬로우", "Тооцооллын" → "토오쪼올링", "дагавал" → "다가왈"`},
-              {role:'user',content:`Convert this ${LANG_FULL[targetLang]} text to Korean phonetic pronunciation. Output Korean only:\n\n${rus}`}
+              {role:'system',content:`You are a Korean phonetic transcription expert. Convert foreign text into Korean pronunciation (한글 발음표기). Output ONLY Korean characters — no Latin, Cyrillic, or any other script.
+
+Language-specific rules:
+[Russian/러시아어] а→아 б→브 в→브 г→그 д→드 е→예 ё→요 ж→줴 з→즈 и→이 й→이 к→크 л→르 м→므 н→느 о→오 п→프 р→르 с→스 т→트 у→우 ф→프 х→흐 ц→츠 ч→취 ш→쉬 щ→쒸 ъ/ь→(무시) э→에 ю→유 я→야. Example: Привет→쁘리볫, Спасибо→스빠씨바
+[English/영어] Use standard Korean loanword rules. Example: Hello→헬로, Thank you→땡큐, School→스쿨
+[Kazakh/카자흐어] Similar to Russian Cyrillic rules. ғ→ғ sound→그, қ→크, ң→응, ү→위, ұ→우, і→이, ө→외. Example: Сәлем→살렘, Рахмет→라흐멧
+[Mongolian/몽골어] а→아 б→б→브 в→브 г→그 д→드 е→е→예 ж→줴 з→즈 и→이 й→이 к→크 л→르 м→므 н→느 о→오 ө→외 п→프 р→르 с→스 т→트 у→우 ү→위 х→흐 ц→츠 ч→취 ш→쉬 э→에 ю→유 я→야. Example: Сайн байна уу→사인 바인 오
+[Vietnamese/베트남어] Use phonetic approximation: a→아 ă→아 â→어 e→에 ê→에 i→이 o→오 ô→오 ơ→으 u→우 ư→으 y→이. Tones are ignored. Example: Xin chào→씬 짜오, Cảm ơn→깜 언`},
+              {role:'user',content:`Convert this ${LANG_FULL[targetLang]} text to Korean phonetic pronunciation (한글). Output Korean characters only:\n\n${rus}`}
             ]})
         });
         if(res2.ok){
