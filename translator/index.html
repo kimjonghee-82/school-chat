@@ -645,7 +645,11 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
       </select>
     </div>
     <label>Groq API 키 (<a href="https://console.groq.com/keys" target="_blank">무료 발급</a>)</label>
-    <input type="password" id="apiInput" placeholder="gsk_...">
+    <div style="display:flex;gap:6px;align-items:center">
+      <input type="password" id="apiInput" placeholder="gsk_..." style="flex:1">
+      <button type="button" onclick="toggleApiShow()" id="apiShowBtn" title="키 표시/숨김" style="background:transparent;border:1px solid var(--border,#444);color:var(--text,#ccc);border-radius:6px;padding:8px 10px;cursor:pointer;font-size:1rem;flex-shrink:0">👁</button>
+    </div>
+    <div id="apiSavedMsg" style="display:none;color:#4caf50;font-size:0.78rem;margin-top:4px">✅ API 키가 저장되어 있습니다</div>
     <div class="toggle-row" style="margin-bottom:12px">
       <label>🔊 TTS 목소리</label>
       <span style="font-size:.85rem;color:var(--text)">여자 어른</span>
@@ -1034,7 +1038,6 @@ window.onload = async () => {
    Settings
 ══════════════════════════════ */
 function openSettings() { document.getElementById('settingsModal').classList.add('visible'); }
-function closeSettings() { document.getElementById('settingsModal').classList.remove('visible'); }
 function closeSettingsOutside(e) { if (e.target === document.getElementById('settingsModal')) closeSettings(); }
 
 function saveApiKey() {
@@ -1044,10 +1047,23 @@ function saveApiKey() {
   updateApiChip(true);
   closeSettings();
 }
+function closeSettings() {
+  // Auto-save key if filled in before closing
+  const k = document.getElementById('apiInput').value.trim();
+  if (k) { localStorage.setItem('gemini_api_key', k); updateApiChip(true); }
+  document.getElementById('settingsModal').classList.remove('visible');
+}
+function toggleApiShow() {
+  const inp = document.getElementById('apiInput');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+  document.getElementById('apiShowBtn').textContent = inp.type === 'password' ? '👁' : '🙈';
+}
 function updateApiChip(ok) {
   const el = document.getElementById('apiChip');
   el.textContent = ok ? '저장됨 ✓' : '미설정';
   el.className = 'chip ' + (ok ? 'ok' : 'no');
+  const msg = document.getElementById('apiSavedMsg');
+  if (msg) msg.style.display = ok ? 'block' : 'none';
 }
 function onScanToggle() {
   const on = document.getElementById('scanToggle').checked;
