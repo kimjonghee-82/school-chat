@@ -169,6 +169,23 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
 .book-delete-overlay span { font-size: .7rem; color: #fff; font-weight: 700; }
 .book-item.confirm-delete .book-delete-overlay { opacity: 1; pointer-events: auto; }
 
+/* 우클릭 컨텍스트 메뉴 */
+.ctx-menu {
+  display: none; position: fixed; z-index: 3000;
+  background: #1e1e2e; border: 1px solid #444;
+  border-radius: 10px; padding: 6px 0; min-width: 160px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.6);
+}
+.ctx-menu.visible { display: block; }
+.ctx-menu-item {
+  padding: 10px 18px; font-size: .9rem; cursor: pointer;
+  display: flex; align-items: center; gap: 10px; color: var(--text);
+  transition: background .1s;
+}
+.ctx-menu-item:hover { background: rgba(255,255,255,.08); }
+.ctx-menu-item.danger { color: #f47067; }
+.ctx-menu-item.danger:hover { background: rgba(244,112,103,.12); }
+
 /* 삭제 확인 팝업 */
 .delete-popup {
   display: none; position: fixed; z-index: 2000;
@@ -551,6 +568,12 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
   </div>
 </div>
 
+<!-- 우클릭 컨텍스트 메뉴 -->
+<div class="ctx-menu" id="ctxMenu">
+  <div class="ctx-menu-item" onclick="ctxOpen()">📖 열기</div>
+  <div class="ctx-menu-item danger" onclick="ctxDelete()">🗑️ 삭제</div>
+</div>
+
 <!-- 삭제 확인 팝업 -->
 <div class="delete-popup" id="deletePopup">
   <p>이 책을 삭제하시겠습니까?</p>
@@ -879,10 +902,39 @@ function createBookEl(book) {
   el.addEventListener('pointerup', cancelLong);
   el.addEventListener('pointerleave', cancelLong);
   el.addEventListener('pointermove', cancelLong);
-  el.addEventListener('contextmenu', e => e.preventDefault());
+  el.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    showCtxMenu(e.clientX, e.clientY, book.id);
+  });
 
   return el;
 }
+
+// ── Context menu ─────────────────────────────────────────────────
+let ctxTargetId = null, ctxX = 0, ctxY = 0;
+function showCtxMenu(x, y, bookId) {
+  ctxTargetId = bookId; ctxX = x; ctxY = y;
+  const menu = document.getElementById('ctxMenu');
+  menu.classList.add('visible');
+  // Position so it doesn't go off screen
+  const mw = 170, mh = 90;
+  menu.style.left = (x + mw > window.innerWidth  ? x - mw : x) + 'px';
+  menu.style.top  = (y + mh > window.innerHeight ? y - mh : y) + 'px';
+}
+function hideCtxMenu() {
+  document.getElementById('ctxMenu').classList.remove('visible');
+  ctxTargetId = null;
+}
+function ctxOpen() {
+  if (ctxTargetId) openBook(ctxTargetId);
+  hideCtxMenu();
+}
+function ctxDelete() {
+  if (ctxTargetId) showDeletePopup(ctxTargetId, ctxX, ctxY);
+  hideCtxMenu();
+}
+document.addEventListener('click', () => hideCtxMenu());
+document.addEventListener('keydown', e => { if (e.key === 'Escape') hideCtxMenu(); });
 
 function showDeletePopup(id, cx, cy) {
   deleteTargetId = id;
