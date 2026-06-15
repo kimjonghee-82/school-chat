@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- v2026061501 -->
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -931,14 +932,22 @@ function ctxOpen() {
 }
 function ctxDelete() {
   const id = ctxTargetId;
-  hideCtxMenu();
+  const book = bookList.find(b => b.id === id);
+  // Close menu first without nulling id yet
+  document.getElementById('ctxMenu').classList.remove('visible');
+  ctxTargetId = null;
+  if (!id) return;
   setTimeout(async () => {
-    if (!id) return;
-    if (!confirm('이 책을 삭제하시겠습니까?')) return;
-    await dbDelete(id);
-    bookList = bookList.filter(b => b.id !== id);
-    renderBookshelf();
-  }, 50);
+    const title = book ? `"${book.title}"` : '이 책';
+    if (!confirm(`${title}을(를) 삭제하시겠습니까?`)) return;
+    try {
+      await dbDelete(id);
+      bookList = bookList.filter(b => b.id !== id);
+      renderBookshelf();
+    } catch(e) {
+      alert('삭제 오류: ' + e.message);
+    }
+  }, 100);
 }
 document.addEventListener('click', () => hideCtxMenu());
 document.addEventListener('keydown', e => { if (e.key === 'Escape') hideCtxMenu(); });
