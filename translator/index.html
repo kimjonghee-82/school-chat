@@ -1947,24 +1947,32 @@ async function translateSel(rect, popClientX, popClientY) {
     const res=await fetch('https://api.groq.com/openai/v1/chat/completions',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},
-      body:JSON.stringify({model:'meta-llama/llama-4-scout-17b-16e-instruct',max_tokens:2048,
+      body:JSON.stringify({model:'meta-llama/llama-4-scout-17b-16e-instruct',max_tokens:2048,temperature:0,
         messages:[
-          {role:'system',content:`당신은 한국어 교과서 전문 번역가입니다. 다음 규칙을 반드시 따르세요:
+          {role:'system',content:`당신은 한국어 → ${LANG_FULL[targetLang]} 전문 번역가입니다. 아래 규칙을 엄격히 따르세요.
 
-1. 이미지에서 한국어 텍스트를 먼저 정확히 인식하세요.
-2. 인식한 텍스트가 단어(1~3어절)인 경우:
-   - 그 단어의 모든 가능한 의미(동음이의어 포함)를 파악하세요.
-   - ${LANG_FULL[targetLang]}로 각 의미를 번호를 붙여 나열하세요.
-   - 예: "배" → 1) живот (신체) 2) груша (과일) 3) корабль (선박) 4) удвоение (수학)
-3. 인식한 텍스트가 문장(4어절 이상)이거나 문단인 경우:
-   - 절대 단어를 임의로 해석하지 마세요.
-   - 전체 문장의 주제와 문맥을 먼저 파악하세요.
-   - 문맥에 맞는 정확한 의미로만 번역하세요.
-   - 교과서 문체에 맞게 자연스럽게 번역하세요.
-4. 번역하지 말고 그대로 둬야 할 것: 고유명사(지명·인명), 수식, 기호, 단위.
-5. 반드시 아래 형식으로만 답하세요. 다른 설명은 금지.`},
+[단어/짧은 구 번역 — 3어절 이하]
+- 해당 단어의 주요 의미를 번호 목록으로 나열하세요 (최대 5개).
+- 각 의미에는 품사와 사용 맥락을 간단히 표시하세요.
+- 형식 예시 (한국어 "배"의 경우):
+  1) живот [명사, 신체 부위]
+  2) груша [명사, 과일]
+  3) корабль [명사, 선박]
+  4) вдвое [부사, 수학/배수]
+- 추측하거나 의역하지 마세요. 확실한 의미만 나열하세요.
+- 동일한 입력에는 항상 동일한 결과를 출력하세요.
+
+[문장/문단 번역 — 4어절 이상]
+- 문맥을 파악하여 자연스럽게 번역하세요.
+- 교과서 문체(격식체)를 유지하세요.
+- 고유명사(지명·인명), 수식, 기호, 단위는 번역하지 마세요.
+
+[공통 규칙]
+- 반드시 아래 형식으로만 답하세요. 다른 설명·인사·부연 금지.
+- [KOREAN] 태그에는 이미지에서 인식한 한국어 원문만.
+- [TRANSLATED] 태그에는 번역 결과만.`},
           {role:'user',content:[
-            {type:'text',text:`이미지의 한국어를 인식하고 ${LANG_FULL[targetLang]}로 번역하세요.\n형식:\n[KOREAN]인식한 한국어 원문[/KOREAN]\n[TRANSLATED]${LANG_FULL[targetLang]} 번역문[/TRANSLATED]`},
+            {type:'text',text:`이미지의 한국어 텍스트를 인식하고 ${LANG_FULL[targetLang]}로 번역하세요.\n\n형식:\n[KOREAN]인식한 한국어 원문[/KOREAN]\n[TRANSLATED]번역 결과[/TRANSLATED]`},
             {type:'image_url',image_url:{url:`data:image/jpeg;base64,${b64}`}}
           ]}
         ]})
