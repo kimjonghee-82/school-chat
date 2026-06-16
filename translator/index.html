@@ -550,6 +550,60 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
 /* Flip animation */
 .flip-anim { animation: flip .35s ease; }
 @keyframes flip { 0%{opacity:1;transform:perspective(800px) rotateY(0)} 50%{opacity:.15;transform:perspective(800px) rotateY(90deg)} 100%{opacity:1;transform:perspective(800px) rotateY(0)} }
+
+/* ══════════════════════════════
+   LIVE TRANSLATION PANEL
+══════════════════════════════ */
+#livePanel {
+  position: fixed; top: 52px; right: 0; bottom: 0; width: 30%;
+  background: var(--card); border-left: 1px solid var(--border);
+  display: none; flex-direction: column; z-index: 100; min-width: 220px;
+}
+body.live-on .viewer          { right: 30%; }
+body.live-on #livePanel       { display: flex; }
+body.live-on .zoom-bar        { right: calc(30% + 16px); }
+body.live-on .page-indicator  { transform: translateX(calc(-50% - 15%)); }
+body.live-on .nav-arrow.right { right: 30%; }
+
+.live-header {
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+}
+.live-header h3 { font-size: .85rem; color: var(--sub); font-weight: 700; }
+.live-dot { width: 8px; height: 8px; border-radius: 50%; background: #8b949e; flex-shrink: 0; }
+.live-dot.active { background: #4caf50; animation: ldpulse .9s infinite; }
+.live-dot.paused { background: #e3b341; }
+@keyframes ldpulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+.live-section { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.live-section + .live-section { border-top: 1px solid var(--border); }
+.live-section-label {
+  padding: 7px 12px; font-size: .68rem; color: var(--sub);
+  text-transform: uppercase; letter-spacing: 1px; flex-shrink: 0;
+  border-bottom: 1px solid rgba(255,255,255,.04);
+}
+.live-content {
+  flex: 1; overflow-y: auto; padding: 10px 14px; font-size: .92rem; line-height: 1.75;
+}
+.live-content::-webkit-scrollbar { width: 4px; }
+.live-content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.live-para { margin-bottom: 1.5em; }
+.live-para:last-child { margin-bottom: 0; }
+.live-para.final   { color: var(--text); }
+.live-para.interim { color: var(--sub); font-style: italic; }
+
+.live-footer {
+  padding: 10px 12px; border-top: 1px solid var(--border);
+  display: flex; gap: 6px; flex-shrink: 0;
+}
+.live-btn {
+  flex: 1; padding: 8px 6px; border: none; border-radius: 8px;
+  cursor: pointer; font-size: .8rem; font-weight: 600; transition: opacity .15s;
+}
+.live-btn:hover { opacity: .85; }
+.live-btn-stop   { background: #da3633; color: #fff; }
+.live-btn-resume { background: #1f6feb; color: #fff; }
+.live-btn-clear  { background: var(--border); color: var(--text); flex: 0 0 36px; }
 </style>
 </head>
 <body>
@@ -642,6 +696,27 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
   <div class="upload-item" onclick="triggerPdf()"><span class="icon">📄</span> PDF 선택</div>
 </div>
 
+<!-- Live Translation Panel -->
+<div id="livePanel">
+  <div class="live-header">
+    <h3>🎙 실시간 번역</h3>
+    <div class="live-dot" id="liveDot"></div>
+  </div>
+  <div class="live-section">
+    <div class="live-section-label" id="liveTrLabel">🌐 번역 결과</div>
+    <div class="live-content" id="liveTrContent"><span style="color:var(--sub);font-size:.85rem">번역이 여기에 표시됩니다...</span></div>
+  </div>
+  <div class="live-section">
+    <div class="live-section-label">🇰🇷 인식된 한국어</div>
+    <div class="live-content" id="liveKoContent"><span style="color:var(--sub);font-size:.85rem">말씀하세요...</span></div>
+  </div>
+  <div class="live-footer">
+    <button class="live-btn live-btn-stop"   id="liveBtnStop"   onclick="liveStop()"   style="display:none">⏹ 중지</button>
+    <button class="live-btn live-btn-resume" id="liveBtnResume" onclick="liveResume()" style="display:none">▶ 계속</button>
+    <button class="live-btn live-btn-clear"  onclick="liveClear()" title="지우기">🗑</button>
+  </div>
+</div>
+
 <!-- Nav arrows -->
 <div class="nav-arrow left hidden" id="navLeft" onclick="goPage(-1)">◀</div>
 <div class="nav-arrow right" id="navRight" onclick="goPage(1)">▶</div>
@@ -708,6 +783,13 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
       <label>🔲 스캔 보정 (문서처럼 평평하게)</label>
       <label class="toggle">
         <input type="checkbox" id="scanToggle" checked onchange="onScanToggle()">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+    <div class="toggle-row" style="margin-top:10px">
+      <label>🎙 실시간 음성 번역 (마이크)</label>
+      <label class="toggle">
+        <input type="checkbox" id="liveToggle" onchange="onLiveToggle(this.checked)">
         <span class="toggle-slider"></span>
       </label>
     </div>
@@ -1135,10 +1217,13 @@ function saveApiKey() {
   closeSettings();
 }
 function closeSettings() {
-  // Auto-save key if filled in before closing
   const k = document.getElementById('apiInput').value.trim();
   if (k) { localStorage.setItem('gemini_api_key', k); updateApiChip(true); }
   document.getElementById('settingsModal').classList.remove('visible');
+  // 실시간 번역 토글 상태에 따라 패널 시작/중지
+  const liveOn = document.getElementById('liveToggle').checked;
+  if (liveOn && !liveActive) enableLivePanel();
+  else if (!liveOn && liveActive) liveStop();
 }
 function toggleApiShow() {
   const inp = document.getElementById('apiInput');
@@ -2140,6 +2225,146 @@ function undoApply() {
 }
 
 
+
+/* ══════════════════════════════
+   LIVE TRANSLATION
+══════════════════════════════ */
+const liveCache = new Map();
+let liveRecog = null, liveActive = false, livePendingInterim = null;
+let liveParas = [], liveCurKo = '';
+const GTRANSLATE_CODES = { ru:'ru', mn:'mn', kk:'kk', en:'en', vi:'vi' };
+
+function liveSetDot(s) {
+  document.getElementById('liveDot').className = 'live-dot' + (s ? ' ' + s : '');
+}
+function liveEsc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function liveRenderKo(interimText) {
+  const el = document.getElementById('liveKoContent');
+  let html = liveParas.map(p => `<div class="live-para final">${liveEsc(p.ko)}</div>`).join('');
+  if (interimText) html += `<div class="live-para interim">${liveEsc(interimText)}</div>`;
+  el.innerHTML = html || '<span style="color:var(--sub);font-size:.85rem">말씀하세요...</span>';
+  el.scrollTop = el.scrollHeight;
+}
+function liveRenderTr(interimTr) {
+  const el = document.getElementById('liveTrContent');
+  let html = liveParas.map(p => `<div class="live-para final">${liveEsc(p.tr)}</div>`).join('');
+  if (interimTr) html += `<div class="live-para interim">${liveEsc(interimTr)}</div>`;
+  el.innerHTML = html || '<span style="color:var(--sub);font-size:.85rem">번역이 여기에 표시됩니다...</span>';
+  el.scrollTop = el.scrollHeight;
+}
+function liveClear() { liveParas = []; liveCurKo = ''; liveRenderKo(''); liveRenderTr(''); }
+
+async function liveGoogleTranslate(text, lc) {
+  const key = lc + '|' + text;
+  if (liveCache.has(key)) return liveCache.get(key);
+  const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=ko&tl=${lc}&dt=t&q=${encodeURIComponent(text)}`;
+  const r = await fetch(url);
+  const d = await r.json();
+  const result = d[0].map(s => s[0]).join('');
+  liveCache.set(key, result);
+  return result;
+}
+
+async function liveTranslateInterim(text) {
+  if (!text.trim()) return;
+  const lc = GTRANSLATE_CODES[targetLang] || 'en';
+  const token = {};
+  livePendingInterim = token;
+  try {
+    const result = await liveGoogleTranslate(text, lc);
+    if (livePendingInterim !== token) return;
+    liveRenderTr(result);
+  } catch {}
+}
+
+async function liveTranslateFinal(koText) {
+  if (!koText.trim()) return;
+  livePendingInterim = null;
+  const lc = GTRANSLATE_CODES[targetLang] || 'en';
+  try {
+    const result = await liveGoogleTranslate(koText, lc);
+    liveParas.push({ ko: koText, tr: result });
+    liveRenderKo(''); liveRenderTr('');
+  } catch {}
+}
+
+function liveBuildRecog() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const r = new SR();
+  r.lang = 'ko-KR'; r.continuous = true; r.interimResults = true; r.maxAlternatives = 1;
+  r.onresult = (e) => {
+    let interim = '', newFinal = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const t = e.results[i][0].transcript;
+      if (e.results[i].isFinal) newFinal += t; else interim += t;
+    }
+    if (newFinal) {
+      liveCurKo += newFinal;
+      liveTranslateFinal(liveCurKo.trim());
+      liveCurKo = ''; liveRenderKo('');
+    }
+    if (interim) { liveRenderKo(interim); liveTranslateInterim(interim); }
+  };
+  r.onerror = (e) => { if (e.error === 'no-speech' || e.error === 'aborted') return; };
+  r.onend = () => {
+    if (liveActive) {
+      liveSetDot('paused');
+      document.getElementById('liveBtnStop').style.display = 'none';
+      document.getElementById('liveBtnResume').style.display = '';
+    }
+  };
+  return r;
+}
+
+function onLiveToggle(checked) {
+  localStorage.setItem('live_translation', checked ? '1' : '0');
+  if (!checked) liveStop();
+}
+
+async function enableLivePanel() {
+  try {
+    const s = await navigator.mediaDevices.getUserMedia({ audio: true });
+    s.getTracks().forEach(t => t.stop());
+  } catch {
+    document.getElementById('liveToggle').checked = false;
+    localStorage.setItem('live_translation', '0');
+    alert('마이크 권한이 필요합니다.');
+    return;
+  }
+  document.body.classList.add('live-on');
+  document.getElementById('liveTrLabel').textContent = '🌐 ' + LANG_NAMES[targetLang];
+  liveActive = true; liveCurKo = ''; livePendingInterim = null;
+  document.getElementById('liveBtnStop').style.display = '';
+  document.getElementById('liveBtnResume').style.display = 'none';
+  liveSetDot('active');
+  liveRecog = liveBuildRecog();
+  liveRecog.start();
+  if (slots[currentSlot]) renderCurrentPage(true);
+}
+
+function liveStop() {
+  liveActive = false;
+  if (liveRecog) { liveRecog.onend = null; try { liveRecog.stop(); } catch {} liveRecog = null; }
+  livePendingInterim = null;
+  liveSetDot('');
+  document.getElementById('liveBtnStop').style.display = 'none';
+  document.getElementById('liveBtnResume').style.display = 'none';
+  document.getElementById('liveToggle').checked = false;
+  localStorage.setItem('live_translation', '0');
+  document.body.classList.remove('live-on');
+  if (slots[currentSlot]) renderCurrentPage(true);
+}
+
+function liveResume() {
+  if (!liveActive) return;
+  document.getElementById('liveBtnResume').style.display = 'none';
+  document.getElementById('liveBtnStop').style.display = '';
+  liveSetDot('active');
+  liveRecog = liveBuildRecog();
+  liveRecog.start();
+}
 
 /* ══════════════════════════════
    Download
