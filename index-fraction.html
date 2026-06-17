@@ -1377,7 +1377,7 @@ function renderConceptFraction(n) {
   }
 }
 
-document.getElementById('concept-confirm').addEventListener('click', () => {
+function doConfirm() {
   const val = parseInt(document.getElementById('concept-input').value);
   if (!val || val < 1 || val > 12) { alert('1~12 사이 숫자를 입력해주세요'); return; }
   conceptState.count = val;
@@ -1388,6 +1388,11 @@ document.getElementById('concept-confirm').addEventListener('click', () => {
     renderBar(val, true);
   }
   showRevealBox(val);
+}
+
+document.getElementById('concept-confirm').addEventListener('click', doConfirm);
+document.getElementById('concept-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doConfirm();
 });
 
 document.getElementById('concept-reset').addEventListener('click', initConcept);
