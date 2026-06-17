@@ -869,6 +869,9 @@ textarea.finput{resize:vertical;}
             <span id="sched-btn-sketch" onclick="event.stopPropagation();openScheduleModal('sketch')"
                 style="display:none;margin-left:3px;font-size:13px;cursor:pointer;line-height:1;opacity:0.6" title="허용 시간 설정">⚙️</span>
         </button>
+        <button class="main-tab-btn" id="tab-monitor" onclick="switchMainTab('monitor')" style="display:none">
+            <span class="main-tab-icon">👁️</span>모니터링
+        </button>
     </div>
 
     <!-- ═══ STUDENT POINTS SCREEN ═══ -->
@@ -2582,9 +2585,12 @@ textarea.finput{resize:vertical;}
             if (isTeacher) {
                 document.getElementById('pts-teacher-screen').style.display = 'flex';
                 if (typeof tch_initTeacherApp === 'function') tch_initTeacherApp();
+                var monBtn = document.getElementById('tab-monitor');
+                if (monBtn) monBtn.style.display = '';
             } else {
                 document.getElementById('pts-student-screen').style.display = 'block';
                 if (typeof stu_initStudentApp === 'function') stu_initStudentApp(name);
+                setTimeout(function() { if (typeof mon_startStudentStream === 'function') mon_startStudentStream(); }, 1500);
             }
 
             if (!isTeacher) {
@@ -2641,6 +2647,7 @@ textarea.finput{resize:vertical;}
         // Note: sk screens handled by reload
         window.onbeforeunload = null;
         if (myInfo.isTeacher) {
+            if (typeof mon_stopTeacherMonitor === 'function') mon_stopTeacherMonitor();
             const grade = myInfo.grade, classNum = myInfo.classNum;
             const defaultRoomId = `group_${grade}_${classNum}`;
             const promises = [];
@@ -2672,6 +2679,7 @@ textarea.finput{resize:vertical;}
         if (!myInfo.isTeacher && myInfo.name) {
             const defaultRoomId = `group_${myInfo.grade}_${myInfo.classNum}`;
             database.ref(`rooms/${defaultRoomId}/members/${myInfo.name}`).remove();
+            if (typeof mon_stopStudentStream === 'function') mon_stopStudentStream();
         }
         if (myUserRef) myUserRef.remove().then(() => location.reload()).catch(() => location.reload());
         else location.reload();
@@ -8567,6 +8575,8 @@ function switchMainTab(tab) {
     document.getElementById('teacher-screen').style.display = 'none';
     document.getElementById('sk-teacher-screen').style.display = 'none';
     document.getElementById('sk-student-screen').style.display = 'none';
+    var monScreen = document.getElementById('mon-screen');
+    if (monScreen) monScreen.style.display = 'none';
 
     if (tab === 'points') {
         if (currentUser && currentUser.role === 'student') {
@@ -8584,10 +8594,12 @@ function switchMainTab(tab) {
         switchToSketchbook();
         // ensure nav stays visible (sketchbook doesn't hide it)
         document.getElementById('persistent-top-nav').style.display = 'flex';
+    } else if (tab === 'monitor') {
+        switchToMonitoring();
     }
-    
+
     // Update tab active state
-    ['tab-points', 'tab-chat', 'tab-sketch'].forEach(function(id) {
+    ['tab-points', 'tab-chat', 'tab-sketch', 'tab-monitor'].forEach(function(id) {
         var el = document.getElementById(id);
         if (el) el.classList.toggle('active', id === 'tab-' + tab);
     });
@@ -8753,6 +8765,187 @@ function switchMainTab(tab) {
         <button onclick="sk_declineInviteNotif()" style="background:#e74c3c; color:white; border:none; border-radius:6px; padding:8px 22px; cursor:pointer; font-size:13px;">❌ 거절</button>
     </div>
 </div>
+
+<!-- ═══ 모니터링 화면 (교사 전용) ═══ -->
+<div id="mon-screen" style="display:none; position:fixed; inset:0; overflow-y:auto; z-index:50; background:#0F172A; padding-top:52px; box-sizing:border-box;">
+    <div style="padding:16px">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:8px">
+            <div style="color:white; font-weight:700; font-size:16px">👁️ 실시간 화면 모니터링</div>
+            <div id="mon-count" style="color:#94A3B8; font-size:13px; background:#1E293B; padding:4px 12px; border-radius:20px">학생 0명 접속 중</div>
+        </div>
+        <div id="mon-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:12px"></div>
+        <div id="mon-empty" style="text-align:center; color:#475569; padding:80px 0; font-size:14px; display:none">
+            <div style="font-size:48px; margin-bottom:16px">📡</div>
+            <div>접속 중인 학생이 없습니다</div>
+            <div style="font-size:12px; margin-top:8px; color:#334155">학생이 로그인하면 자동으로 화면이 나타납니다</div>
+        </div>
+    </div>
+</div>
+
+<!-- 모니터링 학생 화면 확대 모달 -->
+<div id="mon-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:11000; align-items:center; justify-content:center; padding:20px; box-sizing:border-box;" onclick="closeMonModal()">
+    <div onclick="event.stopPropagation()" style="position:relative; max-width:900px; width:100%; background:#1E293B; border-radius:14px; overflow:hidden; box-shadow:0 20px 60px rgba(0,0,0,0.6)">
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:#0F172A">
+            <div id="mon-modal-name" style="color:white; font-weight:700; font-size:15px"></div>
+            <button onclick="closeMonModal()" style="background:none; border:none; color:rgba(255,255,255,0.7); font-size:22px; cursor:pointer; line-height:1; padding:0">✕</button>
+        </div>
+        <img id="mon-modal-img" style="width:100%; display:block; background:#0F172A" src="">
+        <div id="mon-modal-ts" style="padding:6px 16px; color:#64748B; font-size:11px; text-align:right; background:#0F172A"></div>
+    </div>
+</div>
+
+<script>
+/* ═══ MONITORING MODULE ═══ */
+var mon_streamInterval = null;
+var mon_studentRef = null;
+var mon_teacherRef = null;
+var mon_cards = {};
+var mon_latestData = {};
+var mon_openUid = null;
+
+function mon_startStudentStream() {
+    if (!myInfo || myInfo.isTeacher || !database) return;
+    var uid = myInfo.grade + '-' + myInfo.classNum + '-' + myInfo.name;
+    var path = 'monitoring/' + myInfo.grade + '-' + myInfo.classNum + '/' + uid;
+    mon_studentRef = database.ref(path);
+    mon_studentRef.onDisconnect().remove();
+
+    function doCapture() {
+        if (!myInfo || !myInfo.name || !mon_studentRef) return;
+        if (typeof html2canvas === 'undefined') {
+            mon_streamInterval = setTimeout(doCapture, 1000);
+            return;
+        }
+        html2canvas(document.body, {
+            scale: 0.25,
+            useCORS: true,
+            logging: false,
+            allowTaint: true,
+            imageTimeout: 1500
+        }).then(function(canvas) {
+            var img = canvas.toDataURL('image/jpeg', 0.35);
+            if (mon_studentRef) mon_studentRef.set({ img: img, ts: Date.now(), name: myInfo.name });
+        }).catch(function() {}).finally(function() {
+            if (mon_studentRef) mon_streamInterval = setTimeout(doCapture, 1000);
+        });
+    }
+
+    doCapture();
+}
+
+function mon_stopStudentStream() {
+    if (mon_streamInterval) { clearTimeout(mon_streamInterval); mon_streamInterval = null; }
+    if (mon_studentRef) { mon_studentRef.remove(); mon_studentRef = null; }
+}
+
+function mon_initTeacherMonitor() {
+    if (!myInfo || !myInfo.isTeacher || !database) return;
+    if (mon_teacherRef) return;
+    var path = 'monitoring/' + myInfo.grade + '-' + myInfo.classNum;
+    mon_teacherRef = database.ref(path);
+    mon_teacherRef.on('value', function(snap) {
+        mon_latestData = snap.val() || {};
+        mon_renderGrid(mon_latestData);
+    });
+}
+
+function mon_renderGrid(data) {
+    var grid = document.getElementById('mon-grid');
+    var emptyEl = document.getElementById('mon-empty');
+    var countEl = document.getElementById('mon-count');
+    if (!grid) return;
+
+    var uids = Object.keys(data);
+    if (countEl) countEl.textContent = '학생 ' + uids.length + '명 접속 중';
+    if (emptyEl) emptyEl.style.display = uids.length === 0 ? 'block' : 'none';
+
+    for (var uid in mon_cards) {
+        if (!data[uid]) {
+            var old = document.getElementById('mon-card-' + uid);
+            if (old) old.remove();
+            delete mon_cards[uid];
+        }
+    }
+
+    uids.forEach(function(uid) {
+        var d = data[uid];
+        var parts = uid.split('-');
+        var displayName = parts.slice(2).join('-');
+
+        var card = document.getElementById('mon-card-' + uid);
+        if (!card) {
+            card = document.createElement('div');
+            card.id = 'mon-card-' + uid;
+            card.style.cssText = 'background:#1E293B;border-radius:10px;overflow:hidden;cursor:pointer;border:2px solid #334155;transition:border-color .2s;';
+            card.onmouseover = function() { this.style.borderColor = '#6366F1'; };
+            card.onmouseout = function() { this.style.borderColor = '#334155'; };
+            var header = document.createElement('div');
+            header.style.cssText = 'padding:6px 10px;background:#0F172A;display:flex;align-items:center;justify-content:space-between;';
+            header.innerHTML = '<span style="color:#E2E8F0;font-size:12px;font-weight:700">' + displayName + '</span>' +
+                '<span style="width:7px;height:7px;background:#22C55E;border-radius:50%;display:inline-block;flex-shrink:0"></span>';
+            var imgEl2 = document.createElement('img');
+            imgEl2.id = 'mon-img-' + uid;
+            imgEl2.style.cssText = 'width:100%;display:block;aspect-ratio:16/9;object-fit:cover;background:#0F172A;';
+            imgEl2.alt = displayName;
+            card.appendChild(header);
+            card.appendChild(imgEl2);
+            grid.appendChild(card);
+            mon_cards[uid] = true;
+        }
+
+        var imgEl = document.getElementById('mon-img-' + uid);
+        if (imgEl && d && d.img) imgEl.src = d.img;
+
+        // auto-update modal if this student is currently shown
+        if (mon_openUid === uid && d && d.img) {
+            var mImg = document.getElementById('mon-modal-img');
+            var mTs = document.getElementById('mon-modal-ts');
+            if (mImg) mImg.src = d.img;
+            if (mTs && d.ts) mTs.textContent = '마지막 캡처: ' + new Date(d.ts).toLocaleTimeString();
+        }
+
+        (function(u, n) {
+            card.onclick = function() {
+                var latest = mon_latestData[u] || {};
+                mon_openModal(u, n, latest.img || '', latest.ts || 0);
+            };
+        })(uid, displayName);
+    });
+}
+
+function mon_openModal(uid, name, imgSrc, ts) {
+    mon_openUid = uid;
+    var nameEl = document.getElementById('mon-modal-name');
+    var imgEl = document.getElementById('mon-modal-img');
+    var tsEl = document.getElementById('mon-modal-ts');
+    if (nameEl) nameEl.textContent = '👤 ' + name;
+    if (imgEl) imgEl.src = imgSrc || '';
+    if (tsEl) tsEl.textContent = ts ? '마지막 캡처: ' + new Date(ts).toLocaleTimeString() : '';
+    var modal = document.getElementById('mon-modal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function closeMonModal() {
+    mon_openUid = null;
+    var modal = document.getElementById('mon-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+function mon_stopTeacherMonitor() {
+    if (mon_teacherRef) { mon_teacherRef.off(); mon_teacherRef = null; }
+    mon_cards = {};
+    mon_latestData = {};
+    var grid = document.getElementById('mon-grid');
+    if (grid) grid.innerHTML = '';
+}
+
+function switchToMonitoring() {
+    if (!myInfo || !myInfo.isTeacher) return;
+    document.getElementById('mon-screen').style.display = 'block';
+    document.getElementById('persistent-top-nav').style.display = 'flex';
+    mon_initTeacherMonitor();
+}
+</script>
 
 </body>
 </html>
