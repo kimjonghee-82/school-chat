@@ -1932,16 +1932,49 @@ function revealFraction() {
   });
 }
 
+function makeFracPieDashed(num, den) {
+  const S = 280, cx = 140, cy = 140, R = 120;
+  num = Math.max(0, parseInt(num) || 0);
+  den = Math.max(1, parseInt(den) || 1);
+  let slices = '';
+  for (let i = 0; i < den; i++) {
+    const a1 = (i / den) * 2 * Math.PI - Math.PI / 2;
+    const a2 = ((i + 1) / den) * 2 * Math.PI - Math.PI / 2;
+    const x1 = cx + R * Math.cos(a1), y1 = cy + R * Math.sin(a1);
+    const x2 = cx + R * Math.cos(a2), y2 = cy + R * Math.sin(a2);
+    const large = (1 / den) > 0.5 ? 1 : 0;
+    const fill = i < num ? '#e06020' : '#f0f0f0';
+    slices += `<path d="M${cx},${cy} L${x1.toFixed(2)},${y1.toFixed(2)} A${R},${R} 0 ${large},1 ${x2.toFixed(2)},${y2.toFixed(2)} Z" fill="${fill}"/>`;
+  }
+  let dashes = '';
+  for (let i = 0; i < den; i++) {
+    const a = (i / den) * 2 * Math.PI - Math.PI / 2;
+    const x = cx + R * Math.cos(a), y = cy + R * Math.sin(a);
+    dashes += `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(2)}" y2="${y.toFixed(2)}" stroke="white" stroke-width="2.5" stroke-dasharray="7,5"/>`;
+  }
+  return `<svg width="${S}" height="${S}">
+    <circle cx="${cx}" cy="${cy}" r="${R}" fill="#f0f0f0" stroke="#ddd" stroke-width="2"/>
+    ${slices}${dashes}
+    <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="#f0a060" stroke-width="3"/>
+  </svg>`;
+}
+
 function showFracWithCircle(num, den) {
   const area = document.getElementById('game-frac-area');
   area.innerHTML = `
     <div class="game-revealed-layout">
-      <div class="game-revealed-frac frac-reveal-anim">
-        <div class="game-revealed-num">${num}</div>
-        <div class="game-revealed-line"></div>
-        <div class="game-revealed-den">${den}</div>
+      <div class="game-frac-widget frac-reveal-anim">
+        <div class="game-frac-cell">
+          <input type="text" value="${num}" readonly class="revealed"
+            style="pointer-events:none;">
+        </div>
+        <div class="game-frac-divider"></div>
+        <div class="game-frac-cell">
+          <input type="text" value="${den}" readonly class="revealed"
+            style="pointer-events:none;">
+        </div>
       </div>
-      <div class="game-circle-wrap frac-reveal-anim" style="animation-delay:.1s">${makeFracPieSVG(num, den)}</div>
+      <div class="game-circle-wrap frac-reveal-anim" style="animation-delay:.12s">${makeFracPieDashed(num, den)}</div>
     </div>
     <button class="game-confirm-btn" id="game-confirm-btn" onclick="resetGameBoard()">↺ 초기화</button>
   `;
