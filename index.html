@@ -1174,7 +1174,10 @@ textarea.finput{resize:vertical;}
 <!-- 학생 코드 입력 모달 (비닫힘 전용) -->
 <div id="stu-modal-code-login" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9990;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;">
     <div class="modal" style="max-width:360px;width:100%" onclick="event.stopPropagation()">
-        <div class="modal-head"><div class="modal-title">🔑 학생 코드 입력</div></div>
+        <div class="modal-head" style="display:grid;grid-template-columns:5fr 1fr;align-items:center;padding:14px 18px 12px">
+            <div class="modal-title">🔑 학생 코드 입력</div>
+            <button class="modal-close" style="justify-self:end" onclick="stu_cancelCodeLogin()" title="취소하고 로그아웃">✕</button>
+        </div>
         <div class="modal-body">
             <p style="font-size:13px;color:#64748B;margin-bottom:14px;text-align:center">선생님에게 받은 5자리 코드를 입력하세요</p>
             <input type="text" id="stu-code-input" class="finput" maxlength="5" inputmode="numeric" placeholder="00000"
@@ -1185,7 +1188,8 @@ textarea.finput{resize:vertical;}
             </label>
         </div>
         <div class="modal-footer">
-            <button class="btn btn-primary" onclick="stu_confirmCodeLogin()" style="width:100%;justify-content:center">✅ 확인</button>
+            <button class="btn btn-outline" onclick="stu_cancelCodeLogin()" style="flex:1;justify-content:center">취소</button>
+            <button class="btn btn-primary" onclick="stu_confirmCodeLogin()" style="flex:1;justify-content:center">✅ 확인</button>
         </div>
     </div>
 </div>
@@ -1906,7 +1910,7 @@ textarea.finput{resize:vertical;}
             <div style="display:flex; gap:10px;">
                 <button onclick="openGlobalNoticeModal()" style="background:#e91e63; font-size:13px; padding:5px 12px; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">📢 전체 공지</button>
                 <button onclick="deleteAllRooms()" style="background:#f44336; font-size:13px; padding:5px 12px; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">🗑️ 전체방 삭제</button>
-                <button onclick="resetAllUsers()" style="background:#ff9800; font-size:13px; padding:5px 12px;">👻 전체 접속자 초기화</button>
+                <button onclick="resetAllUsers()" style="background:#1976D2; font-size:13px; padding:5px 12px; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">🔄 명단 새로고침</button>
                 <button onclick="handleLogout()" style="font-size:13px; padding:5px 12px;">로그아웃</button>
             </div>
         </div>
@@ -2675,23 +2679,16 @@ textarea.finput{resize:vertical;}
 
     function resetAllUsers() {
         if(!myInfo.isTeacher) return;
-        if (confirm(`⚠️ 정말 [${myInfo.grade} ${myInfo.classNum}]의 모든 학생 접속 기록을 초기화하시겠습니까?`)) {
-            database.ref('users').once('value', snapshot => {
-                if (!snapshot.exists()) return;
-                let updates = {};
-                snapshot.forEach(child => {
-                    let user = child.val();
-                    if (user.grade === myInfo.grade && user.classNum === myInfo.classNum && !user.isTeacher) {
-                        updates[child.key] = null;
-                    }
-                });
-                if (Object.keys(updates).length > 0) {
-                    database.ref('users').update(updates).then(() => {
-                        alert(`✨ 학생들 접속 기록이 초기화되었습니다!`);
-                    });
-                } else { alert("초기화할 학생이 없습니다."); }
-            });
-        }
+        // Firebase에서 최신 접속자 목록을 즉시 읽어 명단 갱신 (삭제 없음)
+        database.ref('users').once('value', function(snapshot) {
+            localUsers = snapshot.val() || {};
+            renderUserList();
+            const count = Object.values(localUsers).filter(function(u){
+                return !u.isTeacher && String(u.grade)===String(myInfo.grade) && String(u.classNum)===String(myInfo.classNum);
+            }).length;
+            // 학생 채팅 카드 참가자 목록도 갱신
+            if(myInfo.isTeacher) renderTeacherDashboard(); else renderStudentMultiScreen();
+        });
     }
 
     function getRankString(userName) {
@@ -2760,7 +2757,14 @@ textarea.finput{resize:vertical;}
             }
         });
 
-        database.ref('users').on('value', snapshot => { localUsers = snapshot.val() || {}; updateViews(); });
+        database.ref('users').on('value', snapshot => {
+            localUsers = snapshot.val() || {};
+            // 사이드바 명단 즉시 갱신
+            renderUserList();
+            // 채팅 카드 참가자 목록도 함께 갱신
+            if (myInfo && myInfo.isTeacher) renderTeacherDashboard();
+            else if (myInfo && myInfo.name) renderStudentMultiScreen();
+        });
         database.ref('rooms').on('value', snapshot => { localRooms = {}; snapshot.forEach(child => { localRooms[child.key] = child.val(); }); updateViews(); });
         database.ref('messages').on('value', snapshot => { localMessages = []; localMessageKeys = {}; snapshot.forEach(child => { localMessages.push(child.val()); localMessageKeys[child.key] = child.val().roomId; }); updateViews(); });
         database.ref(`classScores/${myInfo.grade}_${myInfo.classNum}`).on('value', snapshot => { localClassScores = snapshot.val() || {}; updateViews(); });
@@ -6605,6 +6609,15 @@ function stu_showCodeLoginModal() {
     // Escape 키로 닫히는 것 차단
     document._codeModalKeyGuard = function(e){ if(e.key==='Escape')e.stopImmediatePropagation(); };
     document.addEventListener('keydown', document._codeModalKeyGuard, true);
+}
+function stu_cancelCodeLogin() {
+    document.getElementById('stu-modal-code-login').style.display = 'none';
+    if(document._codeModalKeyGuard){
+        document.removeEventListener('keydown', document._codeModalKeyGuard, true);
+        delete document._codeModalKeyGuard;
+    }
+    // 코드 입력 포기 → 로그아웃(로그인 화면으로 복귀)
+    if(typeof handleLogout === 'function') handleLogout();
 }
 function stu_confirmCodeLogin() {
     const code = document.getElementById('stu-code-input').value.trim();
