@@ -1326,7 +1326,7 @@ function renderPizza(n, split) {
 function renderBar(n, highlighted) {
   const track = document.getElementById('bar-track');
   if (!track) return;
-  if (n <= 0) { track.innerHTML = ''; return; }
+  if (n <= 0) { track.innerHTML = '<div class="bar-seg"></div>'; return; }
   let html = '';
   for (let i = 0; i < n; i++) {
     html += `<div class="bar-seg${i === 0 && highlighted ? ' bar-highlight' : ''}"></div>`;
