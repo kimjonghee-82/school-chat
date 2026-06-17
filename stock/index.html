@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>실시간 주가 조회</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, "Noto Sans KR", sans-serif;
+    max-width: 640px;
+    margin: 40px auto;
+    padding: 0 16px;
+    background: #f7f7f9;
+  }
+  h1 { font-size: 1.4rem; margin-bottom: 4px; }
+  .sub { color: #666; font-size: 0.85rem; margin-bottom: 24px; }
+  .search-box { position: relative; }
+  input[type="text"] {
+    width: 100%;
+    padding: 12px 14px;
+    font-size: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    box-sizing: border-box;
+  }
+  .results {
+    position: absolute;
+    z-index: 10;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    width: 100%;
+    margin-top: 4px;
+    max-height: 280px;
+    overflow-y: auto;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  }
+  .results div {
+    padding: 10px 14px;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .results div:hover { background: #f2f6ff; }
+  .results .name { font-size: 0.8rem; color: #777; }
+
+  .card {
+    margin-top: 28px;
+    background: #fff;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+    display: none;
+  }
+  .card.active { display: block; }
+  .symbol { font-size: 1.1rem; font-weight: 600; }
+  .name { color: #777; font-size: 0.9rem; margin-bottom: 12px; }
+  .price { font-size: 2.4rem; font-weight: 700; }
+  .change { font-size: 1.1rem; margin-top: 4px; }
+  .up { color: #d92626; }
+  .down { color: #1361e0; }
+  .flat { color: #777; }
+  .meta { margin-top: 16px; font-size: 0.85rem; color: #888; display: flex; justify-content: space-between; }
+  .status { font-size: 0.8rem; color: #aaa; margin-top: 4px; }
+</style>
+</head>
+<body>
+  <h1>실시간 주가 조회</h1>
+  <div class="sub">종목명 또는 코드를 검색해 선택하면 5초마다 시세가 갱신됩니다.</div>
+
+  <div class="search-box">
+    <input type="text" id="searchInput" placeholder="예: 삼성전자, AAPL, 005930.KS" autocomplete="off">
+    <div class="results" id="results" hidden></div>
+  </div>
+
+  <div class="card" id="card">
+    <div class="symbol" id="symbol"></div>
+    <div class="name" id="fullName"></div>
+    <div class="price" id="price"></div>
+    <div class="change" id="change"></div>
+    <div class="meta">
+      <span id="currency"></span>
+      <span id="marketState"></span>
+    </div>
+    <div class="status" id="status"></div>
+  </div>
+
+<script>
+const PROXY = "https://api.allorigins.win/raw?url=";
+const SEARCH_URL = (q) => PROXY + encodeURIComponent(`https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(q)}&quotesCount=8&newsCount=0`);
+const QUOTE_URL = (symbol) => PROXY + encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}`);
+
+const input = document.getElementById("searchInput");
+const resultsEl = document.getElementById("results");
+const card = document.getElementById("card");
+const symbolEl = document.getElementById("symbol");
+const nameEl = document.getElementById("fullName");
+const priceEl = document.getElementById("price");
+const changeEl = document.getElementById("change");
+const currencyEl = document.getElementById("currency");
+const marketStateEl = document.getElementById("marketState");
+const statusEl = document.getElementById("status");
+
+let searchTimer = null;
+let refreshTimer = null;
+let currentSymbol = null;
+
+input.addEventListener("input", () => {
+  clearTimeout(searchTimer);
+  const q = input.value.trim();
+  if (!q) { resultsEl.hidden = true; return; }
+  searchTimer = setTimeout(() => runSearch(q), 350);
+});
+
+document.addEventListener("click", (e) => {
+  if (!resultsEl.contains(e.target) && e.target !== input) resultsEl.hidden = true;
+});
+
+async function runSearch(q) {
+  try {
+    const res = await fetch(SEARCH_URL(q));
+    const data = await res.json();
+    const quotes = (data.quotes || []).filter(item => item.symbol);
+    renderResults(quotes);
+  } catch (err) {
+    resultsEl.innerHTML = `<div>검색 실패: ${err.message}</div>`;
+    resultsEl.hidden = false;
+  }
+}
+
+function renderResults(quotes) {
+  if (!quotes.length) {
+    resultsEl.innerHTML = `<div>검색 결과가 없습니다.</div>`;
+    resultsEl.hidden = false;
+    return;
+  }
+  resultsEl.innerHTML = quotes.map(q => `
+    <div data-symbol="${q.symbol}">
+      <div>${q.symbol}</div>
+      <div class="name">${q.shortname || q.longname || ""}</div>
+    </div>
+  `).join("");
+  resultsEl.hidden = false;
+  resultsEl.querySelectorAll("div[data-symbol]").forEach(el => {
+    el.addEventListener("click", () => {
+      selectSymbol(el.dataset.symbol);
+      resultsEl.hidden = true;
+      input.value = el.dataset.symbol;
+    });
+  });
+}
+
+function selectSymbol(symbol) {
+  currentSymbol = symbol;
+  card.classList.add("active");
+  clearInterval(refreshTimer);
+  fetchQuote(symbol);
+  refreshTimer = setInterval(() => fetchQuote(symbol), 5000);
+}
+
+async function fetchQuote(symbol) {
+  try {
+    statusEl.textContent = "갱신 중...";
+    const res = await fetch(QUOTE_URL(symbol));
+    const data = await res.json();
+    const result = data.chart && data.chart.result && data.chart.result[0];
+    if (!result) throw new Error("데이터 없음");
+
+    const meta = result.meta;
+    const price = meta.regularMarketPrice;
+    const prevClose = meta.chartPreviousClose ?? meta.previousClose;
+    const diff = price - prevClose;
+    const pct = (diff / prevClose) * 100;
+
+    symbolEl.textContent = meta.symbol;
+    nameEl.textContent = meta.longName || meta.shortName || "";
+    priceEl.textContent = price.toLocaleString(undefined, { maximumFractionDigits: 2 });
+
+    const sign = diff > 0 ? "+" : "";
+    changeEl.textContent = `${sign}${diff.toFixed(2)} (${sign}${pct.toFixed(2)}%)`;
+    changeEl.className = "change " + (diff > 0 ? "up" : diff < 0 ? "down" : "flat");
+
+    currencyEl.textContent = meta.currency || "";
+    marketStateEl.textContent = meta.marketState || "";
+    statusEl.textContent = `마지막 갱신: ${new Date().toLocaleTimeString()}`;
+  } catch (err) {
+    statusEl.textContent = `오류: ${err.message}`;
+  }
+}
+</script>
+</body>
+</html>
