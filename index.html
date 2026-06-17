@@ -872,6 +872,10 @@ textarea.finput{resize:vertical;}
         <button class="main-tab-btn" id="tab-monitor" onclick="switchMainTab('monitor')" style="display:none">
             <span class="main-tab-icon">👁️</span>모니터링
         </button>
+        <button class="main-tab-btn" id="tab-share" onclick="switchMainTab('share')" style="display:none">
+            <span class="main-tab-icon">📡</span>공유
+            <span id="share-live-dot" style="display:none;width:7px;height:7px;background:#22C55E;border-radius:50%;margin-left:4px;vertical-align:middle;display:inline-block"></span>
+        </button>
     </div>
 
     <!-- ═══ STUDENT POINTS SCREEN ═══ -->
@@ -2591,6 +2595,8 @@ textarea.finput{resize:vertical;}
                 document.getElementById('pts-student-screen').style.display = 'block';
                 if (typeof stu_initStudentApp === 'function') stu_initStudentApp(name);
                 setTimeout(function() { if (typeof mon_startStudentStream === 'function') mon_startStudentStream(); }, 1500);
+                var shareBtn = document.getElementById('tab-share');
+                if (shareBtn) shareBtn.style.display = '';
             }
 
             if (!isTeacher) {
@@ -2679,6 +2685,7 @@ textarea.finput{resize:vertical;}
         if (!myInfo.isTeacher && myInfo.name) {
             const defaultRoomId = `group_${myInfo.grade}_${myInfo.classNum}`;
             database.ref(`rooms/${defaultRoomId}/members/${myInfo.name}`).remove();
+            if (typeof mon_stopScreenShare === 'function' && mon_shareActive) mon_stopScreenShare();
             if (typeof mon_stopStudentStream === 'function') mon_stopStudentStream();
         }
         if (myUserRef) myUserRef.remove().then(() => location.reload()).catch(() => location.reload());
@@ -8577,6 +8584,8 @@ function switchMainTab(tab) {
     document.getElementById('sk-student-screen').style.display = 'none';
     var monScreen = document.getElementById('mon-screen');
     if (monScreen) monScreen.style.display = 'none';
+    var shareScreen = document.getElementById('share-screen');
+    if (shareScreen) shareScreen.style.display = 'none';
 
     if (tab === 'points') {
         if (currentUser && currentUser.role === 'student') {
@@ -8596,10 +8605,12 @@ function switchMainTab(tab) {
         document.getElementById('persistent-top-nav').style.display = 'flex';
     } else if (tab === 'monitor') {
         switchToMonitoring();
+    } else if (tab === 'share') {
+        switchToShareScreen();
     }
 
     // Update tab active state
-    ['tab-points', 'tab-chat', 'tab-sketch', 'tab-monitor'].forEach(function(id) {
+    ['tab-points', 'tab-chat', 'tab-sketch', 'tab-monitor', 'tab-share'].forEach(function(id) {
         var el = document.getElementById(id);
         if (el) el.classList.toggle('active', id === 'tab-' + tab);
     });
@@ -8766,6 +8777,34 @@ function switchMainTab(tab) {
     </div>
 </div>
 
+<!-- ═══ 화면 공유 화면 (학생 전용) ═══ -->
+<div id="share-screen" style="display:none; position:fixed; inset:0; z-index:50; background:#0F172A; padding-top:52px; box-sizing:border-box;">
+    <div style="display:flex; align-items:center; justify-content:center; height:100%; padding:20px; box-sizing:border-box;">
+        <div style="text-align:center; max-width:360px; width:100%;">
+            <div id="share-status-icon" style="font-size:72px; margin-bottom:20px; line-height:1">🖥️</div>
+            <div id="share-status-title" style="color:white; font-size:20px; font-weight:800; margin-bottom:8px">화면 공유</div>
+            <div id="share-status-sub" style="color:#64748B; font-size:13px; line-height:1.6; margin-bottom:36px">
+                버튼을 누르면 선생님이 내 화면 전체를<br>실시간으로 볼 수 있습니다
+            </div>
+            <button id="share-start-btn" onclick="mon_startScreenShare()"
+                style="width:100%; padding:16px; background:linear-gradient(135deg,#6366F1,#4F46E5); color:white; border:none; border-radius:14px; font-size:16px; font-weight:800; cursor:pointer; margin-bottom:12px; box-shadow:0 4px 20px rgba(99,102,241,0.4)">
+                📡 화면 공유 시작
+            </button>
+            <button id="share-stop-btn" onclick="mon_stopScreenShare()"
+                style="display:none; width:100%; padding:16px; background:#EF4444; color:white; border:none; border-radius:14px; font-size:16px; font-weight:800; cursor:pointer; margin-bottom:12px; box-shadow:0 4px 20px rgba(239,68,68,0.4)">
+                ⏹ 공유 중지
+            </button>
+            <div id="share-sharing-badge" style="display:none; background:#052E16; border:1px solid #16A34A; border-radius:10px; padding:10px 16px; margin-top:8px">
+                <span style="display:inline-block; width:8px; height:8px; background:#22C55E; border-radius:50%; margin-right:6px; vertical-align:middle; animation:pulse 1.5s infinite"></span>
+                <span style="color:#4ADE80; font-size:13px; font-weight:700">선생님과 공유 중입니다</span>
+            </div>
+            <p style="color:#334155; font-size:11px; margin-top:20px; line-height:1.6">
+                브라우저에서 공유할 화면을 선택하면<br>자동으로 전송됩니다
+            </p>
+        </div>
+    </div>
+</div>
+
 <!-- ═══ 모니터링 화면 (교사 전용) ═══ -->
 <div id="mon-screen" style="display:none; position:fixed; inset:0; overflow-y:auto; z-index:50; background:#0F172A; padding-top:52px; box-sizing:border-box;">
     <div style="padding:16px">
@@ -8795,6 +8834,111 @@ function switchMainTab(tab) {
 </div>
 
 <script>
+/* ═══ SCREEN SHARE MODULE ═══ */
+var mon_shareStream = null;
+var mon_shareVideo = null;
+var mon_shareCanvas = null;
+var mon_shareCtx = null;
+var mon_shareInterval = null;
+var mon_shareRef = null;
+var mon_shareActive = false;
+
+function switchToShareScreen() {
+    document.getElementById('share-screen').style.display = 'block';
+    document.getElementById('persistent-top-nav').style.display = 'flex';
+}
+
+async function mon_startScreenShare() {
+    if (!myInfo || myInfo.isTeacher || !database) return;
+    try {
+        var stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+        mon_shareStream = stream;
+        mon_shareActive = true;
+
+        // html2canvas 스트림 일시 중단 (충돌 방지)
+        if (mon_streamInterval) { clearTimeout(mon_streamInterval); mon_streamInterval = null; }
+
+        var video = document.createElement('video');
+        video.srcObject = stream;
+        video.muted = true;
+        mon_shareVideo = video;
+
+        var canvas = document.createElement('canvas');
+        mon_shareCanvas = canvas;
+        mon_shareCtx = canvas.getContext('2d');
+
+        var uid = myInfo.grade + '-' + myInfo.classNum + '-' + myInfo.name;
+        var path = 'monitoring/' + myInfo.grade + '-' + myInfo.classNum + '/' + uid;
+        mon_shareRef = database.ref(path);
+        mon_shareRef.onDisconnect().remove();
+        // 기존 app-capture ref도 disconnect 정리
+        if (mon_studentRef) { mon_studentRef.onDisconnect().cancel(); }
+
+        stream.getVideoTracks()[0].addEventListener('ended', function() {
+            mon_stopScreenShare();
+        });
+
+        video.addEventListener('loadedmetadata', function() {
+            canvas.width = Math.round(video.videoWidth * 0.4);
+            canvas.height = Math.round(video.videoHeight * 0.4);
+
+            function captureFrame() {
+                if (!mon_shareStream || !mon_shareStream.active) return;
+                try {
+                    mon_shareCtx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    var img = canvas.toDataURL('image/jpeg', 0.5);
+                    if (mon_shareRef) mon_shareRef.set({ img: img, ts: Date.now(), name: myInfo.name, type: 'screen' });
+                } catch(e) {}
+                mon_shareInterval = setTimeout(captureFrame, 1000);
+            }
+            video.play().then(function() { captureFrame(); });
+        });
+
+        mon_updateShareUI(true);
+    } catch(e) {
+        mon_shareActive = false;
+        if (e.name !== 'NotAllowedError') alert('화면 공유를 시작할 수 없습니다: ' + e.message);
+    }
+}
+
+function mon_stopScreenShare() {
+    mon_shareActive = false;
+    if (mon_shareInterval) { clearTimeout(mon_shareInterval); mon_shareInterval = null; }
+    if (mon_shareStream) { mon_shareStream.getTracks().forEach(function(t) { t.stop(); }); mon_shareStream = null; }
+    if (mon_shareRef) { mon_shareRef.remove(); mon_shareRef = null; }
+    mon_shareVideo = null; mon_shareCanvas = null; mon_shareCtx = null;
+    mon_updateShareUI(false);
+    // html2canvas 스트림 재개
+    if (myInfo && !myInfo.isTeacher && myInfo.name) mon_startStudentStream();
+}
+
+function mon_updateShareUI(sharing) {
+    var icon = document.getElementById('share-status-icon');
+    var title = document.getElementById('share-status-title');
+    var sub = document.getElementById('share-status-sub');
+    var startBtn = document.getElementById('share-start-btn');
+    var stopBtn = document.getElementById('share-stop-btn');
+    var badge = document.getElementById('share-sharing-badge');
+    var dot = document.getElementById('share-live-dot');
+    if (sharing) {
+        if (icon) icon.textContent = '📡';
+        if (title) { title.textContent = '공유 중'; title.style.color = '#4ADE80'; }
+        if (sub) sub.textContent = '선생님이 내 화면을 보고 있습니다';
+        if (startBtn) startBtn.style.display = 'none';
+        if (stopBtn) stopBtn.style.display = '';
+        if (badge) badge.style.display = '';
+        if (dot) dot.style.display = 'inline-block';
+    } else {
+        if (icon) icon.textContent = '🖥️';
+        if (title) { title.textContent = '화면 공유'; title.style.color = 'white'; }
+        if (sub) sub.innerHTML = '버튼을 누르면 선생님이 내 화면 전체를<br>실시간으로 볼 수 있습니다';
+        if (startBtn) startBtn.style.display = '';
+        if (stopBtn) stopBtn.style.display = 'none';
+        if (badge) badge.style.display = 'none';
+        if (dot) dot.style.display = 'none';
+    }
+}
+
 /* ═══ MONITORING MODULE ═══ */
 var mon_streamInterval = null;
 var mon_studentRef = null;
@@ -8882,6 +9026,7 @@ function mon_renderGrid(data) {
             var header = document.createElement('div');
             header.style.cssText = 'padding:6px 10px;background:#0F172A;display:flex;align-items:center;justify-content:space-between;';
             header.innerHTML = '<span style="color:#E2E8F0;font-size:12px;font-weight:700">' + displayName + '</span>' +
+                '<span id="mon-type-' + uid + '" style="font-size:9px;color:#94A3B8;margin-right:4px"></span>' +
                 '<span style="width:7px;height:7px;background:#22C55E;border-radius:50%;display:inline-block;flex-shrink:0"></span>';
             var imgEl2 = document.createElement('img');
             imgEl2.id = 'mon-img-' + uid;
@@ -8895,6 +9040,9 @@ function mon_renderGrid(data) {
 
         var imgEl = document.getElementById('mon-img-' + uid);
         if (imgEl && d && d.img) imgEl.src = d.img;
+
+        var typeEl = document.getElementById('mon-type-' + uid);
+        if (typeEl) typeEl.textContent = (d && d.type === 'screen') ? '🖥️전체화면' : '';
 
         // auto-update modal if this student is currently shown
         if (mon_openUid === uid && d && d.img) {
