@@ -2222,9 +2222,8 @@ document.getElementById('concept-input').addEventListener('keydown', e => {
 document.getElementById('concept-reset').addEventListener('click', initConcept);
 
 // ── 최상위 탭 전환 ────────────────────────────────────────
-function switchPage(page) {
-  // 학생: 실제 권한 상태로 차단
-  if (session.role === 'student' && !studentTabPerms[page]) return;
+// 권한 체크 없이 실제로 페이지 전환 (내부 전용)
+function _doSwitchPage(page) {
   document.querySelectorAll('.top-tab').forEach(t => t.classList.remove('active'));
   const activeTab = document.querySelector(`.top-tab[data-page="${page}"]`);
   if (activeTab) activeTab.classList.add('active');
@@ -2234,6 +2233,12 @@ function switchPage(page) {
   document.getElementById('view-tabs-bar').style.display = page === 'compare' ? 'flex' : 'none';
   document.getElementById('page-game').style.display = page === 'game' ? 'flex' : 'none';
   if (page === 'game') onGameTabOpen();
+}
+
+function switchPage(page) {
+  // 학생: 실제 권한 상태로 차단
+  if (session.role === 'student' && !studentTabPerms[page]) return;
+  _doSwitchPage(page);
 }
 
 document.querySelectorAll('.top-tab').forEach(tab => {
@@ -2450,14 +2455,11 @@ function enterAsStudent(name, code) {
       document.getElementById('page-waiting').style.display = 'flex';
     }
 
-    // 새로 허용된 탭이 생기면, 대기 화면 중일 때만 첫 허용 탭으로 이동
+    // 대기 화면이면 첫 허용 탭으로 이동 (권한이 이미 확인됐으므로 _doSwitchPage 직접 호출)
     const onWaiting = document.getElementById('page-waiting').style.display !== 'none';
     if (onWaiting) {
       const firstAllowed = tabs.find(t => perms[t]);
-      if (firstAllowed) {
-        document.getElementById('page-waiting').style.display = 'none';
-        switchPage(firstAllowed);
-      }
+      if (firstAllowed) _doSwitchPage(firstAllowed);
     }
 
     prevPerms = perms;
