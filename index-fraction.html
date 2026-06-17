@@ -664,6 +664,49 @@ body {
 }
 .student-waiting { font-size: 18px; font-weight: 700; color: rgba(255,255,255,.5); }
 .student-room-info { font-size: 13px; color: rgba(255,255,255,.3); }
+
+/* ── 역할 바 (로그인 후 항상 표시) ── */
+#role-bar {
+  display: none;
+  background: #1a1a2e;
+  padding: 0 20px;
+  height: 44px;
+  align-items: center; gap: 20px;
+  border-bottom: 2px solid rgba(255,255,255,.12);
+  flex-shrink: 0;
+}
+.role-bar-code {
+  font-size: 13px; font-weight: 700; color: rgba(255,255,255,.55);
+  letter-spacing: 1px; display: flex; align-items: center; gap: 10px;
+  white-space: nowrap;
+}
+.role-bar-code span {
+  color: #ffd580; letter-spacing: 7px; font-size: 20px; font-weight: 900;
+}
+.role-bar-divider {
+  width: 1px; height: 22px; background: rgba(255,255,255,.18);
+}
+/* 탭 권한 토글 버튼 (교사만) */
+.tab-perm-area {
+  display: flex; align-items: center; gap: 8px;
+}
+.tab-perm-label {
+  font-size: 11px; color: rgba(255,255,255,.4); font-weight: 700; white-space: nowrap;
+}
+.tab-perm-btn {
+  padding: 5px 13px; border-radius: 14px;
+  border: 1.5px solid rgba(255,255,255,.25);
+  background: rgba(255,255,255,.07); color: rgba(255,255,255,.45);
+  font-size: 12px; font-weight: 700; cursor: pointer; transition: all .2s;
+  white-space: nowrap;
+}
+.tab-perm-btn.on {
+  background: #e06020; border-color: #e06020; color: white;
+}
+/* 학생용: 잠긴 탭 */
+.top-tab.locked {
+  opacity: 0.35; cursor: not-allowed; pointer-events: none;
+}
 </style>
 </head>
 <body>
@@ -732,6 +775,21 @@ body {
   </div>
 </div>
 
+<!-- 역할 바: 로그인 후 모든 탭에서 표시 -->
+<div id="role-bar">
+  <div class="role-bar-code">방 코드 &nbsp;<span id="role-bar-code-val">-----</span></div>
+  <div class="role-bar-divider"></div>
+  <!-- 교사용: 탭 허용 토글 -->
+  <div class="tab-perm-area" id="teacher-tab-perms" style="display:none;">
+    <span class="tab-perm-label">학생 허용:</span>
+    <button class="tab-perm-btn" id="perm-btn-concept" data-tab="concept">개념 익히기</button>
+    <button class="tab-perm-btn" id="perm-btn-compare" data-tab="compare">크기 비교</button>
+    <button class="tab-perm-btn" id="perm-btn-game" data-tab="game">분수 게임</button>
+  </div>
+  <!-- 학생용: 이름 표시 -->
+  <div id="student-role-info" style="display:none; font-size:12px; color:rgba(255,255,255,.4); font-weight:700;"></div>
+</div>
+
 <div id="page-concept">
   <button class="concept-mode-btn" id="concept-mode-btn">📊 막대</button>
   <div class="concept-body">
@@ -777,12 +835,6 @@ body {
 <div id="page-game">
   <!-- 교사용 화면 -->
   <div id="game-teacher-view" style="display:none;">
-    <!-- 상단: 방코드 바 (1/10 세로) -->
-    <div class="game-topbar">
-      <div class="game-room-code-label">
-        방 코드 <span id="game-room-code-val">-----</span>
-      </div>
-    </div>
     <!-- 하단: 목록(왼) | 분수영역(중) | 정답패널(오른) -->
     <div class="game-main-row" style="position:relative;">
       <!-- 학생 목록 (왼쪽, 반응형) -->
@@ -1796,6 +1848,11 @@ document.getElementById('concept-reset').addEventListener('click', initConcept);
 
 // ── 최상위 탭 전환 ────────────────────────────────────────
 function switchPage(page) {
+  // 학생은 잠긴 탭으로 이동 불가
+  if (session.role === 'student') {
+    const tabEl = document.querySelector(`.top-tab[data-page="${page}"]`);
+    if (tabEl && tabEl.classList.contains('locked')) return;
+  }
   document.querySelectorAll('.top-tab').forEach(t => t.classList.remove('active'));
   const activeTab = document.querySelector(`.top-tab[data-page="${page}"]`);
   if (activeTab) activeTab.classList.add('active');
@@ -1839,6 +1896,7 @@ const TEACHER_PW = '1234';
 function showLoginScreen() {
   document.getElementById('login-screen').style.display = 'flex';
   document.querySelector('.header').style.display = 'none';
+  document.getElementById('role-bar').style.display = 'none';
   document.getElementById('page-compare').style.display = 'none';
   document.getElementById('view-tabs-bar').style.display = 'none';
 }
@@ -1846,6 +1904,7 @@ function showLoginScreen() {
 function hideLoginScreen() {
   document.getElementById('login-screen').style.display = 'none';
   document.querySelector('.header').style.display = 'flex';
+  document.getElementById('role-bar').style.display = 'flex';
 }
 
 function resetLoginBoxes() {
@@ -1921,9 +1980,28 @@ document.getElementById('login-student-submit').addEventListener('click', async 
   });
 });
 
+let tabPermListener = null;
+
 function enterAsTeacher() {
   session.role = 'teacher';
+  session.roomCode = genRoomCode();
+  db.ref(`rooms/${session.roomCode}`).set({
+    createdAt: firebase.database.ServerValue.TIMESTAMP,
+    tabs: { concept: false, compare: false, game: false }
+  });
   hideLoginScreen();
+  // 방코드 표시 + 교사 탭 권한 UI 표시
+  document.getElementById('role-bar-code-val').textContent = session.roomCode;
+  document.getElementById('teacher-tab-perms').style.display = 'flex';
+  document.getElementById('student-role-info').style.display = 'none';
+  // 탭 권한 버튼 이벤트
+  document.querySelectorAll('.tab-perm-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.dataset.tab;
+      const isOn = btn.classList.toggle('on');
+      db.ref(`rooms/${session.roomCode}/tabs/${tab}`).set(isOn);
+    });
+  });
   switchPage('game');
 }
 
@@ -1933,6 +2011,23 @@ function enterAsStudent(name, code) {
   session.roomCode = code;
   session.studentId = 'std_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
   hideLoginScreen();
+  // 방코드 + 이름 표시
+  document.getElementById('role-bar-code-val').textContent = session.roomCode;
+  document.getElementById('teacher-tab-perms').style.display = 'none';
+  const infoEl = document.getElementById('student-role-info');
+  infoEl.style.display = 'block';
+  infoEl.textContent = session.name + ' (학생)';
+  // 탭 권한 실시간 반영
+  if (tabPermListener) db.ref(`rooms/${session.roomCode}/tabs`).off('value', tabPermListener);
+  tabPermListener = db.ref(`rooms/${session.roomCode}/tabs`).on('value', snap => {
+    const perms = snap.val() || {};
+    ['concept','compare','game'].forEach(tab => {
+      const tabEl = document.querySelector(`.top-tab[data-page="${tab}"]`);
+      if (!tabEl) return;
+      if (perms[tab]) tabEl.classList.remove('locked');
+      else tabEl.classList.add('locked');
+    });
+  });
   switchPage('game');
 }
 
@@ -1959,12 +2054,7 @@ function openTeacherGame() {
   tv.style.display = 'flex'; tv.style.flex = '1'; tv.style.flexDirection = 'column';
   document.getElementById('game-student-view').style.display = 'none';
 
-  if (!session.roomCode) {
-    session.roomCode = genRoomCode();
-    db.ref(`rooms/${session.roomCode}`).set({ createdAt: firebase.database.ServerValue.TIMESTAMP });
-  }
-
-  document.getElementById('game-room-code-val').textContent = session.roomCode;
+  // roomCode already created in enterAsTeacher()
 
   // 학생 목록 실시간 리스닝
   if (rosterListener) rosterRef.off('value', rosterListener);
