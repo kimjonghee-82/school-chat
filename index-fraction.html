@@ -897,6 +897,10 @@ function onQuizClick(sym) {
         const qTrig = document.getElementById('quiz-trigger');
         if (qTrig) qTrig.classList.add('active');
       }, 300);
+    }, 1200);
+  });
+}
+
 // ── 비교하기 ─────────────────────────────────────────────
 function doCompare() {
   const fracs = state.fractions.slice(0, state.count);
