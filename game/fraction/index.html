@@ -1162,7 +1162,7 @@ body {
       <!-- 정답 패널 (오른쪽, 반응형) -->
       <div class="game-answer-panel" id="game-answer-panel">
         <div class="answer-panel-header">
-          <span>정답</span>
+          <span>정답 <span id="answer-count-debug" style="font-size:11px;color:#aaa;"></span></span>
           <div style="display:flex;align-items:center;gap:6px;position:relative;">
             <!-- 톱니바퀴 채점 설정 (answer panel 내, 항상 유지) -->
             <button class="scoring-gear-btn" id="scoring-gear-btn" onclick="toggleScoringPanel()" title="채점 설정" style="width:26px;height:26px;font-size:15px;">⚙</button>
@@ -2515,6 +2515,7 @@ function enterAsStudent(name, code) {
       const perms = snap.val() || {};
       if (bar) bar.textContent = '[디버그] 폴링#' + pollCount + ' 방:' + session.roomCode +
         ' 개념:' + (perms.concept?'O':'X') + ' 비교:' + (perms.compare?'O':'X') + ' 게임:' + (perms.game?'O':'X') +
+        ' ID:' + session.studentId.slice(-8) +
         ' ' + new Date().toLocaleTimeString();
       applyStudentPerms(perms);
     } catch(e) {
@@ -2606,6 +2607,8 @@ function openTeacherGame() {
     }
     const items = [];
     snap.forEach(child => items.push({ sid: child.key, ...child.val() }));
+    const cntEl = document.getElementById('answer-count-debug');
+    if (cntEl) cntEl.textContent = '(DB ' + items.length + '명)';
     // 5명 초과면 3열
     listEl.className = 'answer-list' + (items.length > 4 ? ' cols3' : '');
     const thumbSize = items.length > 4 ? 64 : 80;
@@ -2619,6 +2622,7 @@ function openTeacherGame() {
           const badge = (sc && sc.total > 0) ? `<span class="answer-sub-score-inline">${sc.total}점</span>` : '';
           return `<div class="answer-submission" data-sid="${escHtml(d.sid)}" onclick="openSubmissionModal('${escHtml(d.name||'')}','${escHtml(d.num)}','${escHtml(d.den)}','${(d.coloredSectors||[]).join(',')}')">
             <div class="answer-sub-name" data-name="${escHtml(d.name||'?')}">${escHtml(d.name||'?')}${badge}</div>
+            <div style="font-size:9px;color:#999;">ID:${escHtml(d.sid.slice(-8))}</div>
             <div class="answer-sub-frac">
               <div class="answer-sub-num">${escHtml(d.num)}</div>
               <div class="answer-sub-line"></div>
