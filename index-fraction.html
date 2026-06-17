@@ -339,66 +339,101 @@ function renderFracViz(vizEl, num, den, color, sz) {
   }
 }
 
-// ── 비교 뷰: 나란히 배치 (색 섞임 없음) ─────────────────
+// ── 투명 배경 파이 (채워진 영역만 본연의 색, 빈 영역 투명) ──
+function makePieOverlayPaths(num, den, color, size) {
+  const cx = size/2, cy = size/2, r = size/2 - 4;
+  if (!den || den < 1) return '';
+  const n = Math.min(Math.max(0, num||0), den);
+  let p = '';
+  // 채워진 슬라이스만 그리기 (빈 슬라이스는 투명 = 생략)
+  for (let i = 0; i < n; i++) {
+    const a0 = (i/den)*2*Math.PI - Math.PI/2;
+    const a1 = ((i+1)/den)*2*Math.PI - Math.PI/2;
+    const x0 = cx+r*Math.cos(a0), y0 = cy+r*Math.sin(a0);
+    const x1 = cx+r*Math.cos(a1), y1 = cy+r*Math.sin(a1);
+    const lg = (a1-a0 > Math.PI) ? 1 : 0;
+    const d = den===1
+      ? `M ${cx} ${cy} m -${r} 0 a ${r} ${r} 0 1 1 ${r*2} 0 a ${r} ${r} 0 1 1 -${r*2} 0 Z`
+      : `M ${cx} ${cy} L ${x0} ${y0} A ${r} ${r} 0 ${lg} 1 ${x1} ${y1} Z`;
+    p += `<path d="${d}" fill="${color}" stroke="none"/>`;
+  }
+  // 구분선 (모든 칸)
+  for (let i = 0; i < den; i++) {
+    const a = (i/den)*2*Math.PI - Math.PI/2;
+    const lx = cx+r*Math.cos(a), ly = cy+r*Math.sin(a);
+    p += `<line x1="${cx}" y1="${cy}" x2="${lx}" y2="${ly}" stroke="rgba(80,80,80,0.4)" stroke-width="0.8" stroke-dasharray="3 2"/>`;
+  }
+  // 원 테두리 (본연의 색)
+  p += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="2.5"/>`;
+  return p;
+}
+
+function makeBarOverlayPaths(num, den, color, w, h) {
+  if (!den || den < 1) return '';
+  const n = Math.min(Math.max(0, num||0), den);
+  const sw = (w-4)/den; let p = '';
+  // 채워진 칸만 그리기 (빈 칸 투명)
+  for (let i = 0; i < n; i++) {
+    p += `<rect x="${2+i*sw}" y="2" width="${sw-1}" height="${h-4}" rx="3" fill="${color}" stroke="none"/>`;
+  }
+  // 구분선
+  for (let i = 1; i < den; i++) {
+    const lx = 2 + i*sw;
+    p += `<line x1="${lx}" y1="2" x2="${lx}" y2="${h-2}" stroke="rgba(80,80,80,0.35)" stroke-width="0.8" stroke-dasharray="3 2"/>`;
+  }
+  // 테두리
+  p += `<rect x="2" y="2" width="${w-4}" height="${h-4}" rx="6" fill="none" stroke="${color}" stroke-width="2"/>`;
+  return p;
+}
+
+// ── 비교 뷰: 겹치기 (빈 영역 투명 → 색 섞임 없음) ────────
 function renderCmpView() {
   const cmpWrap = document.getElementById('cmp-wrap');
   if (!cmpWrap) return;
 
   const fracs = state.fractions.slice(0, state.count);
-  const n = state.count;
-  const slotW = 140;
-  const totalW = n * slotW;
-  const viewH  = 180;
-  const sz     = 110; // 각 분수 원 크기
-  const barH   = 60;
+  const sz    = 280;
+  const barH  = 100;
 
-  // 동적으로 크기 설정
-  cmpWrap.style.width        = totalW + 'px';
-  cmpWrap.style.height       = viewH  + 'px';
-  cmpWrap.style.borderRadius = '16px';
+  if (state.viewMode === 'circle') {
+    cmpWrap.style.width        = sz + 'px';
+    cmpWrap.style.height       = sz + 'px';
+    cmpWrap.style.borderRadius = '50%';
 
-  let content = '';
+    // 배경 회색 원 (경계 표시)
+    const cx = sz/2, r = sz/2 - 4;
+    let content = `<circle cx="${cx}" cy="${cx}" r="${r}" fill="#f8f8f8" stroke="#ddd" stroke-width="1.5"/>`;
 
-  fracs.forEach((f, i) => {
-    const num = parseInt(f.num)||0, den = parseInt(f.den)||0;
-    const cx = i * slotW + slotW/2;
-    const color = COLORS[i];
+    // 값 큰 순서로 먼저 그림 (큰 것이 아래, 작은 것이 위)
+    const sorted = fracs
+      .map((f,i) => ({...f, color: COLORS[i], val: (parseInt(f.num)||0)/(parseInt(f.den)||1)}))
+      .sort((a,b) => b.val - a.val);
 
-    if (state.viewMode === 'circle') {
-      // 가분수 처리: 나눠서 표시
-      if (num > den && den > 0) {
-        const whole = Math.floor(num/den);
-        const rem   = num % den;
-        const total = whole + (rem > 0 ? 1 : 0);
-        const sm    = Math.max(Math.floor((slotW - 8) / total - 4), 30);
-        const startX = cx - (total * (sm+4) - 4) / 2;
-        const y = (viewH - sm) / 2;
-        for (let k = 0; k < whole; k++) {
-          const svg = makePieSVG(den, den, color, sm);
-          content += `<g transform="translate(${startX + k*(sm+4)},${y})">${svg.replace(/<\/?svg[^>]*>/g,'')}</g>`;
-        }
-        if (rem > 0) {
-          const svg = makePieSVG(rem, den, color, sm);
-          content += `<g transform="translate(${startX + whole*(sm+4)},${y})">${svg.replace(/<\/?svg[^>]*>/g,'')}</g>`;
-        }
-      } else {
-        const svg = makePieSVG(num, den, color, sz);
-        const inner = svg.replace(/<\/?svg[^>]*>/g,'');
-        content += `<g transform="translate(${cx-sz/2},${(viewH-sz)/2})">${inner}</g>`;
-      }
-    } else {
-      const bw = slotW - 20;
-      const svg = makeBarSVG(num, den, color, bw, barH);
-      const inner = svg.replace(/<\/?svg[^>]*>/g,'');
-      content += `<g transform="translate(${cx-bw/2},${(viewH-barH)/2})">${inner}</g>`;
-    }
+    sorted.forEach(f => {
+      content += makePieOverlayPaths(parseInt(f.num)||0, parseInt(f.den)||0, f.color, sz);
+    });
 
-    // 색상 점 라벨
-    content += `<circle cx="${cx}" cy="${viewH - 12}" r="7" fill="${color}"/>`;
-    content += `<text x="${cx}" y="${viewH - 8}" text-anchor="middle" fill="white" font-size="9" font-weight="bold">${i+1}</text>`;
-  });
+    cmpWrap.innerHTML = `<svg viewBox="0 0 ${sz} ${sz}" width="100%" height="100%">${content}</svg>`;
 
-  cmpWrap.innerHTML = `<svg viewBox="0 0 ${totalW} ${viewH}" width="100%" height="100%">${content}</svg>`;
+  } else {
+    const bw = 320;
+    cmpWrap.style.width        = bw + 'px';
+    cmpWrap.style.height       = barH + 'px';
+    cmpWrap.style.borderRadius = '12px';
+
+    // 배경 회색 막대
+    let content = `<rect x="2" y="2" width="${bw-4}" height="${barH-4}" rx="6" fill="#f8f8f8" stroke="#ddd" stroke-width="1.5"/>`;
+
+    const sorted = fracs
+      .map((f,i) => ({...f, color: COLORS[i], val: (parseInt(f.num)||0)/(parseInt(f.den)||1)}))
+      .sort((a,b) => b.val - a.val);
+
+    sorted.forEach(f => {
+      content += makeBarOverlayPaths(parseInt(f.num)||0, parseInt(f.den)||0, f.color, bw, barH);
+    });
+
+    cmpWrap.innerHTML = `<svg viewBox="0 0 ${bw} ${barH}" width="100%" height="100%">${content}</svg>`;
+  }
 }
 
 // ── vizSize ───────────────────────────────────────────────
@@ -579,7 +614,9 @@ function resetCmpWrap() {
   const cmpSym  = document.getElementById('cmp-sym');
   if (cmpWrap) {
     cmpWrap.style.width = '90px'; cmpWrap.style.height = '90px';
-    cmpWrap.style.borderRadius = '50%'; cmpWrap.innerHTML = '';
+    cmpWrap.style.borderRadius = '50%';
+    cmpWrap.style.transition = 'width .45s ease, height .45s ease, border-radius .45s ease';
+    cmpWrap.innerHTML = '';
   }
   if (cmpSym) cmpSym.style.display = 'none';
 }
