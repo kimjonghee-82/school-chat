@@ -443,58 +443,78 @@ body {
 .login-error.show { display: block; }
 
 /* ── 분수 게임 탭 ── */
-#page-game { flex: 1; display: none; flex-direction: row; }
+#page-game { flex: 1; display: none; flex-direction: column; }
 
-/* 교사 게임 보드 (9/10) */
-.game-board {
-  flex: 9; display: flex; flex-direction: column;
+/* 교사용 레이아웃 */
+#game-teacher-view { flex: 1; display: flex; flex-direction: column; }
+
+/* 상단 방코드 바 (세로 1/10) */
+.game-topbar {
+  flex: 1; background: #1a1a2e; display: flex;
   align-items: center; justify-content: center;
-  background: #1a1a2e; position: relative; gap: 28px;
+  border-bottom: 1px solid rgba(255,255,255,.1);
 }
-.game-room-code {
-  position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
-  background: rgba(255,255,255,.1); border: 1.5px solid rgba(255,255,255,.25);
-  border-radius: 14px; padding: 8px 28px;
-  font-size: 14px; font-weight: 700; color: rgba(255,255,255,.7);
-  letter-spacing: 1px; white-space: nowrap;
+.game-room-code-label {
+  font-size: 15px; font-weight: 700; color: rgba(255,255,255,.6);
+  letter-spacing: 1px; display: flex; align-items: center; gap: 14px;
 }
-.game-room-code span { color: #ffd580; letter-spacing: 6px; font-size: 20px; }
-.game-white-box {
-  width: 380px; height: 320px; background: white; border-radius: 20px;
-  box-shadow: 0 8px 40px rgba(0,0,0,.4);
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 0; position: relative;
-}
-.game-frac-input {
-  width: 200px; height: 100px; background: transparent; border: none;
-  outline: none; font-size: 96px; font-weight: 900; color: white;
-  text-align: center; caret-color: transparent; line-height: 1;
-  -webkit-text-fill-color: white;
-}
-.game-frac-line {
-  width: 200px; height: 6px; background: white; border-radius: 3px; margin: 4px 0;
-}
-.game-board-hint {
-  font-size: 13px; color: rgba(255,255,255,.35);
-  position: absolute; bottom: 18px;
+.game-room-code-label span {
+  color: #ffd580; letter-spacing: 8px; font-size: 26px; font-weight: 900;
 }
 
-/* 학생 목록 패널 (1/10) */
+/* 하단 9:1 분할 영역 (세로 9/10) */
+.game-main-row { flex: 9; display: flex; flex-direction: row; }
+
+/* 분수 입력 영역 (9/10 가로) */
+.game-frac-area {
+  flex: 9; background: #f5f0e8;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* 분수 입력 박스 (이미지처럼) */
+.game-frac-widget {
+  display: flex; flex-direction: column; align-items: center; gap: 0;
+}
+.game-frac-cell {
+  width: 180px; height: 160px;
+  border: 3px solid #f0a060; border-radius: 20px;
+  background: #fff5ee;
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+}
+.game-frac-cell input {
+  width: 100%; height: 100%;
+  background: transparent; border: none; outline: none;
+  font-size: 96px; font-weight: 900;
+  text-align: center; line-height: 1;
+  color: #fff5ee;           /* 입력 전 배경과 동일 → 보이지 않음 */
+  caret-color: #aaa;
+  border-radius: 18px;
+}
+.game-frac-cell input::placeholder { color: #c8a88a; font-weight: 700; font-size: 72px; }
+.game-frac-divider {
+  width: 200px; height: 5px; background: #f0a060; border-radius: 3px;
+  margin: 6px 0;
+}
+
+/* 학생 목록 패널 (1/10 가로) */
 .game-roster {
-  flex: 1; min-width: 130px; max-width: 180px;
-  background: #12122a; border-left: 1px solid rgba(255,255,255,.08);
+  flex: 1; min-width: 110px;
+  background: #12122a;
+  border-left: 1px solid rgba(255,255,255,.08);
   display: flex; flex-direction: column;
 }
 .roster-title {
   font-size: 13px; font-weight: 700; color: rgba(255,255,255,.5);
-  padding: 16px 14px 10px; border-bottom: 1px solid rgba(255,255,255,.07);
-  letter-spacing: 1px;
+  padding: 14px 12px 10px; border-bottom: 1px solid rgba(255,255,255,.07);
+  letter-spacing: 1px; text-align: center;
 }
 .roster-list { flex: 1; overflow-y: auto; padding: 8px 0; }
 .roster-item {
   display: flex; align-items: center; gap: 8px;
-  padding: 8px 14px; font-size: 13px; font-weight: 700; color: #e8e8f0;
-  border-bottom: 1px solid rgba(255,255,255,.04); animation: rosterIn .3s ease;
+  padding: 8px 12px; font-size: 12px; font-weight: 700; color: #e8e8f0;
+  border-bottom: 1px solid rgba(255,255,255,.04);
+  animation: rosterIn .3s ease;
 }
 @keyframes rosterIn {
   from { opacity: 0; transform: translateX(10px); }
@@ -504,8 +524,8 @@ body {
   width: 8px; height: 8px; border-radius: 50%; background: #4cff8a; flex-shrink: 0;
 }
 .roster-empty {
-  font-size: 12px; color: rgba(255,255,255,.25); text-align: center;
-  padding: 24px 10px;
+  font-size: 11px; color: rgba(255,255,255,.25); text-align: center;
+  padding: 20px 8px; line-height: 1.6;
 }
 
 /* 학생 게임 화면 */
@@ -632,22 +652,35 @@ body {
 <!-- 분수 게임 탭 -->
 <div id="page-game">
   <!-- 교사용 화면 -->
-  <div id="game-teacher-view" style="display:none; flex:1; flex-direction:row; height:100%;">
-    <div class="game-board" id="game-board">
-      <div class="game-room-code">방 코드 &nbsp;<span id="game-room-code-val">-----</span></div>
-      <div class="game-white-box">
-        <input class="game-frac-input" id="game-num-input" type="text" inputmode="numeric"
-          maxlength="3" placeholder=" " autocomplete="off" spellcheck="false">
-        <div class="game-frac-line"></div>
-        <input class="game-frac-input" id="game-den-input" type="text" inputmode="numeric"
-          maxlength="3" placeholder=" " autocomplete="off" spellcheck="false">
-        <div class="game-board-hint">숫자를 입력하세요 (학생에게는 보이지 않습니다)</div>
+  <div id="game-teacher-view" style="display:none;">
+    <!-- 상단: 방코드 바 (1/10 세로) -->
+    <div class="game-topbar">
+      <div class="game-room-code-label">
+        방 코드 <span id="game-room-code-val">-----</span>
       </div>
     </div>
-    <div class="game-roster">
-      <div class="roster-title">목록</div>
-      <div class="roster-list" id="roster-list">
-        <div class="roster-empty" id="roster-empty">접속한 학생 없음</div>
+    <!-- 하단: 9:1 가로 분할 (9/10 세로) -->
+    <div class="game-main-row">
+      <!-- 분수 입력 영역 (9/10 가로) -->
+      <div class="game-frac-area">
+        <div class="game-frac-widget">
+          <div class="game-frac-cell">
+            <input id="game-num-input" type="text" inputmode="numeric"
+              maxlength="3" placeholder="?" autocomplete="off" spellcheck="false">
+          </div>
+          <div class="game-frac-divider"></div>
+          <div class="game-frac-cell">
+            <input id="game-den-input" type="text" inputmode="numeric"
+              maxlength="3" placeholder="?" autocomplete="off" spellcheck="false">
+          </div>
+        </div>
+      </div>
+      <!-- 학생 목록 (1/10 가로) -->
+      <div class="game-roster">
+        <div class="roster-title">목록</div>
+        <div class="roster-list" id="roster-list">
+          <div class="roster-empty" id="roster-empty">접속한<br>학생 없음</div>
+        </div>
       </div>
     </div>
   </div>
@@ -1778,7 +1811,8 @@ function genRoomCode() {
 }
 
 function openTeacherGame() {
-  document.getElementById('game-teacher-view').style.display = 'flex';
+  const tv = document.getElementById('game-teacher-view');
+  tv.style.display = 'flex'; tv.style.flex = '1'; tv.style.flexDirection = 'column';
   document.getElementById('game-student-view').style.display = 'none';
 
   if (!session.roomCode) {
