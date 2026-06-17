@@ -6,22 +6,17 @@
 <title>분수의 크기 비교</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-
 body {
   font-family: 'Nanum Gothic', 'Apple SD Gothic Neo', sans-serif;
-  background: #f0f0f0;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
+  background: #f0f0f0; min-height: 100vh;
+  display: flex; flex-direction: column;
 }
 
 /* ── 헤더 ── */
 .header {
-  display: flex; align-items: center;
-  justify-content: space-between;
-  padding: 10px 20px;
-  background: white; border-bottom: 1px solid #e0e0e0;
-  position: relative; z-index: 300;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 20px; background: white;
+  border-bottom: 1px solid #e0e0e0; position: relative; z-index: 300;
 }
 .header-left { display: flex; align-items: center; gap: 10px; }
 .header h1 { font-size: 18px; font-weight: 700; color: #222; }
@@ -29,11 +24,9 @@ body {
 .count-selector { position: relative; }
 .count-btn {
   width: 30px; height: 30px; border-radius: 50%;
-  background: #e06020; color: white;
-  font-size: 15px; font-weight: 700;
+  background: #e06020; color: white; font-size: 15px; font-weight: 700;
   display: flex; align-items: center; justify-content: center;
-  cursor: pointer; border: none;
-  transition: background .2s; user-select: none;
+  cursor: pointer; border: none; user-select: none;
 }
 .count-btn:hover { background: #c04010; }
 .count-dropdown {
@@ -46,8 +39,7 @@ body {
 .count-dropdown.open { display: block; }
 .count-option {
   padding: 9px 20px; font-size: 15px; font-weight: 700;
-  text-align: center; cursor: pointer; color: #444;
-  transition: background .15s;
+  text-align: center; cursor: pointer; color: #444; transition: background .15s;
 }
 .count-option:hover { background: #fff0e8; color: #e06020; }
 .count-option.active { color: #e06020; background: #fff5f0; }
@@ -64,13 +56,12 @@ body {
 
 /* ── 뷰 탭 ── */
 .view-tabs {
-  display: flex; padding: 0 20px;
-  background: white; border-bottom: 2px solid #e8e8e8; gap: 4px;
+  display: flex; padding: 0 20px; background: white;
+  border-bottom: 2px solid #e8e8e8; gap: 4px;
 }
 .vtab {
   padding: 9px 22px; font-size: 13px; font-weight: 700;
-  color: #aaa; cursor: pointer;
-  border-bottom: 3px solid transparent;
+  color: #aaa; cursor: pointer; border-bottom: 3px solid transparent;
   transition: color .2s, border-color .2s; user-select: none;
 }
 .vtab.active { color: #e06020; border-bottom-color: #e06020; }
@@ -82,18 +73,16 @@ body {
 }
 
 .frac-panel {
-  flex: 1; min-width: 0;
-  background: white; border: 2px dashed #c0c0c0;
-  border-radius: 14px;
+  flex: 1; min-width: 0; background: white;
+  border: 2px dashed #c0c0c0; border-radius: 14px;
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
-  padding: 20px 10px 18px;
-  position: relative; min-height: 300px;
+  padding: 20px 10px 18px; position: relative; min-height: 300px;
 }
 
 /* 가운데 비교 열 */
 .cmp-col {
-  width: 180px; flex-shrink: 0;
+  width: 200px; flex-shrink: 0;
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
   gap: 14px; overflow: visible; position: relative;
@@ -101,14 +90,12 @@ body {
 
 .cmp-viz-wrap {
   width: 90px; height: 90px;
-  border: 2.5px solid #f0a060; border-radius: 50%;
-  background: white; overflow: visible;
+  border: 2.5px solid #f0a060; border-radius: 50%; background: white;
+  overflow: visible;
   transition: width .45s ease, height .45s ease, border-radius .45s ease;
-  position: relative; z-index: 10;
+  position: relative; z-index: 10; flex-shrink: 0;
 }
-.cmp-viz-wrap svg { width: 100%; height: 100%; overflow: visible; }
-.cmp-viz-wrap.expanded       { width: 300px; height: 300px; border-radius: 50%; }
-.cmp-viz-wrap.bar-expanded   { width: 300px; height: 160px; border-radius: 12px; }
+.cmp-viz-wrap svg { width: 100%; height: 100%; }
 
 .cmp-symbol {
   font-size: 40px; font-weight: 900;
@@ -116,17 +103,19 @@ body {
 }
 
 .btn-compare {
-  padding: 10px 28px;
-  background: white; border: 2.5px solid #f0a060;
-  border-radius: 24px; font-size: 15px; font-weight: 700;
-  color: #e06020; cursor: pointer;
+  padding: 10px 28px; background: white;
+  border: 2.5px solid #f0a060; border-radius: 24px;
+  font-size: 15px; font-weight: 700; color: #e06020; cursor: pointer;
   transition: background .2s, color .2s; white-space: nowrap;
 }
 .btn-compare:hover { background: #f0a060; color: white; }
 
-/* 시각화 */
-.viz-wrap { position: relative; }
-.viz-wrap svg { display: block; }
+/* 시각화 래퍼 */
+.viz-wrap {
+  display: flex; gap: 6px;
+  align-items: center; justify-content: center;
+  flex-wrap: nowrap;
+}
 
 /* 분수 입력 */
 .frac-area {
@@ -249,7 +238,7 @@ body {
 </div>
 
 <script>
-const COLORS = ['#e07070','#6aaa40','#4090e0','#9060d0','#e09030'];
+const COLORS = ['#e05050','#3aaa30','#3070e0','#9040d0','#e09020'];
 
 const state = {
   count: 2,
@@ -259,12 +248,11 @@ const state = {
   compared: false,
 };
 
-// ── SVG ──────────────────────────────────────────────────
-function makePieSVG(num, den, color, size, alpha) {
-  size = size||200; alpha = alpha===undefined ? 1 : alpha;
-  const cx = size/2, cy = size/2, r = size/2 - 5;
+// ── SVG 기본 ─────────────────────────────────────────────
+function makePieSVG(num, den, color, size) {
+  const cx = size/2, cy = size/2, r = size/2 - 4;
   if (!den || den < 1) {
-    return `<svg viewBox="0 0 ${size} ${size}"><circle cx="${cx}" cy="${cy}" r="${r}" fill="white" stroke="#ccc" stroke-width="1.5" opacity="${alpha}"/></svg>`;
+    return `<svg viewBox="0 0 ${size} ${size}"><circle cx="${cx}" cy="${cy}" r="${r}" fill="white" stroke="#ccc" stroke-width="1.5"/></svg>`;
   }
   const n = Math.min(Math.max(0, num||0), den);
   let p = '';
@@ -277,47 +265,143 @@ function makePieSVG(num, den, color, size, alpha) {
     const d = den===1
       ? `M ${cx} ${cy} m -${r} 0 a ${r} ${r} 0 1 1 ${r*2} 0 a ${r} ${r} 0 1 1 -${r*2} 0 Z`
       : `M ${cx} ${cy} L ${x0} ${y0} A ${r} ${r} 0 ${lg} 1 ${x1} ${y1} Z`;
-    p += `<path d="${d}" fill="${i<n?color:'white'}" stroke="#444" stroke-width="1" stroke-dasharray="4 2" opacity="${alpha}"/>`;
+    p += `<path d="${d}" fill="${i<n ? color : 'white'}" stroke="#555" stroke-width="1" stroke-dasharray="4 2"/>`;
   }
-  p += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#333" stroke-width="2" opacity="${alpha}"/>`;
+  p += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#333" stroke-width="2"/>`;
   return `<svg viewBox="0 0 ${size} ${size}">${p}</svg>`;
 }
 
-function makeBarSVG(num, den, color, w, h, alpha) {
-  w = w||200; h = h||80; alpha = alpha===undefined ? 1 : alpha;
+function makeBarSVG(num, den, color, w, h) {
   if (!den || den < 1) {
-    return `<svg viewBox="0 0 ${w} ${h}"><rect x="2" y="2" width="${w-4}" height="${h-4}" rx="6" fill="#f5f5f5" stroke="#ccc" stroke-width="1.5" opacity="${alpha}"/></svg>`;
+    return `<svg viewBox="0 0 ${w} ${h}"><rect x="2" y="2" width="${w-4}" height="${h-4}" rx="6" fill="#f5f5f5" stroke="#ccc" stroke-width="1.5"/></svg>`;
   }
   const n = Math.min(Math.max(0, num||0), den);
   const sw = (w-4)/den; let r = '';
   for (let i = 0; i < den; i++) {
-    r += `<rect x="${2+i*sw}" y="2" width="${sw-1}" height="${h-4}" rx="3" fill="${i<n?color:'#f0f0f0'}" stroke="#bbb" stroke-width="0.5" opacity="${alpha}"/>`;
+    r += `<rect x="${2+i*sw}" y="2" width="${sw-1}" height="${h-4}" rx="3" fill="${i<n ? color : '#f0f0f0'}" stroke="#bbb" stroke-width="0.5"/>`;
   }
-  r += `<rect x="2" y="2" width="${w-4}" height="${h-4}" rx="6" fill="none" stroke="#666" stroke-width="2" opacity="${alpha}"/>`;
+  r += `<rect x="2" y="2" width="${w-4}" height="${h-4}" rx="6" fill="none" stroke="#666" stroke-width="2"/>`;
   return `<svg viewBox="0 0 ${w} ${h}">${r}</svg>`;
 }
 
-function makeCmpPieSVG(fracs, size) {
-  size = size||300;
-  const inner = fracs.map((f,i) => {
-    const svg = makePieSVG(parseInt(f.num)||0, parseInt(f.den)||0, COLORS[i], size, 0.5);
-    return svg.replace(/<\/?svg[^>]*>/g,'');
-  }).join('');
-  return `<svg viewBox="0 0 ${size} ${size}">${inner}</svg>`;
+// ── 가분수 처리: 원/막대를 여러 개로 분리 ─────────────────
+function renderFracViz(vizEl, num, den, color, sz) {
+  vizEl.innerHTML = '';
+  vizEl.style.display = 'flex';
+  vizEl.style.gap = '6px';
+  vizEl.style.alignItems = 'center';
+  vizEl.style.justifyContent = 'center';
+  vizEl.style.flexWrap = 'nowrap';
+
+  const n = parseInt(num)||0, d = parseInt(den)||0;
+  const barH = Math.round(sz * 0.44);
+
+  if (!d) {
+    // 분모 없음: 빈 원/막대 하나
+    const div = document.createElement('div');
+    div.style.cssText = `width:${sz}px;height:${state.viewMode==='circle'?sz:barH}px;flex-shrink:0;`;
+    div.innerHTML = state.viewMode==='circle' ? makePieSVG(0,0,color,sz) : makeBarSVG(0,0,color,sz,barH);
+    vizEl.appendChild(div);
+    return;
+  }
+
+  if (n <= d) {
+    // 진분수 또는 1: 원/막대 하나
+    const div = document.createElement('div');
+    div.style.cssText = `width:${sz}px;height:${state.viewMode==='circle'?sz:barH}px;flex-shrink:0;`;
+    div.innerHTML = state.viewMode==='circle' ? makePieSVG(n,d,color,sz) : makeBarSVG(n,d,color,sz,barH);
+    vizEl.appendChild(div);
+  } else {
+    // 가분수: 온원 여러 개 + 나머지 원
+    const whole = Math.floor(n/d);
+    const rem   = n % d;
+    const total = whole + (rem > 0 ? 1 : 0);
+    // 공간에 맞게 크기 축소
+    const smallSz = Math.max(Math.floor((sz * 2.2) / total - 6), 50);
+    const smallBarH = Math.round(smallSz * 0.44);
+
+    for (let i = 0; i < whole; i++) {
+      const div = document.createElement('div');
+      div.style.cssText = `width:${smallSz}px;height:${state.viewMode==='circle'?smallSz:smallBarH}px;flex-shrink:0;`;
+      div.innerHTML = state.viewMode==='circle'
+        ? makePieSVG(d,d,color,smallSz)
+        : makeBarSVG(d,d,color,smallSz,smallBarH);
+      vizEl.appendChild(div);
+    }
+    if (rem > 0) {
+      const div = document.createElement('div');
+      div.style.cssText = `width:${smallSz}px;height:${state.viewMode==='circle'?smallSz:smallBarH}px;flex-shrink:0;`;
+      div.innerHTML = state.viewMode==='circle'
+        ? makePieSVG(rem,d,color,smallSz)
+        : makeBarSVG(rem,d,color,smallSz,smallBarH);
+      vizEl.appendChild(div);
+    }
+  }
 }
 
-function makeCmpBarSVG(fracs, w, h) {
-  w = w||300; h = h||160;
-  const rowH = Math.floor(h/fracs.length) - 4;
-  let rows = '';
-  fracs.forEach((f,i) => {
-    const svg = makeBarSVG(parseInt(f.num)||0, parseInt(f.den)||0, COLORS[i], w, rowH, 1);
-    const inner = svg.replace(/<\/?svg[^>]*>/g,'');
-    rows += `<g transform="translate(0,${i*(rowH+4)})">${inner}</g>`;
+// ── 비교 뷰: 나란히 배치 (색 섞임 없음) ─────────────────
+function renderCmpView() {
+  const cmpWrap = document.getElementById('cmp-wrap');
+  if (!cmpWrap) return;
+
+  const fracs = state.fractions.slice(0, state.count);
+  const n = state.count;
+  const slotW = 140;
+  const totalW = n * slotW;
+  const viewH  = 180;
+  const sz     = 110; // 각 분수 원 크기
+  const barH   = 60;
+
+  // 동적으로 크기 설정
+  cmpWrap.style.width        = totalW + 'px';
+  cmpWrap.style.height       = viewH  + 'px';
+  cmpWrap.style.borderRadius = '16px';
+
+  let content = '';
+
+  fracs.forEach((f, i) => {
+    const num = parseInt(f.num)||0, den = parseInt(f.den)||0;
+    const cx = i * slotW + slotW/2;
+    const color = COLORS[i];
+
+    if (state.viewMode === 'circle') {
+      // 가분수 처리: 나눠서 표시
+      if (num > den && den > 0) {
+        const whole = Math.floor(num/den);
+        const rem   = num % den;
+        const total = whole + (rem > 0 ? 1 : 0);
+        const sm    = Math.max(Math.floor((slotW - 8) / total - 4), 30);
+        const startX = cx - (total * (sm+4) - 4) / 2;
+        const y = (viewH - sm) / 2;
+        for (let k = 0; k < whole; k++) {
+          const svg = makePieSVG(den, den, color, sm);
+          content += `<g transform="translate(${startX + k*(sm+4)},${y})">${svg.replace(/<\/?svg[^>]*>/g,'')}</g>`;
+        }
+        if (rem > 0) {
+          const svg = makePieSVG(rem, den, color, sm);
+          content += `<g transform="translate(${startX + whole*(sm+4)},${y})">${svg.replace(/<\/?svg[^>]*>/g,'')}</g>`;
+        }
+      } else {
+        const svg = makePieSVG(num, den, color, sz);
+        const inner = svg.replace(/<\/?svg[^>]*>/g,'');
+        content += `<g transform="translate(${cx-sz/2},${(viewH-sz)/2})">${inner}</g>`;
+      }
+    } else {
+      const bw = slotW - 20;
+      const svg = makeBarSVG(num, den, color, bw, barH);
+      const inner = svg.replace(/<\/?svg[^>]*>/g,'');
+      content += `<g transform="translate(${cx-bw/2},${(viewH-barH)/2})">${inner}</g>`;
+    }
+
+    // 색상 점 라벨
+    content += `<circle cx="${cx}" cy="${viewH - 12}" r="7" fill="${color}"/>`;
+    content += `<text x="${cx}" y="${viewH - 8}" text-anchor="middle" fill="white" font-size="9" font-weight="bold">${i+1}</text>`;
   });
-  return `<svg viewBox="0 0 ${w} ${h}">${rows}</svg>`;
+
+  cmpWrap.innerHTML = `<svg viewBox="0 0 ${totalW} ${viewH}" width="100%" height="100%">${content}</svg>`;
 }
 
+// ── vizSize ───────────────────────────────────────────────
 function vizSize(count) {
   if (count<=2) return 200;
   if (count===3) return 170;
@@ -332,14 +416,11 @@ function buildMain() {
   const wrap = document.getElementById('main-wrap');
   wrap.innerHTML = ''; padTimers = {};
   const n = state.count;
-  const sz = vizSize(n);
   const cmpPos = Math.floor(n/2);
-
   for (let i = 0; i <= n; i++) {
     if (i === cmpPos) wrap.appendChild(buildCmpCol());
-    if (i < n) wrap.appendChild(buildFracPanel(i, sz));
+    if (i < n) wrap.appendChild(buildFracPanel(i));
   }
-
   renderAll();
   attachPadEvents();
 }
@@ -365,35 +446,29 @@ function buildCmpCol() {
   return col;
 }
 
-function buildFracPanel(idx, sz) {
+function buildFracPanel(idx) {
+  const sz = vizSize(state.count);
   const panel = document.createElement('div');
   panel.className = 'frac-panel'; panel.id = `panel-${idx}`;
 
   const vizWrap = document.createElement('div');
   vizWrap.className = 'viz-wrap'; vizWrap.id = `viz-${idx}`;
-  const barH = Math.round(sz*0.45);
-  vizWrap.style.width  = sz + 'px';
-  vizWrap.style.height = (state.viewMode==='bar' ? barH : sz) + 'px';
 
   const fracArea = document.createElement('div');
   fracArea.className = 'frac-area';
 
   const numCell = document.createElement('div');
-  numCell.className = 'frac-cell'; numCell.id = `num-${idx}`;
-  numCell.tabIndex = 0;
+  numCell.className = 'frac-cell'; numCell.id = `num-${idx}`; numCell.tabIndex = 0;
   numCell.textContent = state.fractions[idx].num || '?';
 
-  const line = document.createElement('div');
-  line.className = 'frac-line';
+  const line = document.createElement('div'); line.className = 'frac-line';
 
   const denCell = document.createElement('div');
-  denCell.className = 'frac-cell'; denCell.id = `den-${idx}`;
-  denCell.tabIndex = 0;
+  denCell.className = 'frac-cell'; denCell.id = `den-${idx}`; denCell.tabIndex = 0;
   denCell.textContent = state.fractions[idx].den || '?';
 
   const cmpPos = Math.floor(state.count/2);
   const padSide = idx < cmpPos ? 'pad-right' : 'pad-left';
-
   const pad = document.createElement('div');
   pad.className = `numpad ${padSide}`; pad.id = `pad-${idx}`;
   pad.innerHTML = [1,2,3,4,5,6,7,8,9,0].map(v =>
@@ -406,7 +481,6 @@ function buildFracPanel(idx, sz) {
   fracArea.appendChild(pad);
   panel.appendChild(vizWrap);
   panel.appendChild(fracArea);
-
   padTimers[idx] = null;
   return panel;
 }
@@ -423,15 +497,13 @@ function attachPadEvents() {
     panel.addEventListener('mouseleave', () => hidePad(i));
     pad.addEventListener('mouseenter',   () => clearTimeout(padTimers[i]));
     pad.addEventListener('mouseleave',   () => hidePad(i));
-
     numEl.addEventListener('click', () => { setActive(i,'num'); showPad(i); });
     denEl.addEventListener('click', () => { setActive(i,'den'); showPad(i); });
 
     pad.querySelectorAll('.np-btn').forEach(btn => {
       btn.addEventListener('mousedown', e => {
         e.preventDefault();
-        const val = btn.dataset.v;
-        const fi  = parseInt(btn.dataset.idx);
+        const val = btn.dataset.v, fi = parseInt(btn.dataset.idx);
         if (!state.active || state.active.idx !== fi) setActive(fi,'num');
         const {part} = state.active;
         const f = state.fractions[fi];
@@ -460,25 +532,20 @@ function setActive(idx, part) {
   if (el) el.classList.add('active');
   state.active = {idx, part};
 }
-
 document.addEventListener('click', e => {
   if (!e.target.closest('.frac-cell') && !e.target.closest('.numpad')) {
     document.querySelectorAll('.frac-cell.active').forEach(c => c.classList.remove('active'));
     state.active = null;
   }
 });
-
 document.addEventListener('keydown', e => {
   if (!state.active) return;
   const {idx, part} = state.active;
   const f = state.fractions[idx];
   const order = [];
-  for (let i = 0; i < state.count; i++) {
-    order.push({i, p:'num'}); order.push({i, p:'den'});
-  }
+  for (let i = 0; i < state.count; i++) { order.push({i,p:'num'}); order.push({i,p:'den'}); }
   const cur = order.findIndex(o => o.i===idx && o.p===part);
-
-  if (e.key>='0' && e.key<='9') {
+  if (e.key>='0'&&e.key<='9') {
     if (f[part].length<2) { f[part]+=e.key; state.compared=false; resetCmpWrap(); renderAll(); }
   } else if (e.key==='Backspace') {
     f[part]=f[part].slice(0,-1); renderAll();
@@ -493,47 +560,28 @@ document.addEventListener('keydown', e => {
 
 // ── 렌더링 ───────────────────────────────────────────────
 function renderAll() {
-  const n = state.count;
-  const sz = vizSize(n);
-  const barH = Math.round(sz*0.45);
-
-  for (let i = 0; i < n; i++) {
+  const sz = vizSize(state.count);
+  for (let i = 0; i < state.count; i++) {
     const f = state.fractions[i];
-    const num = parseInt(f.num)||0, den = parseInt(f.den)||0;
     const vizEl = document.getElementById(`viz-${i}`);
     if (!vizEl) continue;
-
-    if (state.viewMode==='circle') {
-      vizEl.style.height = sz+'px';
-      vizEl.innerHTML = makePieSVG(num, den, COLORS[i], sz, 1);
-    } else {
-      vizEl.style.height = barH+'px';
-      vizEl.innerHTML = makeBarSVG(num, den, COLORS[i], sz, barH, 1);
-    }
+    renderFracViz(vizEl, f.num, f.den, COLORS[i], sz);
     const numEl = document.getElementById(`num-${i}`);
     const denEl = document.getElementById(`den-${i}`);
     if (numEl) numEl.textContent = f.num||'?';
     if (denEl) denEl.textContent = f.den||'?';
   }
-  if (state.compared) renderCompareView();
-}
-
-function renderCompareView() {
-  const cmpWrap = document.getElementById('cmp-wrap');
-  if (!cmpWrap) return;
-  const fracs = state.fractions.slice(0, state.count);
-  if (state.viewMode==='circle') {
-    cmpWrap.innerHTML = makeCmpPieSVG(fracs, 300);
-  } else {
-    cmpWrap.innerHTML = makeCmpBarSVG(fracs, 300, 160);
-  }
+  if (state.compared) renderCmpView();
 }
 
 function resetCmpWrap() {
   const cmpWrap = document.getElementById('cmp-wrap');
   const cmpSym  = document.getElementById('cmp-sym');
-  if (cmpWrap) { cmpWrap.classList.remove('expanded','bar-expanded'); cmpWrap.innerHTML=''; }
-  if (cmpSym)  cmpSym.style.display='none';
+  if (cmpWrap) {
+    cmpWrap.style.width = '90px'; cmpWrap.style.height = '90px';
+    cmpWrap.style.borderRadius = '50%'; cmpWrap.innerHTML = '';
+  }
+  if (cmpSym) cmpSym.style.display = 'none';
 }
 
 // ── 비교하기 ─────────────────────────────────────────────
@@ -544,29 +592,27 @@ function doCompare() {
   }
   spawnGhosts(() => {
     state.compared = true;
-    const cmpWrap = document.getElementById('cmp-wrap');
-    const cmpSym  = document.getElementById('cmp-sym');
-    if (cmpWrap) cmpWrap.classList.add(state.viewMode==='circle' ? 'expanded' : 'bar-expanded');
+    renderCmpView();
 
+    const cmpSym = document.getElementById('cmp-sym');
     if (cmpSym) {
-      if (state.count===2) {
+      if (state.count === 2) {
         const lv = parseInt(fracs[0].num)/parseInt(fracs[0].den);
         const rv = parseInt(fracs[1].num)/parseInt(fracs[1].den);
         if (lv>rv)       { cmpSym.textContent='>'; cmpSym.style.color='#e06020'; }
         else if (lv<rv)  { cmpSym.textContent='<'; cmpSym.style.color='#4090e0'; }
         else             { cmpSym.textContent='='; cmpSym.style.color='#40a060'; }
-        cmpSym.style.fontSize='44px';
+        cmpSym.style.fontSize = '44px';
       } else {
         const sorted = fracs
           .map((f,i) => ({val: parseInt(f.num)/parseInt(f.den), idx: i+1}))
           .sort((a,b) => b.val - a.val);
         cmpSym.textContent = sorted.map(s => s.idx+'번').join(' > ');
         cmpSym.style.color = '#555';
-        cmpSym.style.fontSize = state.count>3 ? '15px' : '20px';
+        cmpSym.style.fontSize = state.count>3 ? '14px' : '20px';
       }
       cmpSym.style.display = 'block';
     }
-    renderCompareView();
   });
 }
 
@@ -591,9 +637,8 @@ function spawnGhosts(onDone) {
   }
   requestAnimationFrame(() => requestAnimationFrame(() => {
     ghosts.forEach(g => {
-      g.style.left='    '+( tcx-60)+'px'; g.style.left=(tcx-60)+'px';
-      g.style.top=(tcy-60)+'px';
-      g.style.width='120px'; g.style.height='120px'; g.style.opacity='0';
+      g.style.left = (tcx-50)+'px'; g.style.top = (tcy-50)+'px';
+      g.style.width = '100px'; g.style.height = '100px'; g.style.opacity = '0';
     });
   }));
   setTimeout(() => { ghosts.forEach(g => g.remove()); onDone(); }, 560);
