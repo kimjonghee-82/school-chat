@@ -249,10 +249,11 @@ const state = {
 };
 
 // ── SVG 기본 ─────────────────────────────────────────────
-function makePieSVG(num, den, color, size) {
+function makePieSVG(num, den, color, size, alpha) {
+  alpha = (alpha === undefined) ? 1 : alpha;
   const cx = size/2, cy = size/2, r = size/2 - 4;
   if (!den || den < 1) {
-    return `<svg viewBox="0 0 ${size} ${size}"><circle cx="${cx}" cy="${cy}" r="${r}" fill="white" stroke="#ccc" stroke-width="1.5"/></svg>`;
+    return `<svg viewBox="0 0 ${size} ${size}" opacity="${alpha}"><circle cx="${cx}" cy="${cy}" r="${r}" fill="white" stroke="#ccc" stroke-width="1.5"/></svg>`;
   }
   const n = Math.min(Math.max(0, num||0), den);
   let p = '';
@@ -268,7 +269,7 @@ function makePieSVG(num, den, color, size) {
     p += `<path d="${d}" fill="${i<n ? color : 'white'}" stroke="#555" stroke-width="1" stroke-dasharray="4 2"/>`;
   }
   p += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#333" stroke-width="2"/>`;
-  return `<svg viewBox="0 0 ${size} ${size}">${p}</svg>`;
+  return `<svg viewBox="0 0 ${size} ${size}" opacity="${alpha}">${p}</svg>`;
 }
 
 function makeBarSVG(num, den, color, w, h) {
@@ -339,101 +340,135 @@ function renderFracViz(vizEl, num, den, color, sz) {
   }
 }
 
-// ── 투명 배경 파이 (채워진 영역만 본연의 색, 빈 영역 투명) ──
-function makePieOverlayPaths(num, den, color, size) {
-  const cx = size/2, cy = size/2, r = size/2 - 4;
-  if (!den || den < 1) return '';
-  const n = Math.min(Math.max(0, num||0), den);
-  let p = '';
-  // 채워진 슬라이스만 그리기 (빈 슬라이스는 투명 = 생략)
-  for (let i = 0; i < n; i++) {
-    const a0 = (i/den)*2*Math.PI - Math.PI/2;
-    const a1 = ((i+1)/den)*2*Math.PI - Math.PI/2;
-    const x0 = cx+r*Math.cos(a0), y0 = cy+r*Math.sin(a0);
-    const x1 = cx+r*Math.cos(a1), y1 = cy+r*Math.sin(a1);
-    const lg = (a1-a0 > Math.PI) ? 1 : 0;
-    const d = den===1
-      ? `M ${cx} ${cy} m -${r} 0 a ${r} ${r} 0 1 1 ${r*2} 0 a ${r} ${r} 0 1 1 -${r*2} 0 Z`
-      : `M ${cx} ${cy} L ${x0} ${y0} A ${r} ${r} 0 ${lg} 1 ${x1} ${y1} Z`;
-    p += `<path d="${d}" fill="${color}" stroke="none"/>`;
-  }
-  // 구분선 (모든 칸)
-  for (let i = 0; i < den; i++) {
-    const a = (i/den)*2*Math.PI - Math.PI/2;
-    const lx = cx+r*Math.cos(a), ly = cy+r*Math.sin(a);
-    p += `<line x1="${cx}" y1="${cy}" x2="${lx}" y2="${ly}" stroke="rgba(80,80,80,0.4)" stroke-width="0.8" stroke-dasharray="3 2"/>`;
-  }
-  // 원 테두리 (본연의 색)
-  p += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="2.5"/>`;
-  return p;
-}
-
-function makeBarOverlayPaths(num, den, color, w, h) {
-  if (!den || den < 1) return '';
-  const n = Math.min(Math.max(0, num||0), den);
-  const sw = (w-4)/den; let p = '';
-  // 채워진 칸만 그리기 (빈 칸 투명)
-  for (let i = 0; i < n; i++) {
-    p += `<rect x="${2+i*sw}" y="2" width="${sw-1}" height="${h-4}" rx="3" fill="${color}" stroke="none"/>`;
-  }
-  // 구분선
-  for (let i = 1; i < den; i++) {
-    const lx = 2 + i*sw;
-    p += `<line x1="${lx}" y1="2" x2="${lx}" y2="${h-2}" stroke="rgba(80,80,80,0.35)" stroke-width="0.8" stroke-dasharray="3 2"/>`;
-  }
-  // 테두리
-  p += `<rect x="2" y="2" width="${w-4}" height="${h-4}" rx="6" fill="none" stroke="${color}" stroke-width="2"/>`;
-  return p;
-}
-
-// ── 비교 뷰: 겹치기 (빈 영역 투명 → 색 섞임 없음) ────────
+// ── 비교 뷰 렌더링 ───────────────────────────────────────
+// 원형: 반투명 겹치기 + 드래그로 분리 가능
+// 막대: 나란히 배치 (색 섞임 없음)
 function renderCmpView() {
   const cmpWrap = document.getElementById('cmp-wrap');
   if (!cmpWrap) return;
 
   const fracs = state.fractions.slice(0, state.count);
-  const sz    = 280;
-  const barH  = 100;
 
   if (state.viewMode === 'circle') {
+    // ── 원형: 반투명 겹치기, 각 원 드래그 가능 ──
+    const sz = 260;
     cmpWrap.style.width        = sz + 'px';
     cmpWrap.style.height       = sz + 'px';
     cmpWrap.style.borderRadius = '50%';
+    cmpWrap.style.overflow     = 'visible';
+    cmpWrap.style.position     = 'relative';
+    cmpWrap.style.background   = 'transparent';
+    cmpWrap.style.border       = 'none';
+    cmpWrap.innerHTML = '';
 
-    // 배경 회색 원 (경계 표시)
-    const cx = sz/2, r = sz/2 - 4;
-    let content = `<circle cx="${cx}" cy="${cx}" r="${r}" fill="#f8f8f8" stroke="#ddd" stroke-width="1.5"/>`;
-
-    // 값 큰 순서로 먼저 그림 (큰 것이 아래, 작은 것이 위)
+    // 값 큰 것이 아래 레이어 (z-index 낮게)
     const sorted = fracs
-      .map((f,i) => ({...f, color: COLORS[i], val: (parseInt(f.num)||0)/(parseInt(f.den)||1)}))
-      .sort((a,b) => b.val - a.val);
+      .map((f, i) => ({
+        num: parseInt(f.num)||0,
+        den: parseInt(f.den)||0,
+        color: COLORS[i],
+        val: (parseInt(f.num)||0) / (parseInt(f.den)||1),
+      }))
+      .sort((a, b) => b.val - a.val);
 
-    sorted.forEach(f => {
-      content += makePieOverlayPaths(parseInt(f.num)||0, parseInt(f.den)||0, f.color, sz);
+    sorted.forEach((f, layerIdx) => {
+      const div = document.createElement('div');
+      div.style.cssText = [
+        'position:absolute', 'top:0', 'left:0',
+        `width:${sz}px`, `height:${sz}px`,
+        'cursor:grab', 'user-select:none', '-webkit-user-select:none',
+        `z-index:${layerIdx + 1}`,
+        'transition:transform 0.45s cubic-bezier(.34,1.56,.64,1)',
+      ].join(';');
+
+      div.innerHTML = makePieSVG(f.num, f.den, f.color, sz, 0.65);
+
+      // ── 드래그 로직 (mouse + touch) ──
+      let dragging = false, sx = 0, sy = 0;
+
+      function onStart(cx, cy) {
+        dragging = true; sx = cx; sy = cy;
+        div.style.transition = 'none';
+        div.style.cursor = 'grabbing';
+      }
+      function onMove(cx, cy) {
+        if (!dragging) return;
+        const dx = cx - sx, dy = cy - sy;
+        div.style.transform = `translate(${dx}px, ${dy}px)`;
+      }
+      function onEnd() {
+        if (!dragging) return;
+        dragging = false;
+        div.style.cursor = 'grab';
+        div.style.transition = 'transform 0.45s cubic-bezier(.34,1.56,.64,1)';
+        div.style.transform = 'translate(0,0)';
+      }
+
+      div.addEventListener('mousedown',  e => { e.preventDefault(); onStart(e.clientX, e.clientY); });
+      div.addEventListener('touchstart', e => { e.preventDefault(); onStart(e.touches[0].clientX, e.touches[0].clientY); }, {passive:false});
+
+      // mousemove/touchmove/up 전역 등록 (드래그 중 영역 벗어나도 동작)
+      const mmHandler = e => onMove(e.clientX, e.clientY);
+      const muHandler = () => onEnd();
+      const tmHandler = e => { e.preventDefault(); onMove(e.touches[0].clientX, e.touches[0].clientY); };
+      const tuHandler = () => onEnd();
+
+      document.addEventListener('mousemove', mmHandler);
+      document.addEventListener('mouseup',   muHandler);
+      document.addEventListener('touchmove', tmHandler, {passive:false});
+      document.addEventListener('touchend',  tuHandler);
+
+      // cmpWrap이 재렌더링될 때 이벤트 리스너 정리
+      div._cleanup = () => {
+        document.removeEventListener('mousemove', mmHandler);
+        document.removeEventListener('mouseup',   muHandler);
+        document.removeEventListener('touchmove', tmHandler);
+        document.removeEventListener('touchend',  tuHandler);
+      };
+
+      cmpWrap.appendChild(div);
     });
 
-    cmpWrap.innerHTML = `<svg viewBox="0 0 ${sz} ${sz}" width="100%" height="100%">${content}</svg>`;
+    // 힌트 텍스트
+    const hint = document.createElement('div');
+    hint.style.cssText = `position:absolute;bottom:-28px;left:50%;transform:translateX(-50%);
+      font-size:11px;color:#aaa;white-space:nowrap;pointer-events:none;`;
+    hint.textContent = '원을 드래그해서 분리 · 놓으면 복귀';
+    cmpWrap.appendChild(hint);
 
   } else {
-    const bw = 320;
+    // ── 막대: 나란히 배치 (색 섞임 없음) ──
+    const n     = fracs.length;
+    const rowH  = 52;
+    const gap   = 8;
+    const bw    = 300;
+    const totalH = n * rowH + (n - 1) * gap;
+
     cmpWrap.style.width        = bw + 'px';
-    cmpWrap.style.height       = barH + 'px';
+    cmpWrap.style.height       = totalH + 'px';
     cmpWrap.style.borderRadius = '12px';
+    cmpWrap.style.overflow     = 'visible';
+    cmpWrap.style.background   = 'transparent';
+    cmpWrap.style.border       = 'none';
+    cmpWrap.innerHTML = '';
 
-    // 배경 회색 막대
-    let content = `<rect x="2" y="2" width="${bw-4}" height="${barH-4}" rx="6" fill="#f8f8f8" stroke="#ddd" stroke-width="1.5"/>`;
-
-    const sorted = fracs
-      .map((f,i) => ({...f, color: COLORS[i], val: (parseInt(f.num)||0)/(parseInt(f.den)||1)}))
-      .sort((a,b) => b.val - a.val);
-
-    sorted.forEach(f => {
-      content += makeBarOverlayPaths(parseInt(f.num)||0, parseInt(f.den)||0, f.color, bw, barH);
+    fracs.forEach((f, i) => {
+      const num = parseInt(f.num)||0, den = parseInt(f.den)||0;
+      const y = i * (rowH + gap);
+      const svg = makeBarSVG(num, den, COLORS[i], bw, rowH);
+      const div = document.createElement('div');
+      div.style.cssText = `position:absolute;left:0;top:${y}px;width:${bw}px;height:${rowH}px;`;
+      div.innerHTML = svg;
+      cmpWrap.appendChild(div);
     });
-
-    cmpWrap.innerHTML = `<svg viewBox="0 0 ${bw} ${barH}" width="100%" height="100%">${content}</svg>`;
   }
+}
+
+// cmpWrap 재빌드 시 이전 드래그 리스너 정리
+function cleanupCmpListeners() {
+  const cmpWrap = document.getElementById('cmp-wrap');
+  if (!cmpWrap) return;
+  cmpWrap.querySelectorAll('div').forEach(d => { if (d._cleanup) d._cleanup(); });
 }
 
 // ── vizSize ───────────────────────────────────────────────
@@ -610,12 +645,13 @@ function renderAll() {
 }
 
 function resetCmpWrap() {
+  cleanupCmpListeners();
   const cmpWrap = document.getElementById('cmp-wrap');
   const cmpSym  = document.getElementById('cmp-sym');
   if (cmpWrap) {
     cmpWrap.style.width = '90px'; cmpWrap.style.height = '90px';
-    cmpWrap.style.borderRadius = '50%';
-    cmpWrap.style.transition = 'width .45s ease, height .45s ease, border-radius .45s ease';
+    cmpWrap.style.borderRadius = '50%'; cmpWrap.style.overflow = 'hidden';
+    cmpWrap.style.background = 'white'; cmpWrap.style.border = '2.5px solid #f0a060';
     cmpWrap.innerHTML = '';
   }
   if (cmpSym) cmpSym.style.display = 'none';
