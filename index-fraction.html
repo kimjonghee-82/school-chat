@@ -249,7 +249,8 @@ const state = {
 };
 
 // ── SVG 기본 ─────────────────────────────────────────────
-function makePieSVG(num, den, color, size, alpha) {
+// transparentEmpty=true: 빈 슬라이스를 투명으로 처리 (비교 오버레이용)
+function makePieSVG(num, den, color, size, alpha, transparentEmpty) {
   alpha = (alpha === undefined) ? 1 : alpha;
   const cx = size/2, cy = size/2, r = size/2 - 4;
   if (!den || den < 1) {
@@ -266,7 +267,8 @@ function makePieSVG(num, den, color, size, alpha) {
     const d = den===1
       ? `M ${cx} ${cy} m -${r} 0 a ${r} ${r} 0 1 1 ${r*2} 0 a ${r} ${r} 0 1 1 -${r*2} 0 Z`
       : `M ${cx} ${cy} L ${x0} ${y0} A ${r} ${r} 0 ${lg} 1 ${x1} ${y1} Z`;
-    p += `<path d="${d}" fill="${i<n ? color : 'white'}" stroke="#555" stroke-width="1" stroke-dasharray="4 2"/>`;
+    const emptyFill = transparentEmpty ? 'none' : 'white';
+    p += `<path d="${d}" fill="${i<n ? color : emptyFill}" stroke="#555" stroke-width="1" stroke-dasharray="4 2"/>`;
   }
   p += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#333" stroke-width="2"/>`;
   return `<svg viewBox="0 0 ${size} ${size}" opacity="${alpha}">${p}</svg>`;
@@ -359,9 +361,9 @@ function renderCmpView() {
     cmpWrap.style.borderRadius = '50%';
     cmpWrap.style.overflow     = 'visible';
     cmpWrap.style.position     = 'relative';
-    cmpWrap.style.background   = 'white';   // multiply 기준 배경
+    cmpWrap.style.background   = 'white';
     cmpWrap.style.border       = '2px solid #ddd';
-    cmpWrap.style.isolation    = 'isolate'; // 블렌드 컨텍스트 격리
+    cmpWrap.style.isolation    = 'auto';
     cmpWrap.innerHTML = '';
 
     const sorted = fracs
@@ -380,12 +382,12 @@ function renderCmpView() {
         `width:${sz}px`, `height:${sz}px`,
         'cursor:grab', 'user-select:none', '-webkit-user-select:none',
         `z-index:${layerIdx + 1}`,
-        'mix-blend-mode:multiply',          // 핵심: 겹침만 색 혼합, 단독 영역은 원래 색
+        // mix-blend-mode 없음: 색 혼합 없이 투명도로만 겹쳐 보임
         'transition:transform 0.45s cubic-bezier(.34,1.56,.64,1)',
       ].join(';');
 
-      // opacity 없이 원래 색 그대로 (alpha=1)
-      div.innerHTML = makePieSVG(f.num, f.den, f.color, sz, 1);
+      // 빈 영역 투명 + div 자체에 opacity → 겹치는 채워진 영역만 비쳐 보임
+      div.innerHTML = makePieSVG(f.num, f.den, f.color, sz, 0.72, true);
 
       // ── 드래그 로직 (mouse + touch) ──
       let dragging = false, sx = 0, sy = 0;
