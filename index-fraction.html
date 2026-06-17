@@ -615,7 +615,7 @@ body {
   z-index: 5;
 }
 .answer-panel-toggle:hover { background: #c04010; }
-.answer-list { flex: 1; overflow-y: auto; padding: 8px 0; }
+.answer-list { flex: 1; overflow-y: auto; padding: 4px 0; }
 .answer-item {
   display: flex; align-items: center; gap: 8px;
   padding: 8px 14px; border-bottom: 1px solid #eee;
@@ -658,12 +658,111 @@ body {
 
 /* 학생 게임 화면 */
 .student-game-wrap {
-  flex: 1; display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  background: #1a1a2e; gap: 24px;
+  flex: 1; display: flex; flex-direction: row;
+  background: white;
 }
-.student-waiting { font-size: 18px; font-weight: 700; color: rgba(255,255,255,.5); }
-.student-room-info { font-size: 13px; color: rgba(255,255,255,.3); }
+/* 학생 좌측: 분수 입력 (50%) */
+.student-frac-area {
+  flex: 0 0 50%; display: flex;
+  align-items: center; justify-content: center;
+  background: white; border-right: 3px solid #e0e0e0;
+  position: relative;
+}
+/* 학생 분수 셀: 교사와 같은 디자인이나 텍스트 검은색 */
+.student-frac-cell {
+  width: 180px; height: 160px;
+  border: 3px solid #f0a060; border-radius: 20px;
+  background: #fff5ee;
+  display: flex; align-items: center; justify-content: center;
+}
+.student-frac-cell input {
+  width: 100%; height: 100%;
+  background: transparent; border: none; outline: none;
+  font-size: 96px; font-weight: 900;
+  text-align: center; line-height: 1;
+  color: #222;
+  caret-color: #bbb;
+  border-radius: 18px;
+}
+.student-frac-cell input::placeholder { color: #c8a88a; font-weight: 700; font-size: 72px; }
+/* 학생 우측: 인터랙티브 원그래프 (50%) */
+.student-pie-area {
+  flex: 0 0 50%; display: flex;
+  flex-direction: column; align-items: center; justify-content: center;
+  background: #fafafa; position: relative; gap: 20px;
+}
+.student-pie-hint {
+  font-size: 13px; color: #aaa; font-weight: 600;
+}
+#student-pie-svg { cursor: pointer; display: block; }
+#student-pie-svg path { transition: fill .15s; }
+.student-submit-btn {
+  position: absolute; bottom: 22px; right: 28px;
+  padding: 12px 36px; background: #3a7bd5; border: none;
+  border-radius: 24px; font-size: 15px; font-weight: 700;
+  color: white; cursor: pointer; transition: background .2s;
+  box-shadow: 0 4px 14px rgba(58,123,213,.35);
+}
+.student-submit-btn:hover { background: #2a5faa; }
+.student-submit-btn:disabled { background: #aaa; cursor: default; }
+/* 교사 정답 패널: 제출 썸네일 */
+.answer-submission {
+  padding: 12px 14px; border-bottom: 1px solid #eee;
+  animation: rosterIn .3s ease; cursor: pointer;
+}
+.answer-submission:hover { background: #f5f5f5; }
+.answer-sub-name {
+  font-size: 12px; font-weight: 700; color: #555;
+  margin-bottom: 6px;
+}
+.answer-sub-thumb {
+  background: white; border: 1.5px solid #e0e0e0; border-radius: 10px;
+  padding: 8px; display: flex; align-items: center; gap: 10px;
+}
+.answer-sub-frac {
+  display: flex; flex-direction: column; align-items: center; gap: 0; flex-shrink: 0;
+}
+.answer-sub-num, .answer-sub-den {
+  font-size: 28px; font-weight: 900; color: #222; line-height: 1;
+}
+.answer-sub-line {
+  width: 40px; height: 3px; background: #222; border-radius: 2px; margin: 3px 0;
+}
+/* 전체화면 모달 */
+#submission-modal {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.7); z-index: 9999;
+  align-items: center; justify-content: center;
+}
+#submission-modal.open { display: flex; }
+.submission-modal-box {
+  background: white; border-radius: 20px; padding: 28px 32px;
+  min-width: 340px; max-width: 90vw;
+  display: flex; flex-direction: column; align-items: center; gap: 16px;
+  box-shadow: 0 12px 48px rgba(0,0,0,.4);
+  position: relative;
+}
+.submission-modal-name {
+  font-size: 18px; font-weight: 900; color: #333;
+}
+.submission-modal-close {
+  position: absolute; top: 14px; right: 18px;
+  background: none; border: none; font-size: 22px;
+  cursor: pointer; color: #999; line-height: 1;
+}
+.submission-modal-close:hover { color: #333; }
+.submission-modal-content {
+  display: flex; align-items: center; gap: 32px;
+}
+.submission-modal-frac {
+  display: flex; flex-direction: column; align-items: center; gap: 0;
+}
+.submission-modal-num, .submission-modal-den {
+  font-size: 80px; font-weight: 900; color: #222; line-height: 1;
+}
+.submission-modal-line {
+  width: 120px; height: 6px; background: #222; border-radius: 3px; margin: 6px 0;
+}
 
 /* ── 역할 바 (로그인 후 항상 표시) ── */
 #role-bar {
@@ -883,9 +982,37 @@ body {
   <!-- 학생용 화면 -->
   <div id="game-student-view" style="display:none; flex:1; flex-direction:column;">
     <div class="student-game-wrap">
-      <div class="student-waiting">선생님을 기다리고 있습니다...</div>
-      <div class="student-room-info" id="student-room-info"></div>
+      <!-- 좌측: 분수 입력 -->
+      <div class="student-frac-area">
+        <div class="game-frac-widget">
+          <div class="student-frac-cell">
+            <input id="stu-num-input" type="text" inputmode="numeric"
+              maxlength="3" placeholder="?" autocomplete="off" spellcheck="false">
+          </div>
+          <div class="game-frac-divider"></div>
+          <div class="student-frac-cell">
+            <input id="stu-den-input" type="text" inputmode="numeric"
+              maxlength="3" placeholder="?" autocomplete="off" spellcheck="false">
+          </div>
+        </div>
+      </div>
+      <!-- 우측: 인터랙티브 원그래프 -->
+      <div class="student-pie-area">
+        <div id="student-pie-container">
+          <div class="student-pie-hint">분모를 입력하면<br>원이 나타납니다</div>
+        </div>
+        <button class="student-submit-btn" id="student-submit-btn">제출하기</button>
+      </div>
     </div>
+  </div>
+</div>
+
+<!-- 제출 전체화면 모달 -->
+<div id="submission-modal">
+  <div class="submission-modal-box">
+    <button class="submission-modal-close" onclick="closeSubmissionModal()">✕</button>
+    <div class="submission-modal-name" id="modal-student-name"></div>
+    <div class="submission-modal-content" id="modal-content"></div>
   </div>
 </div>
 
@@ -2083,6 +2210,32 @@ function openTeacherGame() {
 
   // 확인 버튼
   document.getElementById('game-confirm-btn').addEventListener('click', revealFraction);
+
+  // 학생 제출 실시간 수신
+  db.ref(`rooms/${session.roomCode}/submissions`).on('value', snap => {
+    const listEl = document.getElementById('answer-list');
+    if (!snap.exists()) {
+      listEl.innerHTML = '<div class="answer-empty">학생이 정답을<br>제출하면 표시됩니다</div>';
+      return;
+    }
+    let html = '';
+    snap.forEach(child => {
+      const d = child.val();
+      const svgHtml = makeSubmissionSVG(d.num, d.den, d.coloredSectors || [], 90);
+      html += `<div class="answer-submission" onclick="openSubmissionModal('${escHtml(d.name)}','${d.num}','${d.den}','${(d.coloredSectors||[]).join(',')}')">
+        <div class="answer-sub-name">${escHtml(d.name)}</div>
+        <div class="answer-sub-thumb">
+          <div class="answer-sub-frac">
+            <div class="answer-sub-num">${escHtml(d.num)}</div>
+            <div class="answer-sub-line"></div>
+            <div class="answer-sub-den">${escHtml(d.den)}</div>
+          </div>
+          ${svgHtml}
+        </div>
+      </div>`;
+    });
+    listEl.innerHTML = html;
+  });
 }
 
 function makeFracPieSVG(num, den) {
@@ -2219,18 +2372,144 @@ function syncFractionToDb() {
 }
 
 // ── 학생 게임 ────────────────────────────────────────────
+let stuColoredSectors = new Set();
+let stuCurrentDen = 0;
+
 function openStudentGame() {
   document.getElementById('game-teacher-view').style.display = 'none';
-  document.getElementById('game-student-view').style.display = 'flex';
-  document.getElementById('student-room-info').textContent = `방 코드: ${session.roomCode}  |  ${session.name}`;
+  const sv = document.getElementById('game-student-view');
+  sv.style.display = 'flex';
 
   // Firebase에 학생 등록 (presence)
   studentPresenceRef = db.ref(`rooms/${session.roomCode}/students/${session.studentId}`);
   studentPresenceRef.set({ name: session.name, joinedAt: firebase.database.ServerValue.TIMESTAMP, active: true });
-
-  // 접속 끊기면 active: false 처리
   studentPresenceRef.onDisconnect().update({ active: false });
+
+  // 분모 입력 → 원 그래프 갱신
+  document.getElementById('stu-den-input').addEventListener('input', () => {
+    const den = parseInt(document.getElementById('stu-den-input').value) || 0;
+    if (den !== stuCurrentDen) {
+      stuColoredSectors = new Set();
+      stuCurrentDen = den;
+    }
+    renderStudentPie();
+  });
+  document.getElementById('stu-num-input').addEventListener('input', () => {});
+
+  // 제출 버튼
+  document.getElementById('student-submit-btn').addEventListener('click', submitStudentAnswer);
 }
+
+function renderStudentPie() {
+  const den = parseInt(document.getElementById('stu-den-input').value) || 0;
+  const container = document.getElementById('student-pie-container');
+  if (den < 1 || den > 50) {
+    container.innerHTML = '<div class="student-pie-hint">분모를 입력하면<br>원이 나타납니다</div>';
+    return;
+  }
+  const S = 260, cx = 130, cy = 130, R = 112;
+  let paths = '';
+  for (let i = 0; i < den; i++) {
+    const a1 = (i / den) * 2 * Math.PI - Math.PI / 2;
+    const a2 = ((i + 1) / den) * 2 * Math.PI - Math.PI / 2;
+    const x1 = cx + R * Math.cos(a1), y1 = cy + R * Math.sin(a1);
+    const x2 = cx + R * Math.cos(a2), y2 = cy + R * Math.sin(a2);
+    const large = (1 / den) > 0.5 ? 1 : 0;
+    const fill = stuColoredSectors.has(i) ? '#e06020' : '#f0f0f0';
+    paths += `<path data-i="${i}" d="M${cx},${cy} L${x1.toFixed(2)},${y1.toFixed(2)} A${R},${R} 0 ${large},1 ${x2.toFixed(2)},${y2.toFixed(2)} Z" fill="${fill}" stroke="white" stroke-width="2"/>`;
+  }
+  // 점선 구분선
+  let dashes = '';
+  for (let i = 0; i < den; i++) {
+    const a = (i / den) * 2 * Math.PI - Math.PI / 2;
+    const x = cx + R * Math.cos(a), y = cy + R * Math.sin(a);
+    dashes += `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(2)}" y2="${y.toFixed(2)}" stroke="white" stroke-width="2.5" stroke-dasharray="7,5" pointer-events="none"/>`;
+  }
+  container.innerHTML = `<svg id="student-pie-svg" width="${S}" height="${S}">
+    <circle cx="${cx}" cy="${cy}" r="${R}" fill="#f0f0f0" stroke="#ddd" stroke-width="2"/>
+    ${paths}${dashes}
+    <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="#f0a060" stroke-width="3"/>
+  </svg>`;
+  document.getElementById('student-pie-svg').addEventListener('click', e => {
+    const path = e.target.closest('path[data-i]');
+    if (!path) return;
+    const i = parseInt(path.getAttribute('data-i'));
+    if (stuColoredSectors.has(i)) stuColoredSectors.delete(i);
+    else stuColoredSectors.add(i);
+    renderStudentPie();
+  });
+}
+
+function submitStudentAnswer() {
+  const num = document.getElementById('stu-num-input').value.trim();
+  const den = document.getElementById('stu-den-input').value.trim();
+  if (!den || parseInt(den) < 1) { alert('분모를 입력해 주세요'); return; }
+  const btn = document.getElementById('student-submit-btn');
+  btn.disabled = true;
+  btn.textContent = '제출 완료!';
+  db.ref(`rooms/${session.roomCode}/submissions/${session.studentId}`).set({
+    name: session.name,
+    num: num || '?',
+    den,
+    coloredSectors: [...stuColoredSectors],
+    submittedAt: firebase.database.ServerValue.TIMESTAMP
+  });
+  setTimeout(() => { btn.disabled = false; btn.textContent = '제출하기'; }, 3000);
+}
+
+// ── 제출 SVG 생성 (교사 뷰 썸네일 & 모달 공용) ──────────
+function makeSubmissionSVG(num, den, coloredArr, size) {
+  den = parseInt(den) || 1;
+  const colored = new Set((coloredArr || []).map(Number));
+  const S = size, cx = S/2, cy = S/2, R = S/2 - 6;
+  let paths = '';
+  for (let i = 0; i < den; i++) {
+    const a1 = (i / den) * 2 * Math.PI - Math.PI / 2;
+    const a2 = ((i + 1) / den) * 2 * Math.PI - Math.PI / 2;
+    const x1 = cx + R * Math.cos(a1), y1 = cy + R * Math.sin(a1);
+    const x2 = cx + R * Math.cos(a2), y2 = cy + R * Math.sin(a2);
+    const large = (1 / den) > 0.5 ? 1 : 0;
+    const fill = colored.has(i) ? '#e06020' : '#f0f0f0';
+    paths += `<path d="M${cx},${cy} L${x1.toFixed(2)},${y1.toFixed(2)} A${R},${R} 0 ${large},1 ${x2.toFixed(2)},${y2.toFixed(2)} Z" fill="${fill}" stroke="white" stroke-width="1.5"/>`;
+  }
+  let dashes = '';
+  for (let i = 0; i < den; i++) {
+    const a = (i / den) * 2 * Math.PI - Math.PI / 2;
+    const x = cx + R * Math.cos(a), y = cy + R * Math.sin(a);
+    dashes += `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(2)}" y2="${y.toFixed(2)}" stroke="white" stroke-width="1.5" stroke-dasharray="5,4"/>`;
+  }
+  return `<svg width="${S}" height="${S}">
+    <circle cx="${cx}" cy="${cy}" r="${R}" fill="#f0f0f0" stroke="#ddd" stroke-width="1.5"/>
+    ${paths}${dashes}
+    <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="#f0a060" stroke-width="2.5"/>
+  </svg>`;
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function openSubmissionModal(name, num, den, coloredStr) {
+  const colored = coloredStr ? coloredStr.split(',').filter(Boolean).map(Number) : [];
+  document.getElementById('modal-student-name').textContent = name;
+  document.getElementById('modal-content').innerHTML = `
+    <div class="submission-modal-frac">
+      <div class="submission-modal-num">${escHtml(num)}</div>
+      <div class="submission-modal-line"></div>
+      <div class="submission-modal-den">${escHtml(den)}</div>
+    </div>
+    ${makeSubmissionSVG(num, den, colored, 260)}
+  `;
+  document.getElementById('submission-modal').classList.add('open');
+}
+
+function closeSubmissionModal() {
+  document.getElementById('submission-modal').classList.remove('open');
+}
+
+document.getElementById('submission-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('submission-modal')) closeSubmissionModal();
+});
 
 // ── 최초 로그인 화면 표시 ────────────────────────────────
 showLoginScreen();
