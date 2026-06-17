@@ -161,7 +161,7 @@ body {
 .np-btn:hover { background: #f0e8ff; border-color: #b090e0; }
 .np-btn:active { background: #e0d0ff; }
 .np-btn.del {
-  grid-column: span 2; font-size: 11px;
+  font-size: 16px;
   background: #fff0f0; border-color: #f0b0b0; color: #c04040;
   white-space: nowrap; overflow: hidden;
   padding: 0 4px; letter-spacing: -0.3px;
@@ -550,9 +550,12 @@ function buildFracPanel(idx) {
   const padSide = idx < cmpPos ? 'pad-right' : 'pad-left';
   const pad = document.createElement('div');
   pad.className = `numpad ${padSide}`; pad.id = `pad-${idx}`;
-  pad.innerHTML = [1,2,3,4,5,6,7,8,9,0].map(v =>
+  pad.innerHTML = [1,2,3,4,5,6,7,8,9].map(v =>
     `<button class="np-btn" data-v="${v}" data-idx="${idx}">${v}</button>`
-  ).join('') + `<button class="np-btn del" data-v="del" data-idx="${idx}">⌫</button>`;
+  ).join('') +
+  `<div></div>` +
+  `<button class="np-btn" data-v="0" data-idx="${idx}">0</button>` +
+  `<button class="np-btn del" data-v="del" data-idx="${idx}">⌫</button>`;
 
   fracArea.appendChild(numCell);
   fracArea.appendChild(line);
