@@ -909,6 +909,49 @@ body {
 .student-score-val.bump { transform: scale(1.4); color: #ffaa00; }
 .student-score-pts { font-size: 12px; color: rgba(255,255,255,.4); font-weight: 700; }
 
+/* ── 채점 설정 진입 화면 (게임 탭 첫 진입 시) ── */
+#scoring-setup-screen {
+  display: none; position: fixed; inset: 0;
+  background: rgba(20,20,40,.85); z-index: 7000;
+  align-items: center; justify-content: center;
+}
+#scoring-setup-screen.open { display: flex; }
+.scoring-setup-box {
+  background: white; border-radius: 24px;
+  padding: 36px 40px; min-width: 360px; max-width: 92vw;
+  display: flex; flex-direction: column; gap: 20px;
+  box-shadow: 0 16px 56px rgba(0,0,0,.45);
+}
+.scoring-setup-title {
+  font-size: 20px; font-weight: 900; color: #222; text-align: center;
+}
+.scoring-setup-sub {
+  font-size: 13px; color: #aaa; text-align: center; margin-top: -12px;
+}
+.scoring-setup-row {
+  display: flex; align-items: center; gap: 12px;
+}
+.scoring-setup-label {
+  flex: 1; font-size: 14px; font-weight: 700;
+}
+.scoring-setup-label.equal   { color: #3cb371; }
+.scoring-setup-label.greater { color: #e06020; }
+.scoring-setup-label.less    { color: #5a9fd4; }
+.scoring-setup-input {
+  width: 72px; border: 2px solid #ddd; border-radius: 10px;
+  padding: 8px 10px; font-size: 18px; font-weight: 900;
+  text-align: center; outline: none; color: #222;
+}
+.scoring-setup-input:focus { border-color: #e06020; }
+.scoring-setup-unit { font-size: 13px; color: #aaa; }
+.scoring-setup-confirm {
+  padding: 14px; background: #e06020; border: none;
+  border-radius: 16px; font-size: 16px; font-weight: 900;
+  color: white; cursor: pointer; transition: background .2s;
+  box-shadow: 0 4px 14px rgba(224,96,32,.35);
+}
+.scoring-setup-confirm:hover { background: #c04010; }
+
 /* ── 역할 바 (로그인 후 항상 표시) ── */
 #role-bar {
   display: none;
@@ -1170,6 +1213,30 @@ body {
         <button class="student-submit-btn" id="student-submit-btn">제출하기</button>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- 채점 설정 진입 화면 -->
+<div id="scoring-setup-screen">
+  <div class="scoring-setup-box">
+    <div class="scoring-setup-title">⚙ 채점 기준 설정</div>
+    <div class="scoring-setup-sub">게임을 시작하기 전에 채점 기준을 설정해 주세요</div>
+    <div class="scoring-setup-row">
+      <span class="scoring-setup-label equal">선생님과 같을 때</span>
+      <input class="scoring-setup-input" id="setup-score-eq" type="number" min="0" max="999" value="10">
+      <span class="scoring-setup-unit">점</span>
+    </div>
+    <div class="scoring-setup-row">
+      <span class="scoring-setup-label greater">선생님보다 클 때</span>
+      <input class="scoring-setup-input" id="setup-score-gt" type="number" min="0" max="999" value="0">
+      <span class="scoring-setup-unit">점</span>
+    </div>
+    <div class="scoring-setup-row">
+      <span class="scoring-setup-label less">선생님보다 작을 때</span>
+      <input class="scoring-setup-input" id="setup-score-lt" type="number" min="0" max="999" value="0">
+      <span class="scoring-setup-unit">점</span>
+    </div>
+    <button class="scoring-setup-confirm" onclick="confirmScoringSetup()">설정 완료 → 게임 시작</button>
   </div>
 </div>
 
@@ -2372,7 +2439,14 @@ function genRoomCode() {
   return String(Math.floor(10000 + Math.random() * 90000));
 }
 
+let _teacherGameReady = false; // 설정 완료 전까지 false
+
 function openTeacherGame() {
+  // 처음 진입 시 채점 설정 화면 먼저 표시
+  if (!_teacherGameReady) {
+    document.getElementById('scoring-setup-screen').classList.add('open');
+    return;
+  }
   const tv = document.getElementById('game-teacher-view');
   tv.style.display = 'flex'; tv.style.flex = '1'; tv.style.flexDirection = 'column';
   document.getElementById('game-student-view').style.display = 'none';
@@ -2823,6 +2897,21 @@ function closeSubmissionModal() {
 document.getElementById('submission-modal').addEventListener('click', e => {
   if (e.target === document.getElementById('submission-modal')) closeSubmissionModal();
 });
+
+// ── 채점 설정 진입 화면 확인 ────────────────────────────
+function confirmScoringSetup() {
+  const eq = document.getElementById('setup-score-eq').value;
+  const gt = document.getElementById('setup-score-gt').value;
+  const lt = document.getElementById('setup-score-lt').value;
+  // 실제 채점 인풋에 값 반영
+  document.getElementById('score-eq').value = eq;
+  document.getElementById('score-gt').value = gt;
+  document.getElementById('score-lt').value = lt;
+  // 화면 닫고 게임 진입
+  document.getElementById('scoring-setup-screen').classList.remove('open');
+  _teacherGameReady = true;
+  openTeacherGame();
+}
 
 // ── 채점 설정 패널 ───────────────────────────────────────
 function toggleScoringPanel() {
