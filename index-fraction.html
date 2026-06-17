@@ -796,6 +796,85 @@ body {
 .compare-symbol.eq { color: #3cb371; }
 .compare-symbol.lt { color: #5a9fd4; }
 
+/* ── 채점 설정 (톱니바퀴) ── */
+.scoring-gear-btn {
+  position: absolute; top: 12px; right: 16px;
+  width: 34px; height: 34px; border-radius: 50%;
+  background: rgba(0,0,0,.07); border: 1.5px solid #ddd;
+  font-size: 18px; cursor: pointer; display: flex;
+  align-items: center; justify-content: center;
+  z-index: 20; transition: background .2s;
+}
+.scoring-gear-btn:hover { background: rgba(0,0,0,.14); }
+.scoring-panel {
+  position: absolute; top: 52px; right: 16px;
+  background: white; border: 1.5px solid #e0e0e0;
+  border-radius: 14px; padding: 14px 18px; z-index: 30;
+  box-shadow: 0 8px 28px rgba(0,0,0,.15);
+  min-width: 280px;
+}
+.scoring-panel-title {
+  font-size: 12px; font-weight: 700; color: #888;
+  letter-spacing: 1px; margin-bottom: 12px;
+}
+.scoring-row {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 10px;
+}
+.scoring-cond-label {
+  font-size: 12px; font-weight: 700; flex: 1;
+}
+.scoring-cond-label.equal  { color: #3cb371; }
+.scoring-cond-label.greater{ color: #e06020; }
+.scoring-cond-label.less   { color: #5a9fd4; }
+.scoring-pts-input {
+  width: 52px; border: 1.5px solid #ddd; border-radius: 8px;
+  padding: 5px 6px; font-size: 14px; font-weight: 700;
+  text-align: center; outline: none;
+}
+.scoring-pts-input:focus { border-color: #e06020; }
+.scoring-pts-unit { font-size: 12px; color: #aaa; }
+/* 정답 패널 하단 채점 버튼 영역 */
+.answer-panel-footer {
+  flex-shrink: 0; padding: 8px 10px;
+  background: #f5f5f5; border-top: 1px solid #e0e0e0;
+  display: flex; gap: 6px; justify-content: flex-end;
+}
+.score-run-btn {
+  padding: 7px 18px; background: #e06020; border: none;
+  border-radius: 16px; font-size: 12px; font-weight: 700;
+  color: white; cursor: pointer; transition: background .2s;
+}
+.score-run-btn:hover { background: #c04010; }
+.score-reset-btn {
+  padding: 7px 14px; background: #aaa; border: none;
+  border-radius: 16px; font-size: 12px; font-weight: 700;
+  color: white; cursor: pointer; transition: background .2s;
+}
+.score-reset-btn:hover { background: #888; }
+/* 제출 카드 위 점수 배지 */
+.answer-sub-score {
+  background: #e06020; color: white;
+  font-size: 11px; font-weight: 900;
+  padding: 2px 8px; border-radius: 10px;
+  position: absolute; top: -8px; right: 4px;
+}
+.answer-submission { position: relative; }
+/* 학생 점수 상단 바 */
+.student-score-bar {
+  background: #1a1a2e; padding: 6px 20px;
+  display: flex; align-items: center; gap: 8px;
+  flex-shrink: 0;
+}
+.student-score-label { font-size: 12px; color: rgba(255,255,255,.5); font-weight: 700; }
+.student-score-val {
+  font-size: 28px; font-weight: 900; color: #ffd580;
+  line-height: 1; min-width: 32px; text-align: right;
+  transition: transform .3s, color .3s;
+}
+.student-score-val.bump { transform: scale(1.4); color: #ffaa00; }
+.student-score-pts { font-size: 12px; color: rgba(255,255,255,.4); font-weight: 700; }
+
 /* ── 역할 바 (로그인 후 항상 표시) ── */
 #role-bar {
   display: none;
@@ -981,6 +1060,27 @@ body {
       </div>
       <!-- 분수 입력 영역 (중앙, flex:1) -->
       <div class="game-frac-area" id="game-frac-area" style="position:relative;">
+        <!-- 톱니바퀴 채점 설정 버튼 -->
+        <button class="scoring-gear-btn" id="scoring-gear-btn" onclick="toggleScoringPanel()" title="채점 설정">⚙</button>
+        <!-- 채점 설정 드롭다운 -->
+        <div class="scoring-panel" id="scoring-panel" style="display:none;">
+          <div class="scoring-panel-title">채점 기준</div>
+          <div class="scoring-row">
+            <span class="scoring-cond-label equal">선생님과 같을 때</span>
+            <input class="scoring-pts-input" id="score-eq" type="number" min="0" max="999" value="10" placeholder="점">
+            <span class="scoring-pts-unit">점</span>
+          </div>
+          <div class="scoring-row">
+            <span class="scoring-cond-label greater">선생님보다 클 때</span>
+            <input class="scoring-pts-input" id="score-gt" type="number" min="0" max="999" value="0" placeholder="점">
+            <span class="scoring-pts-unit">점</span>
+          </div>
+          <div class="scoring-row">
+            <span class="scoring-cond-label less">선생님보다 작을 때</span>
+            <input class="scoring-pts-input" id="score-lt" type="number" min="0" max="999" value="0" placeholder="점">
+            <span class="scoring-pts-unit">점</span>
+          </div>
+        </div>
         <div class="game-frac-widget" id="game-frac-widget">
           <div class="game-frac-cell">
             <input id="game-num-input" type="text" inputmode="numeric"
@@ -1006,13 +1106,23 @@ body {
             style="background:none;border:none;color:white;font-size:16px;cursor:pointer;padding:0;">✕</button>
         </div>
         <div class="answer-list" id="answer-list">
-          <div class="answer-empty">학생이 정답을<br>제출하면 표시됩니다</div>
+          <div class="answer-empty" style="grid-column:1/-1">학생이 정답을<br>제출하면 표시됩니다</div>
+        </div>
+        <div class="answer-panel-footer">
+          <button class="score-reset-btn" id="score-reset-btn" onclick="resetAllScores()">↺ 리셋</button>
+          <button class="score-run-btn" id="score-run-btn" onclick="runScoring()">채점하기</button>
         </div>
       </div>
     </div>
   </div>
   <!-- 학생용 화면 -->
   <div id="game-student-view" style="display:none; flex:1; flex-direction:column;">
+    <!-- 학생 점수 상단 바 -->
+    <div class="student-score-bar" id="student-score-bar" style="display:none;">
+      <span class="student-score-label">내 점수</span>
+      <span class="student-score-val" id="student-score-val">0</span>
+      <span class="student-score-pts">점</span>
+    </div>
     <div class="student-game-wrap">
       <!-- 좌측: 분수 입력 -->
       <div class="student-frac-area">
@@ -2243,6 +2353,9 @@ function openTeacherGame() {
   // 확인 버튼
   document.getElementById('game-confirm-btn').addEventListener('click', revealFraction);
 
+  // 점수 실시간 배지
+  listenScores();
+
   // 학생 제출 실시간 수신 → 그리드 렌더링
   db.ref(`rooms/${session.roomCode}/submissions`).on('value', snap => {
     const listEl = document.getElementById('answer-list');
@@ -2252,21 +2365,28 @@ function openTeacherGame() {
       return;
     }
     const items = [];
-    snap.forEach(child => items.push(child.val()));
+    snap.forEach(child => items.push({ sid: child.key, ...child.val() }));
     // 5명 초과면 3열
     listEl.className = 'answer-list' + (items.length > 4 ? ' cols3' : '');
     const thumbSize = items.length > 4 ? 64 : 80;
-    listEl.innerHTML = items.map(d =>
-      `<div class="answer-submission" onclick="openSubmissionModal('${escHtml(d.name)}','${d.num}','${d.den}','${(d.coloredSectors||[]).join(',')}')">
-        <div class="answer-sub-name">${escHtml(d.name)}</div>
-        <div class="answer-sub-frac">
-          <div class="answer-sub-num">${escHtml(d.num)}</div>
-          <div class="answer-sub-line"></div>
-          <div class="answer-sub-den">${escHtml(d.den)}</div>
-        </div>
-        ${makeSubmissionSVG(d.num, d.den, d.coloredSectors || [], thumbSize)}
-      </div>`
-    ).join('');
+    // 현재 점수 가져오기
+    db.ref(`rooms/${session.roomCode}/scores`).once('value').then(scSnap => {
+      const scores = scSnap.val() || {};
+      listEl.innerHTML = items.map(d => {
+        const sc = scores[d.sid];
+        const badge = (sc && sc.total > 0) ? `<div class="answer-sub-score">${sc.total}점</div>` : '';
+        return `<div class="answer-submission" data-sid="${escHtml(d.sid)}" onclick="openSubmissionModal('${escHtml(d.name)}','${d.num}','${d.den}','${(d.coloredSectors||[]).join(',')}')">
+          ${badge}
+          <div class="answer-sub-name">${escHtml(d.name)}</div>
+          <div class="answer-sub-frac">
+            <div class="answer-sub-num">${escHtml(d.num)}</div>
+            <div class="answer-sub-line"></div>
+            <div class="answer-sub-den">${escHtml(d.den)}</div>
+          </div>
+          ${makeSubmissionSVG(d.num, d.den, d.coloredSectors || [], thumbSize)}
+        </div>`;
+      }).join('');
+    });
   });
 }
 
@@ -2416,6 +2536,9 @@ function openStudentGame() {
   studentPresenceRef = db.ref(`rooms/${session.roomCode}/students/${session.studentId}`);
   studentPresenceRef.set({ name: session.name, joinedAt: firebase.database.ServerValue.TIMESTAMP, active: true });
   studentPresenceRef.onDisconnect().update({ active: false });
+
+  // 내 점수 실시간 수신
+  listenMyScore();
 
   // 분모 입력 → 원 그래프 갱신
   document.getElementById('stu-den-input').addEventListener('input', () => {
@@ -2637,6 +2760,123 @@ function closeSubmissionModal() {
 document.getElementById('submission-modal').addEventListener('click', e => {
   if (e.target === document.getElementById('submission-modal')) closeSubmissionModal();
 });
+
+// ── 채점 설정 패널 ───────────────────────────────────────
+function toggleScoringPanel() {
+  const p = document.getElementById('scoring-panel');
+  p.style.display = p.style.display === 'none' ? 'block' : 'none';
+}
+// 패널 바깥 클릭 시 닫기
+document.addEventListener('click', e => {
+  const panel = document.getElementById('scoring-panel');
+  const btn = document.getElementById('scoring-gear-btn');
+  if (!panel || !btn) return;
+  if (panel.style.display !== 'none' && !panel.contains(e.target) && e.target !== btn) {
+    panel.style.display = 'none';
+  }
+});
+
+// ── 채점 실행 ────────────────────────────────────────────
+async function runScoring() {
+  if (!session.roomCode) return;
+  const scoreEq = parseInt(document.getElementById('score-eq').value) || 0;
+  const scoreGt = parseInt(document.getElementById('score-gt').value) || 0;
+  const scoreLt = parseInt(document.getElementById('score-lt').value) || 0;
+
+  // 선생님 분수 읽기
+  const fracSnap = await db.ref(`rooms/${session.roomCode}/fraction`).once('value');
+  const tf = fracSnap.val() || {};
+  const tNum = parseInt(tf.num) || 0;
+  const tDen = parseInt(tf.den) || 1;
+  const tVal = tNum / tDen;
+
+  // 제출 내역 읽기
+  const subSnap = await db.ref(`rooms/${session.roomCode}/submissions`).once('value');
+  if (!subSnap.exists()) return;
+
+  const updates = {};
+  subSnap.forEach(child => {
+    const d = child.val();
+    const sVal = (d.coloredSectors || []).length / (parseInt(d.den) || 1);
+    let pts = 0;
+    const diff = sVal - tVal;
+    if (Math.abs(diff) < 1e-9) pts = scoreEq;
+    else if (diff > 0)         pts = scoreGt;
+    else                       pts = scoreLt;
+    // 누적 점수 반영
+    const prevScore = 0; // 누적은 scores 노드에서 처리
+    updates[`rooms/${session.roomCode}/scores/${child.key}`] = {
+      name: d.name,
+      round: pts
+    };
+  });
+
+  // 기존 누적 점수와 합산
+  const scoresSnap = await db.ref(`rooms/${session.roomCode}/scores`).once('value');
+  const existing = scoresSnap.val() || {};
+  Object.keys(updates).forEach(path => {
+    const key = path.split('/').pop();
+    const prev = existing[key]?.total || 0;
+    updates[path].total = prev + updates[path].round;
+  });
+
+  await db.ref().update(updates);
+  document.getElementById('scoring-panel').style.display = 'none';
+}
+
+// ── 점수 초기화 ──────────────────────────────────────────
+async function resetAllScores() {
+  if (!session.roomCode) return;
+  if (!confirm('모든 학생 점수를 초기화할까요?')) return;
+  await db.ref(`rooms/${session.roomCode}/scores`).remove();
+}
+
+// ── 교사: 점수 실시간 반영 (정답 패널 배지) ─────────────
+function listenScores() {
+  db.ref(`rooms/${session.roomCode}/scores`).on('value', snap => {
+    const scores = snap.val() || {};
+    // 정답 패널 카드에 점수 배지 업데이트
+    document.querySelectorAll('.answer-submission[data-sid]').forEach(card => {
+      const sid = card.getAttribute('data-sid');
+      const sc = scores[sid];
+      let badge = card.querySelector('.answer-sub-score');
+      if (sc && sc.total > 0) {
+        if (!badge) {
+          badge = document.createElement('div');
+          badge.className = 'answer-sub-score';
+          card.appendChild(badge);
+        }
+        badge.textContent = sc.total + '점';
+      } else if (badge) {
+        badge.remove();
+      }
+    });
+  });
+}
+
+// ── 학생: 내 점수 실시간 수신 ────────────────────────────
+function listenMyScore() {
+  db.ref(`rooms/${session.roomCode}/scores/${session.studentId}`).on('value', snap => {
+    const sc = snap.val();
+    const bar = document.getElementById('student-score-bar');
+    const val = document.getElementById('student-score-val');
+    if (!bar || !val) return;
+    if (sc && typeof sc.total === 'number') {
+      bar.style.display = 'flex';
+      const prev = parseInt(val.textContent) || 0;
+      val.textContent = sc.total;
+      if (sc.total !== prev) {
+        val.classList.remove('bump');
+        void val.offsetWidth;
+        val.classList.add('bump');
+        setTimeout(() => val.classList.remove('bump'), 400);
+      }
+    } else {
+      bar.style.display = 'none';
+      val.textContent = '0';
+    }
+  });
+}
 
 // ── 최초 로그인 화면 표시 ────────────────────────────────
 showLoginScreen();
