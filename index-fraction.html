@@ -2469,7 +2469,9 @@ function enterAsStudent(name, code) {
   session.role = 'student';
   session.name = name;
   session.roomCode = code;
-  session.studentId = 'std_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+  session.studentId = (window.crypto && crypto.randomUUID)
+    ? 'std_' + crypto.randomUUID()
+    : 'std_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9) + Math.random().toString(36).slice(2, 9);
   hideLoginScreen();
   document.getElementById('student-debug-bar').style.display = 'block';
   document.getElementById('role-bar-code-val').textContent = session.roomCode;
@@ -2777,7 +2779,11 @@ function openStudentGame() {
 
   // Firebase에 학생 등록 (presence)
   studentPresenceRef = db.ref(`rooms/${session.roomCode}/students/${session.studentId}`);
-  studentPresenceRef.set({ name: session.name, joinedAt: firebase.database.ServerValue.TIMESTAMP, active: true });
+  studentPresenceRef.set({ name: session.name, joinedAt: firebase.database.ServerValue.TIMESTAMP, active: true })
+    .catch(e => {
+      const bar = document.getElementById('student-debug-bar');
+      if (bar) bar.textContent = '[디버그] 학생 등록 실패: ' + e.message;
+    });
   studentPresenceRef.onDisconnect().update({ active: false });
 
   // 내 점수 실시간 수신
@@ -2851,6 +2857,10 @@ function submitStudentAnswer() {
     den,
     coloredSectors: [...stuColoredSectors],
     submittedAt: firebase.database.ServerValue.TIMESTAMP
+  }).catch(e => {
+    alert('제출 실패: ' + e.message);
+    btn.disabled = false;
+    btn.textContent = '제출하기';
   });
   // 재제출 시 이전 채점 기록 초기화 (flashType, scoredSubmitTime)
   db.ref(`rooms/${session.roomCode}/scores/${session.studentId}`).once('value').then(snap => {
