@@ -259,44 +259,67 @@ body {
 /* Concept tab layout */
 #page-concept {
   flex: 1; display: none; flex-direction: column;
-  background: #f0f0f0;
+  background: #f5f0e8;
 }
 .concept-body {
   flex: 1; display: flex; align-items: center; justify-content: center;
-  gap: 40px; padding: 20px;
+  gap: 80px; padding: 24px 40px; overflow: visible;
 }
 .concept-left {
-  display: flex; flex-direction: column; align-items: center; gap: 20px;
+  display: flex; flex-direction: column; align-items: center; gap: 24px;
+  flex-shrink: 0;
 }
 .pizza-wrap {
-  width: 300px; height: 300px;
+  width: 420px; height: 420px;
   display: flex; align-items: center; justify-content: center;
+  overflow: visible;
 }
+.pizza-wrap svg { overflow: visible; }
 .concept-input-row {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center; gap: 12px;
 }
+/* 숫자 spinner 화살표 제거 */
+.concept-input::-webkit-inner-spin-button,
+.concept-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.concept-input[type=number] { -moz-appearance: textfield; }
 .concept-input {
-  width: 60px; height: 60px; border: 2.5px solid #f0a060;
-  border-radius: 10px; font-size: 28px; font-weight: 700;
+  width: 70px; height: 70px; border: 2.5px solid #f0a060;
+  border-radius: 12px; font-size: 32px; font-weight: 700;
   text-align: center; color: #333; outline: none;
   background: #fff9f5;
 }
 .concept-input:focus { border-color: #e06020; box-shadow: 0 0 0 3px rgba(224,96,32,.18); }
 .concept-명 {
-  font-size: 22px; font-weight: 700; color: #333;
+  font-size: 24px; font-weight: 700; color: #333;
 }
 .concept-right {
   display: flex; align-items: center; justify-content: center;
+  min-width: 220px;
 }
 #concept-frac-display {
   display: flex; flex-direction: column; align-items: center;
+  min-height: 220px; justify-content: center;
 }
 .cfd-num, .cfd-den {
-  font-size: 100px; font-weight: 900; color: #e06020; line-height: 1;
+  font-size: 110px; font-weight: 900; color: #e06020; line-height: 1;
 }
 .cfd-line {
-  width: 160px; height: 6px; background: #e06020; border-radius: 3px; margin: 8px 0;
+  width: 180px; height: 7px; background: #e06020; border-radius: 4px; margin: 10px 0;
 }
+/* 분수 등장 애니메이션 */
+@keyframes fracAppear {
+  from { opacity: 0; transform: scale(0.7) translateY(20px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.cfd-animate { animation: fracAppear 0.5s cubic-bezier(.34,1.56,.64,1) both; }
+
+/* 하이라이트 슬라이스 반짝임 */
+@keyframes sparkle {
+  0%,100% { opacity: 1; }
+  40%      { opacity: 0.25; }
+}
+.pizza-sparkle { animation: sparkle 0.9s ease-in-out infinite; }
+
 .concept-footer {
   display: flex; align-items: center; justify-content: space-between;
   padding: 12px 28px; background: white; border-top: 1px solid #e8e8e8;
@@ -348,9 +371,7 @@ body {
       </div>
     </div>
     <div class="concept-right">
-      <div id="concept-frac-display">
-        <div class="cfd-num">?</div><div class="cfd-line"></div><div class="cfd-den">?</div>
-      </div>
+      <div id="concept-frac-display"></div>
     </div>
   </div>
   <div class="concept-footer">
@@ -379,38 +400,88 @@ body {
 
 <script>
 function buildPizzaSVG(n, split) {
-  const S = 300, cx = 150, cy = 150, R = 138;
-  const crustFill = '#d4a060', sauceFill = '#cc3010', cheeseFill = '#f0a820';
-  const sauceR = R - 16, cheeseR = sauceR - 5;
+  const S = 420, cx = 210, cy = 210, R = 195;
+  const sauceR = R - 22, cheeseR = sauceR - 7;
 
-  const pepps = [{x:188,y:88},{x:102,y:82},{x:208,y:162},{x:82,y:162},{x:174,y:222},{x:108,y:228},{x:214,y:112},{x:88,y:112}];
-  const herbs = [{x:160,y:108},{x:120,y:100},{x:198,y:140},{x:72,y:140},{x:150,y:190},{x:180,y:75}];
-  const dots  = [{x:145,y:130},{x:175,y:110},{x:115,y:145},{x:185,y:180},{x:120,y:190},{x:155,y:170},{x:195,y:135},{x:105,y:125}];
+  // 토핑 데이터 (pepperoni, herbs, cheese dots, corn)
+  const pepps = [
+    {x:270,y:115},{x:148,y:108},{x:305,y:210},{x:112,y:215},
+    {x:250,y:305},{x:155,y:315},{x:298,y:148},{x:120,y:155},
+    {x:210,y:130},{x:285,y:265},{x:132,y:270},{x:195,y:310},
+  ];
+  const herbs = [
+    {x:240,y:158},{x:175,y:148},{x:300,y:188},{x:118,y:192},
+    {x:228,y:270},{x:168,y:278},{x:260,y:120},{x:148,y:330},
+    {x:305,y:245},{x:195,y:350},{x:320,y:175},{x:105,y:240},
+  ];
+  const dots = [
+    {x:210,y:175},{x:250,y:155},{x:168,y:190},{x:290,y:225},
+    {x:160,y:235},{x:230,y:248},{x:280,y:175},{x:142,y:175},
+    {x:210,y:290},{x:270,y:295},{x:150,y:290},{x:195,y:220},
+  ];
+  const corn = [
+    {x:230,y:200},{x:190,y:198},{x:258,y:232},{x:165,y:258},
+    {x:250,y:280},{x:178,y:185},{x:215,y:248},
+  ];
 
   function pizzaLayers(clip) {
-    const g = clip ? `clip-path="url(#${clip})"` : '';
-    let t = `<g ${g}>`;
-    t += `<circle cx="${cx}" cy="${cy}" r="${R}" fill="${crustFill}"/>`;
-    t += `<circle cx="${cx}" cy="${cy}" r="${sauceR}" fill="${sauceFill}"/>`;
-    t += `<circle cx="${cx}" cy="${cy}" r="${cheeseR}" fill="${cheeseFill}"/>`;
+    const cp = clip ? `clip-path="url(#${clip})"` : '';
+    let t = `<g ${cp}>`;
+    // 크러스트 (외곽 링 - 두 레이어로 질감)
+    t += `<circle cx="${cx}" cy="${cy}" r="${R}" fill="#c8913a"/>`;
+    t += `<circle cx="${cx}" cy="${cy}" r="${R-3}" fill="#e8b860"/>`;
+    // 소스
+    t += `<circle cx="${cx}" cy="${cy}" r="${sauceR}" fill="#bb2e0a"/>`;
+    // 치즈
+    t += `<circle cx="${cx}" cy="${cy}" r="${cheeseR}" fill="#f5b020"/>`;
+    // 치즈 얼룩
+    [{x:230,y:185,rx:22,ry:18},{x:178,y:230,rx:18,ry:14},{x:255,y:255,rx:16,ry:12},{x:162,y:172,rx:14,ry:11}].forEach(b=>{
+      t += `<ellipse cx="${b.x}" cy="${b.y}" rx="${b.rx}" ry="${b.ry}" fill="#fcc840" opacity="0.55"/>`;
+    });
+    // 페퍼로니
     pepps.forEach(p => {
-      t += `<ellipse cx="${p.x}" cy="${p.y}" rx="12" ry="11" fill="#c01808"/>`;
-      t += `<ellipse cx="${p.x-2}" cy="${p.y-2}" rx="5" ry="4" fill="#d83020" opacity="0.6"/>`;
+      t += `<ellipse cx="${p.x}" cy="${p.y}" rx="16" ry="15" fill="#9a1205"/>`;
+      t += `<ellipse cx="${p.x}" cy="${p.y}" rx="13" ry="12" fill="#c01808"/>`;
+      t += `<ellipse cx="${p.x-3}" cy="${p.y-3}" rx="6" ry="5" fill="#d83020" opacity="0.55"/>`;
+      // 페퍼로니 하이라이트
+      t += `<ellipse cx="${p.x-4}" cy="${p.y-4}" rx="3" ry="2" fill="rgba(255,200,180,0.4)"/>`;
     });
+    // 허브 (바질)
     herbs.forEach(h => {
-      t += `<ellipse cx="${h.x}" cy="${h.y}" rx="5" ry="3" fill="#3a8020" transform="rotate(${(h.x*7)%60-30} ${h.x} ${h.y})"/>`;
+      const rot = (h.x * 11 + h.y * 7) % 80 - 40;
+      t += `<ellipse cx="${h.x}" cy="${h.y}" rx="7" ry="4" fill="#2d7018" transform="rotate(${rot} ${h.x} ${h.y})"/>`;
+      t += `<ellipse cx="${h.x}" cy="${h.y}" rx="5" ry="2.5" fill="#4a9828" opacity="0.7" transform="rotate(${rot} ${h.x} ${h.y})"/>`;
     });
+    // 옥수수
+    corn.forEach(c => {
+      t += `<circle cx="${c.x}" cy="${c.y}" r="5" fill="#f0d020"/>`;
+      t += `<circle cx="${c.x}" cy="${c.y}" r="3" fill="#f8e060"/>`;
+    });
+    // 치즈 기포
     dots.forEach(d => {
-      t += `<circle cx="${d.x}" cy="${d.y}" r="5" fill="rgba(255,255,255,0.65)"/>`;
+      t += `<circle cx="${d.x}" cy="${d.y}" r="6" fill="rgba(255,255,240,0.6)"/>`;
     });
     t += `</g>`;
     return t;
   }
 
+  // 크러스트 외곽선 (테두리 질감)
+  function crustBorder() {
+    let b = '';
+    for (let i=0; i<36; i++) {
+      const a = i/36 * 2*Math.PI;
+      const r1 = R - 2, r2 = R + 1;
+      const bx = cx + r1*Math.cos(a), by = cy + r1*Math.sin(a);
+      b += `<circle cx="${bx.toFixed(1)}" cy="${by.toFixed(1)}" r="3.5" fill="#b07830" opacity="0.4"/>`;
+    }
+    return b;
+  }
+
   if (!split || n < 2) {
-    return `<svg viewBox="0 0 ${S} ${S}" width="${S}" height="${S}">
+    return `<svg viewBox="0 0 ${S} ${S}" width="${S}" height="${S}" style="overflow:visible">
       ${pizzaLayers('')}
-      <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="#8a5010" stroke-width="3"/>
+      ${crustBorder()}
+      <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="#7a4008" stroke-width="3.5"/>
     </svg>`;
   }
 
@@ -425,26 +496,31 @@ function buildPizzaSVG(n, split) {
     const lg = (1/n > 0.5) ? 1 : 0;
     const sectorD = n === 1
       ? `M ${cx} ${cy} m -${R} 0 a ${R} ${R} 0 1 1 ${R*2} 0 a ${R} ${R} 0 1 1 -${R*2} 0 Z`
-      : `M ${cx} ${cy} L ${x0} ${y0} A ${R} ${R} 0 ${lg} 1 ${x1} ${y1} Z`;
+      : `M ${cx} ${cy} L ${x0.toFixed(2)} ${y0.toFixed(2)} A ${R} ${R} 0 ${lg} 1 ${x1.toFixed(2)} ${y1.toFixed(2)} Z`;
 
     defs += `<clipPath id="cp-${i}"><path d="${sectorD}"/></clipPath>`;
 
     const midA = (a0 + a1) / 2;
-    const offset = 18;
-    const dx = Math.cos(midA) * offset;
-    const dy = Math.sin(midA) * offset;
+    const offset = 22;
+    const dx = (Math.cos(midA) * offset).toFixed(1);
+    const dy = (Math.sin(midA) * offset).toFixed(1);
 
-    slices += `<g style="transform:translate(${dx.toFixed(1)}px,${dy.toFixed(1)}px);transition:transform 0.5s cubic-bezier(.34,1.56,.64,1)">`;
+    const isHighlight = (i === 0);
+    slices += `<g style="transform:translate(${dx}px,${dy}px);transition:transform 0.55s cubic-bezier(.34,1.56,.64,1)">`;
     slices += pizzaLayers(`cp-${i}`);
-    slices += `<path d="${sectorD}" fill="none" stroke="#8a5010" stroke-width="2.5"/>`;
-    if (i === 0) {
-      slices += `<path d="${sectorD}" fill="rgba(255,220,60,0.35)"/>`;
+    // 크러스트 테두리
+    slices += `<path d="${sectorD}" fill="none" stroke="#7a4008" stroke-width="3"/>`;
+    // 하이라이트 슬라이스: 반짝이는 황금 오버레이
+    if (isHighlight) {
+      slices += `<path class="pizza-sparkle" d="${sectorD}" fill="rgba(255,230,50,0.45)" stroke="none"/>`;
+      // 테두리 강조선
+      slices += `<path d="${sectorD}" fill="none" stroke="#ffcc00" stroke-width="3" opacity="0.8"/>`;
     }
     slices += `</g>`;
   }
 
   defs += '</defs>';
-  return `<svg viewBox="0 0 ${S} ${S}" width="${S}" height="${S}">${defs}${slices}</svg>`;
+  return `<svg viewBox="0 0 ${S} ${S}" width="${S}" height="${S}" style="overflow:visible">${defs}${slices}</svg>`;
 }
 
 const COLORS = ['#e05050','#3aaa30','#3070e0','#9040d0','#e09020'];
@@ -1190,7 +1266,8 @@ function initConcept() {
   conceptState.count = 0;
   conceptState.split = false;
   document.getElementById('concept-input').value = '';
-  renderConceptFraction(0);
+  const el = document.getElementById('concept-frac-display');
+  if (el) el.innerHTML = '';
   renderPizza(0, false);
 }
 
@@ -1203,9 +1280,12 @@ function renderConceptFraction(n) {
   const el = document.getElementById('concept-frac-display');
   if (!el) return;
   if (n <= 0) {
-    el.innerHTML = `<div class="cfd-num">?</div><div class="cfd-line"></div><div class="cfd-den">?</div>`;
+    el.innerHTML = ''; // 확인 전: 빈칸
   } else {
-    el.innerHTML = `<div class="cfd-num">1</div><div class="cfd-line"></div><div class="cfd-den">${n}</div>`;
+    el.innerHTML = `
+      <div class="cfd-num cfd-animate">1</div>
+      <div class="cfd-line cfd-animate" style="animation-delay:0.08s"></div>
+      <div class="cfd-den cfd-animate" style="animation-delay:0.16s">${n}</div>`;
   }
 }
 
