@@ -392,32 +392,43 @@ function renderFracViz(vizEl, num, den, color, sz) {
   }
 }
 
-// ── 레이어드 파이 SVG: 겹치는 슬라이스만 반투명, 나머지 원색 ───
-// overlapDeg: 이미 그려진 이전 분수가 커버하는 각도(0~360). 이 범위 내 슬라이스만 반투명.
+// ── 레이어드 파이 SVG: overlapDeg 각도 기준으로 sector 분리 ───
+// 0~overlapDeg: 반투명(이전 분수와 겹침), overlapDeg~valueDeg: 원색(새 영역)
+// 슬라이스 단위가 아닌 연속 sector 방식이라 분모 크기와 무관하게 정확함
 function makeLayeredPieSVG(num, den, color, size, overlapDeg) {
   const cx = size/2, cy = size/2, r = size/2 - 4;
   if (!den || den < 1) {
     return `<svg viewBox="0 0 ${size} ${size}"><circle cx="${cx}" cy="${cy}" r="${r}" fill="white" stroke="#ccc" stroke-width="1.5"/></svg>`;
   }
   const n = Math.min(Math.max(0, num||0), den);
-  let p = '';
-  for (let i = 0; i < den; i++) {
-    const a0deg = (i/den)*360, a1deg = ((i+1)/den)*360;
-    const midDeg = (a0deg+a1deg)/2;
-    const a0 = a0deg*Math.PI/180 - Math.PI/2;
-    const a1 = a1deg*Math.PI/180 - Math.PI/2;
+  const valueDeg = (n / den) * 360;
+
+  // sector(startDeg, endDeg, fillOpacity): 부채꼴 경로 생성
+  function sector(sd, ed, fo) {
+    if (ed - sd < 0.01) return '';
+    const full = ed - sd >= 359.99;
+    const a0 = (sd - 90) * Math.PI/180, a1 = (ed - 90) * Math.PI/180;
     const x0=cx+r*Math.cos(a0), y0=cy+r*Math.sin(a0);
     const x1=cx+r*Math.cos(a1), y1=cy+r*Math.sin(a1);
-    const lg = (a1-a0 > Math.PI) ? 1 : 0;
-    const d = den===1
+    const lg = ed - sd > 180 ? 1 : 0;
+    const d = full
       ? `M ${cx} ${cy} m -${r} 0 a ${r} ${r} 0 1 1 ${r*2} 0 a ${r} ${r} 0 1 1 -${r*2} 0 Z`
       : `M ${cx} ${cy} L ${x0} ${y0} A ${r} ${r} 0 ${lg} 1 ${x1} ${y1} Z`;
-    if (i < n) {
-      const fo = midDeg < overlapDeg ? '0.52' : '1';
-      p += `<path d="${d}" fill="${color}" fill-opacity="${fo}" stroke="#555" stroke-width="1" stroke-dasharray="4 2"/>`;
-    } else {
-      p += `<path d="${d}" fill="none" stroke="#555" stroke-width="1" stroke-dasharray="4 2"/>`;
-    }
+    return `<path d="${d}" fill="${color}" fill-opacity="${fo}"/>`;
+  }
+
+  let p = '';
+  // 겹치는 영역 (반투명)
+  const overlapEnd = Math.min(overlapDeg, valueDeg);
+  if (overlapEnd > 0.01) p += sector(0, overlapEnd, 0.52);
+  // 새 영역 (원색)
+  if (valueDeg > overlapDeg + 0.01) p += sector(overlapDeg, valueDeg, 1.0);
+
+  // 분모 구분선 (슬라이스 경계)
+  for (let i = 0; i < den; i++) {
+    const a = ((i / den) * 360 - 90) * Math.PI / 180;
+    const x = cx + r*Math.cos(a), y = cy + r*Math.sin(a);
+    p += `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="#555" stroke-width="1" stroke-dasharray="4 2"/>`;
   }
   p += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#333" stroke-width="2"/>`;
   return `<svg viewBox="0 0 ${size} ${size}">${p}</svg>`;
