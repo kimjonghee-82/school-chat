@@ -2777,7 +2777,7 @@ function openStudentGame() {
   const sv = document.getElementById('game-student-view');
   sv.style.display = 'flex';
 
-  // Firebase에 학생 등록 (presence)
+  // Firebase에 학생 등록 (presence) - 탭 재입장마다 갱신
   studentPresenceRef = db.ref(`rooms/${session.roomCode}/students/${session.studentId}`);
   studentPresenceRef.set({ name: session.name, joinedAt: firebase.database.ServerValue.TIMESTAMP, active: true })
     .catch(e => {
@@ -2785,6 +2785,10 @@ function openStudentGame() {
       if (bar) bar.textContent = '[디버그] 학생 등록 실패: ' + e.message;
     });
   studentPresenceRef.onDisconnect().update({ active: false });
+
+  // 아래 초기화는 탭을 다시 열 때마다 중복 등록되면 안 되므로 한 번만 실행
+  if (window._studentGameInited) return;
+  window._studentGameInited = true;
 
   // 내 점수 실시간 수신
   listenMyScore();
