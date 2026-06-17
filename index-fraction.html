@@ -103,22 +103,24 @@ body {
   color: #555;
 }
 
-/* 퀴즈 기호 원 */
+/* 퀴즈 드롭다운 */
 .quiz-row {
-  display: flex; gap: 10px; align-items: center; justify-content: center;
-}
-.quiz-circle {
-  width: 54px; height: 54px; border-radius: 50%;
-  background: white; border: 2.5px solid #ddd;
   display: flex; align-items: center; justify-content: center;
-  font-size: 26px; font-weight: 900; color: #ccc;
-  user-select: none; transition: border-color .2s, color .2s, transform .15s, background .15s;
-  flex-shrink: 0;
 }
-.quiz-circle.active {
+.quiz-select {
+  width: 100px; padding: 8px 12px;
+  border: 2.5px solid #ddd; border-radius: 20px;
+  font-size: 22px; font-weight: 900; color: #ccc;
+  background: white; text-align: center;
+  appearance: none; -webkit-appearance: none;
+  cursor: not-allowed;
+  transition: border-color .2s, color .2s;
+  outline: none;
+}
+.quiz-select.active {
   border-color: #f0a060; color: #e06020; cursor: pointer;
 }
-.quiz-circle.active:hover { background: #fff5f0; transform: scale(1.1); }
+.quiz-select.active:focus { box-shadow: 0 0 0 3px rgba(224,96,32,.18); }
 
 /* O/X 피드백 오버레이 */
 .quiz-feedback-overlay {
@@ -588,15 +590,18 @@ function buildCmpCol() {
   const vizWrap = document.createElement('div');
   vizWrap.className = 'cmp-viz-wrap'; vizWrap.id = 'cmp-wrap';
 
-  // 퀴즈 기호 원 행 (2개 분수용)
+  // 퀴즈 드롭다운 (2개 분수용)
   const quizRow = document.createElement('div');
   quizRow.className = 'quiz-row'; quizRow.id = 'quiz-row';
-  ['<', '=', '>'].forEach(s => {
-    const c = document.createElement('div');
-    c.className = 'quiz-circle'; c.dataset.sym = s; c.textContent = s;
-    c.addEventListener('click', () => onQuizClick(s));
-    quizRow.appendChild(c);
+  const sel = document.createElement('select');
+  sel.className = 'quiz-select'; sel.id = 'quiz-select';
+  sel.disabled = true;
+  [['', '?'], ['<', '<'], ['=', '='], ['>', '>']].forEach(([v, t]) => {
+    const o = document.createElement('option');
+    o.value = v; o.textContent = t; sel.appendChild(o);
   });
+  sel.addEventListener('change', () => { if (sel.value) onQuizClick(sel.value); });
+  quizRow.appendChild(sel);
 
   // 3개 이상 분수용 순위 결과 표시
   const sym = document.createElement('div');
@@ -760,10 +765,9 @@ function resetCmpWrap() {
     cmpWrap.innerHTML = '';
   }
   if (cmpSym) cmpSym.style.display = 'none';
-  if (quizRow) {
-    quizRow.querySelectorAll('.quiz-circle').forEach(c => c.classList.remove('active'));
-    quizRow.style.display = state.count === 2 ? 'flex' : 'none';
-  }
+  const sel = document.getElementById('quiz-select');
+  if (sel) { sel.value = ''; sel.disabled = true; sel.classList.remove('active'); }
+  if (quizRow) quizRow.style.display = state.count === 2 ? 'flex' : 'none';
   state.correctSym = null;
   state.quizAnswered = false;
 }
@@ -799,6 +803,10 @@ function playWrongSound() {
 function onQuizClick(sym) {
   if (!state.compared || state.quizAnswered || !state.correctSym) return;
   state.quizAnswered = true;
+
+  // 선택 후 드롭다운 비활성화
+  const sel = document.getElementById('quiz-select');
+  if (sel) { sel.disabled = true; sel.classList.remove('active'); }
 
   const correct = sym === state.correctSym;
   if (correct) playCorrectSound(); else playWrongSound();
@@ -842,15 +850,14 @@ function doCompare() {
     const quizRow = document.getElementById('quiz-row');
 
     if (state.count === 2) {
-      // 퀴즈 모드: 기호 원 활성화
+      // 퀴즈 모드: 드롭다운 활성화
       const lv = parseInt(fracs[0].num)/parseInt(fracs[0].den);
       const rv = parseInt(fracs[1].num)/parseInt(fracs[1].den);
       state.correctSym = lv>rv ? '>' : lv<rv ? '<' : '=';
 
-      if (quizRow) {
-        quizRow.style.display = 'flex';
-        quizRow.querySelectorAll('.quiz-circle').forEach(c => c.classList.add('active'));
-      }
+      if (quizRow) quizRow.style.display = 'flex';
+      const sel = document.getElementById('quiz-select');
+      if (sel) { sel.value = ''; sel.disabled = false; sel.classList.add('active'); }
       if (cmpSym) cmpSym.style.display = 'none';
     } else {
       // 3개 이상: 순위 결과 표시
