@@ -2588,8 +2588,12 @@ function openTeacherGame() {
   // 점수 실시간 배지
   listenScores();
 
-  // 학생 제출 실시간 수신 → 그리드 렌더링
-  db.ref(`rooms/${session.roomCode}/submissions`).on('value', snap => {
+  // 학생 제출 실시간 수신 → 그리드 렌더링 (중복 리스너 방지)
+  if (window._submissionsListenerRef) {
+    window._submissionsListenerRef.ref.off('value', window._submissionsListenerRef.cb);
+  }
+  const subsRef = db.ref(`rooms/${session.roomCode}/submissions`);
+  const subsCb = snap => {
     const listEl = document.getElementById('answer-list');
     if (!snap.exists()) {
       listEl.className = 'answer-list';
@@ -2604,21 +2608,29 @@ function openTeacherGame() {
     // 현재 점수 가져오기
     db.ref(`rooms/${session.roomCode}/scores`).once('value').then(scSnap => {
       const scores = scSnap.val() || {};
-      listEl.innerHTML = items.map(d => {
-        const sc = scores[d.sid];
-        const badge = (sc && sc.total > 0) ? `<span class="answer-sub-score-inline">${sc.total}점</span>` : '';
-        return `<div class="answer-submission" data-sid="${escHtml(d.sid)}" onclick="openSubmissionModal('${escHtml(d.name)}','${d.num}','${d.den}','${(d.coloredSectors||[]).join(',')}')">
-          <div class="answer-sub-name" data-name="${escHtml(d.name)}">${escHtml(d.name)}${badge}</div>
-          <div class="answer-sub-frac">
-            <div class="answer-sub-num">${escHtml(d.num)}</div>
-            <div class="answer-sub-line"></div>
-            <div class="answer-sub-den">${escHtml(d.den)}</div>
-          </div>
-          ${makeSubmissionSVG(d.num, d.den, d.coloredSectors || [], thumbSize)}
-        </div>`;
+      const html = items.map(d => {
+        try {
+          const sc = scores[d.sid];
+          const badge = (sc && sc.total > 0) ? `<span class="answer-sub-score-inline">${sc.total}점</span>` : '';
+          return `<div class="answer-submission" data-sid="${escHtml(d.sid)}" onclick="openSubmissionModal('${escHtml(d.name||'')}','${escHtml(d.num)}','${escHtml(d.den)}','${(d.coloredSectors||[]).join(',')}')">
+            <div class="answer-sub-name" data-name="${escHtml(d.name||'?')}">${escHtml(d.name||'?')}${badge}</div>
+            <div class="answer-sub-frac">
+              <div class="answer-sub-num">${escHtml(d.num)}</div>
+              <div class="answer-sub-line"></div>
+              <div class="answer-sub-den">${escHtml(d.den)}</div>
+            </div>
+            ${makeSubmissionSVG(d.num, d.den, d.coloredSectors || [], thumbSize)}
+          </div>`;
+        } catch(e) {
+          console.error('제출물 렌더링 오류 (sid=' + d.sid + '):', e);
+          return `<div class="answer-submission"><div class="answer-sub-name">${escHtml(d.name||'?')}</div><div style="color:#e05050;font-size:12px;">렌더링 오류</div></div>`;
+        }
       }).join('');
+      listEl.innerHTML = html;
     });
-  });
+  };
+  subsRef.on('value', subsCb);
+  window._submissionsListenerRef = { ref: subsRef, cb: subsCb };
 }
 
 function makeFracPieSVG(num, den) {
