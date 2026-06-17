@@ -2471,7 +2471,8 @@ function enterAsStudent(name, code) {
   hideLoginScreen();
   document.getElementById('student-debug-bar').style.display = 'block';
   document.getElementById('role-bar-code-val').textContent = session.roomCode;
-  document.getElementById('teacher-tab-perms').style.display = 'none';
+  const teacherPermsEl = document.getElementById('teacher-tab-perms');
+  if (teacherPermsEl) teacherPermsEl.style.display = 'none';
   const infoEl = document.getElementById('student-role-info');
   infoEl.style.display = 'block';
   infoEl.textContent = session.name + ' (학생)';
