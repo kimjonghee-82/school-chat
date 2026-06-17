@@ -896,22 +896,18 @@ body {
 .role-bar-divider {
   width: 1px; height: 22px; background: rgba(255,255,255,.18);
 }
-/* 탭 권한 토글 버튼 (교사만) */
-.tab-perm-area {
-  display: flex; align-items: center; gap: 8px;
+/* 탭 옆 O/X 허용 뱃지 (교사만 클릭 가능) */
+.tab-perm-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 50%;
+  font-size: 11px; font-weight: 900; line-height: 1;
+  margin-left: 5px; vertical-align: middle;
+  cursor: pointer; transition: background .2s, color .2s;
+  background: #3cb371; color: white;
+  border: none; user-select: none;
 }
-.tab-perm-label {
-  font-size: 11px; color: rgba(255,255,255,.4); font-weight: 700; white-space: nowrap;
-}
-.tab-perm-btn {
-  padding: 5px 13px; border-radius: 14px;
-  border: 1.5px solid rgba(255,255,255,.25);
-  background: rgba(255,255,255,.07); color: rgba(255,255,255,.45);
-  font-size: 12px; font-weight: 700; cursor: pointer; transition: all .2s;
-  white-space: nowrap;
-}
-.tab-perm-btn.on {
-  background: #e06020; border-color: #e06020; color: white;
+.tab-perm-badge.denied {
+  background: #e05050; color: white;
 }
 /* 학생용: 잠긴 탭 */
 .top-tab.locked {
@@ -963,9 +959,9 @@ body {
 <div class="header">
   <div class="header-left">
     <div class="top-tabs">
-      <div class="top-tab" data-page="concept">분수 개념 익히기</div>
-      <div class="top-tab active" data-page="compare">분수 크기 비교</div>
-      <div class="top-tab" data-page="game">분수 게임</div>
+      <div class="top-tab" data-page="concept">분수 개념 익히기<span class="tab-perm-badge" id="perm-badge-concept" style="display:none;">✕</span></div>
+      <div class="top-tab active" data-page="compare">분수 크기 비교<span class="tab-perm-badge" id="perm-badge-compare" style="display:none;">✕</span></div>
+      <div class="top-tab" data-page="game">분수 게임<span class="tab-perm-badge" id="perm-badge-game" style="display:none;">✕</span></div>
     </div>
     <div class="count-selector">
       <div class="count-btn" id="count-btn">2</div>
@@ -988,14 +984,6 @@ body {
 <!-- 역할 바: 로그인 후 모든 탭에서 표시 -->
 <div id="role-bar">
   <div class="role-bar-code">방 코드 &nbsp;<span id="role-bar-code-val">-----</span></div>
-  <div class="role-bar-divider"></div>
-  <!-- 교사용: 탭 허용 토글 -->
-  <div class="tab-perm-area" id="teacher-tab-perms" style="display:none;">
-    <span class="tab-perm-label">학생 허용:</span>
-    <button class="tab-perm-btn" id="perm-btn-concept" data-tab="concept">개념 익히기</button>
-    <button class="tab-perm-btn" id="perm-btn-compare" data-tab="compare">크기 비교</button>
-    <button class="tab-perm-btn" id="perm-btn-game" data-tab="game">분수 게임</button>
-  </div>
   <!-- 학생용: 이름 표시 -->
   <div id="student-role-info" style="display:none; font-size:12px; color:rgba(255,255,255,.4); font-weight:700;"></div>
 </div>
@@ -2259,17 +2247,23 @@ function enterAsTeacher() {
     tabs: { concept: false, compare: false, game: false }
   });
   hideLoginScreen();
-  // 방코드 표시 + 교사 탭 권한 UI 표시
   document.getElementById('role-bar-code-val').textContent = session.roomCode;
-  document.getElementById('teacher-tab-perms').style.display = 'flex';
   document.getElementById('student-role-info').style.display = 'none';
-  // 탭 권한 버튼 이벤트
-  document.querySelectorAll('.tab-perm-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const tab = btn.dataset.tab;
-      const isOn = btn.classList.toggle('on');
-      db.ref(`rooms/${session.roomCode}/tabs/${tab}`).set(isOn);
-    });
+  // O/X 배지 표시 및 클릭 이벤트
+  ['concept','compare','game'].forEach(tab => {
+    const badge = document.getElementById(`perm-badge-${tab}`);
+    if (!badge) return;
+    badge.style.display = 'inline-flex';
+    badge.textContent = '✕';
+    badge.classList.add('denied');
+    badge.onclick = e => {
+      e.stopPropagation();
+      const allowed = badge.classList.toggle('denied');
+      // toggle: denied 추가 = 비허용, denied 없음 = 허용
+      const isAllowed = !badge.classList.contains('denied');
+      badge.textContent = isAllowed ? '○' : '✕';
+      db.ref(`rooms/${session.roomCode}/tabs/${tab}`).set(isAllowed);
+    };
   });
   switchPage('game');
 }
