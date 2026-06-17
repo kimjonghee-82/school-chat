@@ -350,18 +350,20 @@ function renderCmpView() {
   const fracs = state.fractions.slice(0, state.count);
 
   if (state.viewMode === 'circle') {
-    // ── 원형: 반투명 겹치기, 각 원 드래그 가능 ──
+    // ── 원형: multiply 블렌드 겹치기 + 드래그 분리 ──
+    // multiply: 흰 배경 위 단독 영역 → 원래 색 그대로
+    //           겹치는 채워진 영역 → 두 색이 자연스럽게 혼합
     const sz = 260;
     cmpWrap.style.width        = sz + 'px';
     cmpWrap.style.height       = sz + 'px';
     cmpWrap.style.borderRadius = '50%';
     cmpWrap.style.overflow     = 'visible';
     cmpWrap.style.position     = 'relative';
-    cmpWrap.style.background   = 'transparent';
-    cmpWrap.style.border       = 'none';
+    cmpWrap.style.background   = 'white';   // multiply 기준 배경
+    cmpWrap.style.border       = '2px solid #ddd';
+    cmpWrap.style.isolation    = 'isolate'; // 블렌드 컨텍스트 격리
     cmpWrap.innerHTML = '';
 
-    // 값 큰 것이 아래 레이어 (z-index 낮게)
     const sorted = fracs
       .map((f, i) => ({
         num: parseInt(f.num)||0,
@@ -378,10 +380,12 @@ function renderCmpView() {
         `width:${sz}px`, `height:${sz}px`,
         'cursor:grab', 'user-select:none', '-webkit-user-select:none',
         `z-index:${layerIdx + 1}`,
+        'mix-blend-mode:multiply',          // 핵심: 겹침만 색 혼합, 단독 영역은 원래 색
         'transition:transform 0.45s cubic-bezier(.34,1.56,.64,1)',
       ].join(';');
 
-      div.innerHTML = makePieSVG(f.num, f.den, f.color, sz, 0.65);
+      // opacity 없이 원래 색 그대로 (alpha=1)
+      div.innerHTML = makePieSVG(f.num, f.den, f.color, sz, 1);
 
       // ── 드래그 로직 (mouse + touch) ──
       let dragging = false, sx = 0, sy = 0;
