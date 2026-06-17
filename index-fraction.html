@@ -1040,15 +1040,6 @@ body {
       <div class="top-tab" data-page="compare">분수 크기 비교<span class="tab-perm-badge" id="perm-badge-compare" style="display:none;">✕</span></div>
       <div class="top-tab" data-page="game">분수 게임<span class="tab-perm-badge" id="perm-badge-game" style="display:none;">✕</span></div>
     </div>
-    <div class="count-selector">
-      <div class="count-btn" id="count-btn">2</div>
-      <div class="count-dropdown" id="count-dropdown">
-        <div class="count-option active" data-n="2">2</div>
-        <div class="count-option" data-n="3">3</div>
-        <div class="count-option" data-n="4">4</div>
-        <div class="count-option" data-n="5">5</div>
-      </div>
-    </div>
   </div>
   <div class="header-btns">
     <button class="hbtn hbtn-sound">🔊</button>
@@ -1104,9 +1095,20 @@ body {
 </div>
 
 <div id="page-compare">
-<div class="view-tabs" id="view-tabs-bar">
-  <div class="vtab active" data-tab="circle">원형</div>
-  <div class="vtab" data-tab="bar">막대그래프</div>
+<div style="display:flex; align-items:center; gap:10px; padding:6px 12px; border-bottom:1px solid #e0d8cc;">
+  <div class="view-tabs" id="view-tabs-bar" style="border-bottom:none; margin:0;">
+    <div class="vtab active" data-tab="circle">원형</div>
+    <div class="vtab" data-tab="bar">막대그래프</div>
+  </div>
+  <div class="count-selector">
+    <div class="count-btn" id="count-btn">2</div>
+    <div class="count-dropdown" id="count-dropdown">
+      <div class="count-option active" data-n="2">2</div>
+      <div class="count-option" data-n="3">3</div>
+      <div class="count-option" data-n="4">4</div>
+      <div class="count-option" data-n="5">5</div>
+    </div>
+  </div>
 </div>
 
 <div class="main-wrap" id="main-wrap"></div>
