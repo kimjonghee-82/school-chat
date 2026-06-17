@@ -2216,11 +2216,9 @@ document.getElementById('concept-reset').addEventListener('click', initConcept);
 
 // ── 최상위 탭 전환 ────────────────────────────────────────
 function switchPage(page) {
-  // 학생은 잠긴 탭으로 이동 불가
-  if (session.role === 'student') {
-    const tabEl = document.querySelector(`.top-tab[data-page="${page}"]`);
-    if (tabEl && tabEl.classList.contains('locked')) return;
-  }
+  // locked 탭은 이동 불가 (교사 탭엔 locked 없음)
+  const tabEl = document.querySelector(`.top-tab[data-page="${page}"]`);
+  if (tabEl && tabEl.classList.contains('locked')) return;
   document.querySelectorAll('.top-tab').forEach(t => t.classList.remove('active'));
   const activeTab = document.querySelector(`.top-tab[data-page="${page}"]`);
   if (activeTab) activeTab.classList.add('active');
@@ -2233,10 +2231,10 @@ function switchPage(page) {
 
 document.querySelectorAll('.top-tab').forEach(tab => {
   tab.addEventListener('click', e => {
-    // 배지 클릭 이벤트는 badge.onclick이 처리 (교사만) — 여기선 무시
+    // 배지 클릭은 badge.onclick이 처리 — 여기선 무시
     if (e.target.classList.contains('tab-perm-badge')) return;
-    // 학생: 잠긴 탭 JS 레벨 차단
-    if (session.role === 'student' && tab.classList.contains('locked')) return;
+    // locked 탭은 역할 무관하게 차단 (교사 탭엔 locked를 절대 추가하지 않음)
+    if (tab.classList.contains('locked')) return;
     switchPage(tab.dataset.page);
   });
 });
@@ -2366,6 +2364,8 @@ function enterAsTeacher() {
   hideLoginScreen();
   document.getElementById('role-bar-code-val').textContent = session.roomCode;
   document.getElementById('student-role-info').style.display = 'none';
+  // 교사 탭은 locked 없음 (혹시 남아있으면 제거)
+  document.querySelectorAll('.top-tab').forEach(t => t.classList.remove('locked'));
   // O/X 배지 표시 및 클릭 이벤트
   ['concept','compare','game'].forEach(tab => {
     const badge = document.getElementById(`perm-badge-${tab}`);
@@ -2382,7 +2382,7 @@ function enterAsTeacher() {
       db.ref(`rooms/${session.roomCode}/tabs/${tab}`).set(isAllowed);
     };
   });
-  switchPage('game');
+  switchPage('concept');
 }
 
 function enterAsStudent(name, code) {
