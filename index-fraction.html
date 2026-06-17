@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>분수의 크기 비교</title>
+<title>분수 학습</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
@@ -244,13 +244,82 @@ body {
   position: fixed; pointer-events: none; z-index: 500; opacity: .7;
   transition: left .5s ease, top .5s ease, width .5s ease, height .5s ease, opacity .5s ease;
 }
+
+/* Top-level tabs */
+.top-tabs {
+  display: flex; gap: 0; align-items: flex-end;
+}
+.top-tab {
+  padding: 6px 20px; font-size: 14px; font-weight: 700;
+  color: #999; cursor: pointer; border-bottom: 3px solid transparent;
+  transition: color .2s, border-color .2s; white-space: nowrap; user-select: none;
+}
+.top-tab.active { color: #e06020; border-bottom-color: #e06020; }
+
+/* Concept tab layout */
+#page-concept {
+  flex: 1; display: none; flex-direction: column;
+  background: #f0f0f0;
+}
+.concept-body {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  gap: 40px; padding: 20px;
+}
+.concept-left {
+  display: flex; flex-direction: column; align-items: center; gap: 20px;
+}
+.pizza-wrap {
+  width: 300px; height: 300px;
+  display: flex; align-items: center; justify-content: center;
+}
+.concept-input-row {
+  display: flex; align-items: center; gap: 10px;
+}
+.concept-input {
+  width: 60px; height: 60px; border: 2.5px solid #f0a060;
+  border-radius: 10px; font-size: 28px; font-weight: 700;
+  text-align: center; color: #333; outline: none;
+  background: #fff9f5;
+}
+.concept-input:focus { border-color: #e06020; box-shadow: 0 0 0 3px rgba(224,96,32,.18); }
+.concept-명 {
+  font-size: 22px; font-weight: 700; color: #333;
+}
+.concept-right {
+  display: flex; align-items: center; justify-content: center;
+}
+#concept-frac-display {
+  display: flex; flex-direction: column; align-items: center;
+}
+.cfd-num, .cfd-den {
+  font-size: 100px; font-weight: 900; color: #e06020; line-height: 1;
+}
+.cfd-line {
+  width: 160px; height: 6px; background: #e06020; border-radius: 3px; margin: 8px 0;
+}
+.concept-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 28px; background: white; border-top: 1px solid #e8e8e8;
+}
+.btn-confirm {
+  padding: 10px 32px; background: #e06020; border: none;
+  border-radius: 24px; font-size: 15px; font-weight: 700;
+  color: white; cursor: pointer; transition: background .2s;
+}
+.btn-confirm:hover { background: #c04010; }
+
+/* page-compare uses existing flex layout */
+#page-compare { flex: 1; display: flex; flex-direction: column; }
 </style>
 </head>
 <body>
 
 <div class="header">
   <div class="header-left">
-    <h1>분수의 크기 비교</h1>
+    <div class="top-tabs">
+      <div class="top-tab" data-page="concept">분수 개념 익히기</div>
+      <div class="top-tab active" data-page="compare">분수 크기 비교</div>
+    </div>
     <div class="count-selector">
       <div class="count-btn" id="count-btn">2</div>
       <div class="count-dropdown" id="count-dropdown">
@@ -269,7 +338,29 @@ body {
   </div>
 </div>
 
-<div class="view-tabs">
+<div id="page-concept">
+  <div class="concept-body">
+    <div class="concept-left">
+      <div class="pizza-wrap" id="pizza-wrap"></div>
+      <div class="concept-input-row">
+        <input type="number" class="concept-input" id="concept-input" min="1" max="12" placeholder="?">
+        <span class="concept-명">명</span>
+      </div>
+    </div>
+    <div class="concept-right">
+      <div id="concept-frac-display">
+        <div class="cfd-num">?</div><div class="cfd-line"></div><div class="cfd-den">?</div>
+      </div>
+    </div>
+  </div>
+  <div class="concept-footer">
+    <button class="btn-reset" id="concept-reset" title="초기화">↺</button>
+    <button class="btn-confirm" id="concept-confirm">확인</button>
+  </div>
+</div>
+
+<div id="page-compare">
+<div class="view-tabs" id="view-tabs-bar">
   <div class="vtab active" data-tab="circle">원형</div>
   <div class="vtab" data-tab="bar">막대그래프</div>
 </div>
@@ -284,8 +375,78 @@ body {
     <button class="btn-quiz-arrow">→</button>
   </div>
 </div>
+</div>
 
 <script>
+function buildPizzaSVG(n, split) {
+  const S = 300, cx = 150, cy = 150, R = 138;
+  const crustFill = '#d4a060', sauceFill = '#cc3010', cheeseFill = '#f0a820';
+  const sauceR = R - 16, cheeseR = sauceR - 5;
+
+  const pepps = [{x:188,y:88},{x:102,y:82},{x:208,y:162},{x:82,y:162},{x:174,y:222},{x:108,y:228},{x:214,y:112},{x:88,y:112}];
+  const herbs = [{x:160,y:108},{x:120,y:100},{x:198,y:140},{x:72,y:140},{x:150,y:190},{x:180,y:75}];
+  const dots  = [{x:145,y:130},{x:175,y:110},{x:115,y:145},{x:185,y:180},{x:120,y:190},{x:155,y:170},{x:195,y:135},{x:105,y:125}];
+
+  function pizzaLayers(clip) {
+    const g = clip ? `clip-path="url(#${clip})"` : '';
+    let t = `<g ${g}>`;
+    t += `<circle cx="${cx}" cy="${cy}" r="${R}" fill="${crustFill}"/>`;
+    t += `<circle cx="${cx}" cy="${cy}" r="${sauceR}" fill="${sauceFill}"/>`;
+    t += `<circle cx="${cx}" cy="${cy}" r="${cheeseR}" fill="${cheeseFill}"/>`;
+    pepps.forEach(p => {
+      t += `<ellipse cx="${p.x}" cy="${p.y}" rx="12" ry="11" fill="#c01808"/>`;
+      t += `<ellipse cx="${p.x-2}" cy="${p.y-2}" rx="5" ry="4" fill="#d83020" opacity="0.6"/>`;
+    });
+    herbs.forEach(h => {
+      t += `<ellipse cx="${h.x}" cy="${h.y}" rx="5" ry="3" fill="#3a8020" transform="rotate(${(h.x*7)%60-30} ${h.x} ${h.y})"/>`;
+    });
+    dots.forEach(d => {
+      t += `<circle cx="${d.x}" cy="${d.y}" r="5" fill="rgba(255,255,255,0.65)"/>`;
+    });
+    t += `</g>`;
+    return t;
+  }
+
+  if (!split || n < 2) {
+    return `<svg viewBox="0 0 ${S} ${S}" width="${S}" height="${S}">
+      ${pizzaLayers('')}
+      <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="#8a5010" stroke-width="3"/>
+    </svg>`;
+  }
+
+  let defs = '<defs>';
+  let slices = '';
+
+  for (let i = 0; i < n; i++) {
+    const a0 = (i/n)*2*Math.PI - Math.PI/2;
+    const a1 = ((i+1)/n)*2*Math.PI - Math.PI/2;
+    const x0 = cx + R*Math.cos(a0), y0 = cy + R*Math.sin(a0);
+    const x1 = cx + R*Math.cos(a1), y1 = cy + R*Math.sin(a1);
+    const lg = (1/n > 0.5) ? 1 : 0;
+    const sectorD = n === 1
+      ? `M ${cx} ${cy} m -${R} 0 a ${R} ${R} 0 1 1 ${R*2} 0 a ${R} ${R} 0 1 1 -${R*2} 0 Z`
+      : `M ${cx} ${cy} L ${x0} ${y0} A ${R} ${R} 0 ${lg} 1 ${x1} ${y1} Z`;
+
+    defs += `<clipPath id="cp-${i}"><path d="${sectorD}"/></clipPath>`;
+
+    const midA = (a0 + a1) / 2;
+    const offset = 18;
+    const dx = Math.cos(midA) * offset;
+    const dy = Math.sin(midA) * offset;
+
+    slices += `<g style="transform:translate(${dx.toFixed(1)}px,${dy.toFixed(1)}px);transition:transform 0.5s cubic-bezier(.34,1.56,.64,1)">`;
+    slices += pizzaLayers(`cp-${i}`);
+    slices += `<path d="${sectorD}" fill="none" stroke="#8a5010" stroke-width="2.5"/>`;
+    if (i === 0) {
+      slices += `<path d="${sectorD}" fill="rgba(255,220,60,0.35)"/>`;
+    }
+    slices += `</g>`;
+  }
+
+  defs += '</defs>';
+  return `<svg viewBox="0 0 ${S} ${S}" width="${S}" height="${S}">${defs}${slices}</svg>`;
+}
+
 const COLORS = ['#e05050','#3aaa30','#3070e0','#9040d0','#e09020'];
 
 const state = {
@@ -1018,6 +1179,60 @@ document.getElementById('btn-reset').addEventListener('click', () => {
 });
 
 buildMain();
+
+// ── 분수 개념 익히기 ──────────────────────────────────────
+const conceptState = {
+  count: 0,
+  split: false,
+};
+
+function initConcept() {
+  conceptState.count = 0;
+  conceptState.split = false;
+  document.getElementById('concept-input').value = '';
+  renderConceptFraction(0);
+  renderPizza(0, false);
+}
+
+function renderPizza(n, split) {
+  const wrap = document.getElementById('pizza-wrap');
+  wrap.innerHTML = buildPizzaSVG(n, split);
+}
+
+function renderConceptFraction(n) {
+  const el = document.getElementById('concept-frac-display');
+  if (!el) return;
+  if (n <= 0) {
+    el.innerHTML = `<div class="cfd-num">?</div><div class="cfd-line"></div><div class="cfd-den">?</div>`;
+  } else {
+    el.innerHTML = `<div class="cfd-num">1</div><div class="cfd-line"></div><div class="cfd-den">${n}</div>`;
+  }
+}
+
+document.getElementById('concept-confirm').addEventListener('click', () => {
+  const val = parseInt(document.getElementById('concept-input').value);
+  if (!val || val < 1 || val > 12) { alert('1~12 사이 숫자를 입력해주세요'); return; }
+  conceptState.count = val;
+  conceptState.split = true;
+  renderPizza(val, true);
+  renderConceptFraction(val);
+});
+
+document.getElementById('concept-reset').addEventListener('click', initConcept);
+
+// ── 최상위 탭 전환 ────────────────────────────────────────
+document.querySelectorAll('.top-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.top-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    const page = tab.dataset.page;
+    document.getElementById('page-concept').style.display = page === 'concept' ? 'flex' : 'none';
+    document.getElementById('page-compare').style.display = page === 'compare' ? 'flex' : 'none';
+    document.getElementById('view-tabs-bar').style.display = page === 'compare' ? 'flex' : 'none';
+  });
+});
+
+initConcept();
 </script>
 </body>
 </html>
