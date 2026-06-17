@@ -104,23 +104,34 @@ body {
 }
 
 /* 퀴즈 드롭다운 */
-.quiz-row {
+.quiz-row { display: flex; align-items: center; justify-content: center; }
+.quiz-dropdown { position: relative; }
+.quiz-trigger {
+  width: 60px; height: 60px; border-radius: 50%;
+  background: white; border: 2.5px solid #ddd;
   display: flex; align-items: center; justify-content: center;
+  font-size: 28px; font-weight: 900; color: #ccc;
+  user-select: none; cursor: not-allowed;
+  transition: border-color .2s, color .2s, box-shadow .2s;
 }
-.quiz-select {
-  width: 100px; padding: 8px 12px;
-  border: 2.5px solid #ddd; border-radius: 20px;
-  font-size: 22px; font-weight: 900; color: #ccc;
-  background: white; text-align: center;
-  appearance: none; -webkit-appearance: none;
-  cursor: not-allowed;
-  transition: border-color .2s, color .2s;
-  outline: none;
-}
-.quiz-select.active {
+.quiz-trigger.active {
   border-color: #f0a060; color: #e06020; cursor: pointer;
 }
-.quiz-select.active:focus { box-shadow: 0 0 0 3px rgba(224,96,32,.18); }
+.quiz-trigger.active:hover { box-shadow: 0 0 0 3px rgba(224,96,32,.18); }
+.quiz-options {
+  position: absolute; top: calc(100% + 8px); left: 50%;
+  transform: translateX(-50%);
+  background: white; border: 1.5px solid #e0d0c0;
+  border-radius: 14px; box-shadow: 0 6px 20px rgba(0,0,0,.13);
+  display: none; z-index: 300; overflow: hidden; min-width: 70px;
+}
+.quiz-options.open { display: block; }
+.quiz-option {
+  padding: 11px 22px; font-size: 24px; font-weight: 900;
+  color: #444; cursor: pointer; text-align: center;
+  transition: background .12s;
+}
+.quiz-option:hover { background: #fff5f0; color: #e06020; }
 
 /* O/X 피드백 오버레이 */
 .quiz-feedback-overlay {
@@ -381,6 +392,37 @@ function renderFracViz(vizEl, num, den, color, sz) {
   }
 }
 
+// ── 레이어드 파이 SVG: 겹치는 슬라이스만 반투명, 나머지 원색 ───
+// overlapDeg: 이미 그려진 이전 분수가 커버하는 각도(0~360). 이 범위 내 슬라이스만 반투명.
+function makeLayeredPieSVG(num, den, color, size, overlapDeg) {
+  const cx = size/2, cy = size/2, r = size/2 - 4;
+  if (!den || den < 1) {
+    return `<svg viewBox="0 0 ${size} ${size}"><circle cx="${cx}" cy="${cy}" r="${r}" fill="white" stroke="#ccc" stroke-width="1.5"/></svg>`;
+  }
+  const n = Math.min(Math.max(0, num||0), den);
+  let p = '';
+  for (let i = 0; i < den; i++) {
+    const a0deg = (i/den)*360, a1deg = ((i+1)/den)*360;
+    const midDeg = (a0deg+a1deg)/2;
+    const a0 = a0deg*Math.PI/180 - Math.PI/2;
+    const a1 = a1deg*Math.PI/180 - Math.PI/2;
+    const x0=cx+r*Math.cos(a0), y0=cy+r*Math.sin(a0);
+    const x1=cx+r*Math.cos(a1), y1=cy+r*Math.sin(a1);
+    const lg = (a1-a0 > Math.PI) ? 1 : 0;
+    const d = den===1
+      ? `M ${cx} ${cy} m -${r} 0 a ${r} ${r} 0 1 1 ${r*2} 0 a ${r} ${r} 0 1 1 -${r*2} 0 Z`
+      : `M ${cx} ${cy} L ${x0} ${y0} A ${r} ${r} 0 ${lg} 1 ${x1} ${y1} Z`;
+    if (i < n) {
+      const fo = midDeg < overlapDeg ? '0.52' : '1';
+      p += `<path d="${d}" fill="${color}" fill-opacity="${fo}" stroke="#555" stroke-width="1" stroke-dasharray="4 2"/>`;
+    } else {
+      p += `<path d="${d}" fill="none" stroke="#555" stroke-width="1" stroke-dasharray="4 2"/>`;
+    }
+  }
+  p += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#333" stroke-width="2"/>`;
+  return `<svg viewBox="0 0 ${size} ${size}">${p}</svg>`;
+}
+
 // ── 드래그 헬퍼 ─────────────────────────────────────────
 function attachDrag(el) {
   let dragging = false, sx = 0, sy = 0;
@@ -423,24 +465,38 @@ function renderCmpView() {
 
   if (state.viewMode === 'circle') {
     if (!hasImproper) {
-      // ── 진분수: 반투명 원 겹치기 + 드래그 분리 ──
+      // ── 진분수: 레이어드 SVG 겹치기 + 드래그 시 원색 복귀 ──
       const sz = 260;
-      cmpWrap.style.cssText = `width:${sz}px;height:${sz}px;border-radius:50%;overflow:visible;position:relative;background:white;border:2px solid #ddd;isolation:auto;`;
+      cmpWrap.style.cssText = `width:${sz}px;height:${sz}px;border-radius:50%;overflow:visible;position:relative;background:white;border:2px solid #ddd;`;
       cmpWrap.innerHTML = '';
 
-      const sorted = [...parsed].sort((a,b) => b.val-a.val);
+      // 오름차순 정렬: 작은 분수 먼저 그려 겹침 영역 파악
+      const sorted = [...parsed].sort((a,b) => a.val-b.val);
+      let overlapDeg = 0;
       sorted.forEach((f, layerIdx) => {
+        const myOverlapDeg = overlapDeg;
+        const thisDeg = f.den>0 ? (f.num/f.den)*360 : 0;
+
         const div = document.createElement('div');
         div.style.cssText = `position:absolute;top:0;left:0;width:${sz}px;height:${sz}px;cursor:grab;user-select:none;-webkit-user-select:none;z-index:${layerIdx+1};transition:transform 0.45s cubic-bezier(.34,1.56,.64,1);`;
-        div.innerHTML = makePieSVG(f.num, f.den, f.color, sz, 0.72, true);
-        attachDrag(div);
-        cmpWrap.appendChild(div);
-      });
+        div.innerHTML = makeLayeredPieSVG(f.num, f.den, f.color, sz, myOverlapDeg);
 
-      const hint = document.createElement('div');
-      hint.style.cssText = `position:absolute;bottom:-28px;left:50%;transform:translateX(-50%);font-size:11px;color:#aaa;white-space:nowrap;pointer-events:none;`;
-      hint.textContent = '원을 드래그해서 분리 · 놓으면 복귀';
-      cmpWrap.appendChild(hint);
+        let dragging = false, dsx = 0, dsy = 0;
+        function onDStart(cx,cy){ dragging=true; dsx=cx; dsy=cy; div.style.transition='none'; div.style.cursor='grabbing'; div.innerHTML=makeLayeredPieSVG(f.num,f.den,f.color,sz,0); }
+        function onDMove(cx,cy){ if(!dragging) return; div.style.transform=`translate(${cx-dsx}px,${cy-dsy}px)`; }
+        function onDEnd(){ if(!dragging) return; dragging=false; div.style.cursor='grab'; div.style.transition='transform 0.45s cubic-bezier(.34,1.56,.64,1)'; div.style.transform='translate(0,0)'; setTimeout(()=>{ div.innerHTML=makeLayeredPieSVG(f.num,f.den,f.color,sz,myOverlapDeg); },460); }
+
+        div.addEventListener('mousedown', e=>{ e.preventDefault(); onDStart(e.clientX,e.clientY); });
+        div.addEventListener('touchstart', e=>{ e.preventDefault(); onDStart(e.touches[0].clientX,e.touches[0].clientY); },{passive:false});
+        const mmH=e=>onDMove(e.clientX,e.clientY), muH=()=>onDEnd();
+        const tmH=e=>{ e.preventDefault(); onDMove(e.touches[0].clientX,e.touches[0].clientY); }, tuH=()=>onDEnd();
+        document.addEventListener('mousemove',mmH); document.addEventListener('mouseup',muH);
+        document.addEventListener('touchmove',tmH,{passive:false}); document.addEventListener('touchend',tuH);
+        div._cleanup=()=>{ document.removeEventListener('mousemove',mmH); document.removeEventListener('mouseup',muH); document.removeEventListener('touchmove',tmH); document.removeEventListener('touchend',tuH); };
+
+        cmpWrap.appendChild(div);
+        overlapDeg = Math.max(overlapDeg, thisDeg);
+      });
 
     } else {
       // ── 가분수 포함: 분수별 행(온원 + 나머지 원) ──
@@ -590,18 +646,25 @@ function buildCmpCol() {
   const vizWrap = document.createElement('div');
   vizWrap.className = 'cmp-viz-wrap'; vizWrap.id = 'cmp-wrap';
 
-  // 퀴즈 드롭다운 (2개 분수용)
+  // 퀴즈 원형 드롭다운 (2개 분수용)
   const quizRow = document.createElement('div');
   quizRow.className = 'quiz-row'; quizRow.id = 'quiz-row';
-  const sel = document.createElement('select');
-  sel.className = 'quiz-select'; sel.id = 'quiz-select';
-  sel.disabled = true;
-  [['', '?'], ['<', '<'], ['=', '='], ['>', '>']].forEach(([v, t]) => {
-    const o = document.createElement('option');
-    o.value = v; o.textContent = t; sel.appendChild(o);
+  const qDrop = document.createElement('div');
+  qDrop.className = 'quiz-dropdown'; qDrop.id = 'quiz-dropdown';
+  const qTrig = document.createElement('div');
+  qTrig.className = 'quiz-trigger'; qTrig.id = 'quiz-trigger';
+  const qOpts = document.createElement('div');
+  qOpts.className = 'quiz-options'; qOpts.id = 'quiz-options';
+  ['<', '=', '>'].forEach(s => {
+    const o = document.createElement('div');
+    o.className = 'quiz-option'; o.textContent = s;
+    o.addEventListener('click', e => { e.stopPropagation(); qOpts.classList.remove('open'); qTrig.textContent = s; onQuizClick(s); });
+    qOpts.appendChild(o);
   });
-  sel.addEventListener('change', () => { if (sel.value) onQuizClick(sel.value); });
-  quizRow.appendChild(sel);
+  qTrig.addEventListener('click', () => { if (qTrig.classList.contains('active')) qOpts.classList.toggle('open'); });
+  document.addEventListener('click', e => { if (!e.target.closest('#quiz-dropdown')) qOpts.classList.remove('open'); });
+  qDrop.appendChild(qTrig); qDrop.appendChild(qOpts);
+  quizRow.appendChild(qDrop);
 
   // 3개 이상 분수용 순위 결과 표시
   const sym = document.createElement('div');
@@ -765,8 +828,10 @@ function resetCmpWrap() {
     cmpWrap.innerHTML = '';
   }
   if (cmpSym) cmpSym.style.display = 'none';
-  const sel = document.getElementById('quiz-select');
-  if (sel) { sel.value = ''; sel.disabled = true; sel.classList.remove('active'); }
+  const qTrig = document.getElementById('quiz-trigger');
+  const qOpts = document.getElementById('quiz-options');
+  if (qTrig) { qTrig.textContent=''; qTrig.classList.remove('active'); }
+  if (qOpts) qOpts.classList.remove('open');
   if (quizRow) quizRow.style.display = state.count === 2 ? 'flex' : 'none';
   state.correctSym = null;
   state.quizAnswered = false;
@@ -805,8 +870,8 @@ function onQuizClick(sym) {
   state.quizAnswered = true;
 
   // 선택 후 드롭다운 비활성화
-  const sel = document.getElementById('quiz-select');
-  if (sel) { sel.disabled = true; sel.classList.remove('active'); }
+  const qTrig2 = document.getElementById('quiz-trigger');
+  if (qTrig2) qTrig2.classList.remove('active');
 
   const correct = sym === state.correctSym;
   if (correct) playCorrectSound(); else playWrongSound();
@@ -856,8 +921,8 @@ function doCompare() {
       state.correctSym = lv>rv ? '>' : lv<rv ? '<' : '=';
 
       if (quizRow) quizRow.style.display = 'flex';
-      const sel = document.getElementById('quiz-select');
-      if (sel) { sel.value = ''; sel.disabled = false; sel.classList.add('active'); }
+      const qTrig = document.getElementById('quiz-trigger');
+      if (qTrig) { qTrig.textContent=''; qTrig.classList.add('active'); }
       if (cmpSym) cmpSym.style.display = 'none';
     } else {
       // 3개 이상: 순위 결과 표시
