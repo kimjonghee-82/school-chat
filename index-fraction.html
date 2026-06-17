@@ -263,7 +263,7 @@ body {
 }
 .concept-body {
   flex: 1; display: flex; align-items: center; justify-content: center;
-  gap: 80px; padding: 24px 40px; overflow: visible;
+  gap: 160px; padding: 24px 40px; overflow: visible;
 }
 .concept-left {
   display: flex; flex-direction: column; align-items: center; gap: 24px;
@@ -312,6 +312,14 @@ body {
   to   { opacity: 1; transform: scale(1) translateY(0); }
 }
 .cfd-animate { animation: fracAppear 0.5s cubic-bezier(.34,1.56,.64,1) both; }
+.cfd-box {
+  width: 200px; height: 230px;
+  border: 4px dashed #f0a060; border-radius: 16px;
+  background: #fff9f5; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.2s, border-color 0.2s;
+}
+.cfd-box:hover { background: #ffe8d6; border-color: #e06020; }
 
 /* 하이라이트 슬라이스 반짝임 */
 @keyframes sparkle {
@@ -1295,7 +1303,13 @@ document.getElementById('concept-confirm').addEventListener('click', () => {
   conceptState.count = val;
   conceptState.split = true;
   renderPizza(val, true);
-  renderConceptFraction(val);
+  const el = document.getElementById('concept-frac-display');
+  if (el) {
+    el.innerHTML = '<div class="cfd-box" id="cfd-reveal-box"></div>';
+    document.getElementById('cfd-reveal-box').addEventListener('click', () => {
+      renderConceptFraction(val);
+    }, { once: true });
+  }
 });
 
 document.getElementById('concept-reset').addEventListener('click', initConcept);
