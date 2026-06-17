@@ -531,12 +531,13 @@ body {
 }
 .frac-reveal-anim { animation: fracReveal .5s cubic-bezier(.34,1.56,.64,1) both; }
 
-/* 학생 목록 패널 (1/10 가로) */
+/* 학생 목록 패널 (왼쪽, 폭 축소) */
 .game-roster {
-  flex: 1; min-width: 110px;
+  flex: 0 0 70px;
   background: white;
-  border-left: 2px solid white;
+  border-right: 2px solid #e0e0e0;
   display: flex; flex-direction: column;
+  overflow: hidden;
 }
 .roster-title {
   font-size: 13px; font-weight: 700; color: white;
@@ -555,11 +556,73 @@ body {
 }
 .roster-name-chip {
   background: #666; color: white;
-  font-size: 12px; font-weight: 700;
-  padding: 4px 10px; border-radius: 12px;
+  font-size: 11px; font-weight: 700;
+  padding: 3px 6px; border-radius: 10px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  max-width: 90px;
+  max-width: 56px;
 }
+
+/* 정답 패널 (오른쪽, 반응형 접힘) */
+.game-answer-panel {
+  flex: 0 0 0; width: 0; overflow: hidden;
+  background: #fafafa;
+  border-left: 2px solid #e0e0e0;
+  display: flex; flex-direction: column;
+  transition: flex-basis .35s ease, width .35s ease;
+  position: relative;
+}
+.game-answer-panel.open {
+  flex: 0 0 35%; width: 35%;
+}
+.answer-panel-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px;
+  background: #222; color: white;
+  font-size: 13px; font-weight: 700; letter-spacing: 1px;
+  flex-shrink: 0;
+  border-bottom: 2px solid white;
+}
+.answer-panel-toggle {
+  position: absolute; top: 50%; left: -18px; transform: translateY(-50%);
+  width: 18px; height: 48px;
+  background: #e06020; border: none; cursor: pointer;
+  border-radius: 6px 0 0 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; color: white; font-weight: 900;
+  writing-mode: vertical-rl;
+  box-shadow: -2px 0 6px rgba(0,0,0,.15);
+  z-index: 5;
+}
+.answer-panel-toggle:hover { background: #c04010; }
+.answer-list { flex: 1; overflow-y: auto; padding: 8px 0; }
+.answer-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 14px; border-bottom: 1px solid #eee;
+  font-size: 13px; color: #333;
+  animation: rosterIn .3s ease;
+}
+.answer-name { font-weight: 700; color: #555; min-width: 50px; }
+.answer-value {
+  background: #e06020; color: white;
+  font-size: 13px; font-weight: 700;
+  padding: 3px 10px; border-radius: 10px;
+}
+.answer-empty {
+  font-size: 12px; color: #bbb; text-align: center;
+  padding: 24px 12px; line-height: 1.7;
+}
+/* 정답 토글 버튼 (패널 닫혔을 때도 노출) */
+.answer-open-tab {
+  position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+  width: 22px; height: 60px;
+  background: #e06020; border: none; cursor: pointer;
+  border-radius: 6px 0 0 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; color: white; font-weight: 900;
+  z-index: 10;
+  box-shadow: -2px 0 6px rgba(0,0,0,.15);
+}
+.answer-open-tab:hover { background: #c04010; }
 @keyframes rosterIn {
   from { opacity: 0; transform: translateX(10px); }
   to   { opacity: 1; transform: translateX(0); }
@@ -699,10 +762,17 @@ body {
         방 코드 <span id="game-room-code-val">-----</span>
       </div>
     </div>
-    <!-- 하단: 9:1 가로 분할 (9/10 세로) -->
-    <div class="game-main-row">
-      <!-- 분수 입력 영역 (9/10 가로) -->
-      <div class="game-frac-area" id="game-frac-area">
+    <!-- 하단: 목록(왼) | 분수영역(중) | 정답패널(오른) -->
+    <div class="game-main-row" style="position:relative;">
+      <!-- 학생 목록 (왼쪽) -->
+      <div class="game-roster">
+        <div class="roster-title">목록</div>
+        <div class="roster-list" id="roster-list">
+          <div class="roster-empty" id="roster-empty">없음</div>
+        </div>
+      </div>
+      <!-- 분수 입력 영역 (중앙, flex:1) -->
+      <div class="game-frac-area" id="game-frac-area" style="position:relative;">
         <div class="game-frac-widget" id="game-frac-widget">
           <div class="game-frac-cell">
             <input id="game-num-input" type="text" inputmode="numeric"
@@ -715,12 +785,18 @@ body {
           </div>
         </div>
         <button class="game-confirm-btn" id="game-confirm-btn">확인</button>
+        <!-- 정답 패널 열기 탭 (패널 닫혔을 때 보임) -->
+        <button class="answer-open-tab" id="answer-open-tab" onclick="toggleAnswerPanel()" title="정답 패널">정답</button>
       </div>
-      <!-- 학생 목록 (1/10 가로) -->
-      <div class="game-roster">
-        <div class="roster-title">목록</div>
-        <div class="roster-list" id="roster-list">
-          <div class="roster-empty" id="roster-empty">접속한<br>학생 없음</div>
+      <!-- 정답 패널 (오른쪽, 반응형) -->
+      <div class="game-answer-panel" id="game-answer-panel">
+        <div class="answer-panel-header">
+          <span>정답</span>
+          <button onclick="toggleAnswerPanel()"
+            style="background:none;border:none;color:white;font-size:16px;cursor:pointer;padding:0;">✕</button>
+        </div>
+        <div class="answer-list" id="answer-list">
+          <div class="answer-empty">학생이 정답을<br>제출하면 표시됩니다</div>
         </div>
       </div>
     </div>
@@ -1911,6 +1987,14 @@ function makeFracPieSVG(num, den) {
       fill="#e06020"/>
     <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="#f0a060" stroke-width="3"/>
   </svg>`;
+}
+
+function toggleAnswerPanel() {
+  const panel = document.getElementById('game-answer-panel');
+  const tab = document.getElementById('answer-open-tab');
+  if (!panel) return;
+  const isOpen = panel.classList.toggle('open');
+  if (tab) tab.style.display = isOpen ? 'none' : 'flex';
 }
 
 let fracRevealStep = 0;
