@@ -531,14 +531,38 @@ body {
 }
 .frac-reveal-anim { animation: fracReveal .5s cubic-bezier(.34,1.56,.64,1) both; }
 
-/* 학생 목록 패널 (왼쪽, 폭 축소) */
+/* 학생 목록 패널 (왼쪽, 반응형) */
 .game-roster {
-  flex: 0 0 70px;
+  flex: 0 0 140px;
   background: white;
   border-right: 2px solid #e0e0e0;
   display: flex; flex-direction: column;
   overflow: hidden;
+  transition: flex-basis .35s ease;
+  position: relative;
 }
+.game-roster.collapsed { flex: 0 0 0; }
+.roster-toggle-tab {
+  position: absolute; right: -18px; top: 50%; transform: translateY(-50%);
+  width: 18px; height: 48px; z-index: 10;
+  background: #222; border: none; cursor: pointer;
+  border-radius: 0 6px 6px 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; color: white; font-weight: 900;
+  box-shadow: 2px 0 6px rgba(0,0,0,.15);
+}
+.roster-toggle-tab:hover { background: #444; }
+/* 목록 접혔을 때 탭만 남음 */
+.roster-open-tab {
+  position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+  width: 18px; height: 48px; z-index: 10;
+  background: #222; border: none; cursor: pointer;
+  border-radius: 0 6px 6px 0;
+  display: none; align-items: center; justify-content: center;
+  font-size: 10px; color: white; font-weight: 900;
+  box-shadow: 2px 0 6px rgba(0,0,0,.15);
+}
+.roster-open-tab:hover { background: #444; }
 .roster-title {
   font-size: 13px; font-weight: 700; color: white;
   padding: 12px 12px 10px;
@@ -764,13 +788,17 @@ body {
     </div>
     <!-- 하단: 목록(왼) | 분수영역(중) | 정답패널(오른) -->
     <div class="game-main-row" style="position:relative;">
-      <!-- 학생 목록 (왼쪽) -->
-      <div class="game-roster">
+      <!-- 학생 목록 (왼쪽, 접힘 가능) -->
+      <div class="game-roster" id="game-roster">
         <div class="roster-title">목록</div>
         <div class="roster-list" id="roster-list">
           <div class="roster-empty" id="roster-empty">없음</div>
         </div>
+        <!-- 펼쳐진 상태의 닫기 탭 -->
+        <button class="roster-toggle-tab" onclick="toggleRoster()" title="목록 접기">◀</button>
       </div>
+      <!-- 목록 접혔을 때 열기 탭 -->
+      <button class="roster-open-tab" id="roster-open-tab" onclick="toggleRoster()" title="목록 펼치기">▶</button>
       <!-- 분수 입력 영역 (중앙, flex:1) -->
       <div class="game-frac-area" id="game-frac-area" style="position:relative;">
         <div class="game-frac-widget" id="game-frac-widget">
@@ -1995,6 +2023,14 @@ function toggleAnswerPanel() {
   if (!panel) return;
   const isOpen = panel.classList.toggle('open');
   if (tab) tab.style.display = isOpen ? 'none' : 'flex';
+}
+
+function toggleRoster() {
+  const roster = document.getElementById('game-roster');
+  const openTab = document.getElementById('roster-open-tab');
+  if (!roster) return;
+  const collapsed = roster.classList.toggle('collapsed');
+  if (openTab) openTab.style.display = collapsed ? 'flex' : 'none';
 }
 
 let fracRevealStep = 0;
