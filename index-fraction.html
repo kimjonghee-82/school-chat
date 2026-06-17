@@ -1918,15 +1918,30 @@ function revealFraction() {
   const den = document.getElementById('game-den-input').value.trim();
   if (!num || !den) return;
 
+  // 1단계: 숫자 색을 검게 바꾸고 확인 버튼 숨김
+  document.getElementById('game-num-input').classList.add('revealed');
+  document.getElementById('game-den-input').classList.add('revealed');
+  document.getElementById('game-confirm-btn').style.display = 'none';
+
+  // 바탕 클릭 시 2단계로 이동
+  const area = document.getElementById('game-frac-area');
+  area.addEventListener('click', function onAreaClick(e) {
+    if (e.target.closest('.game-frac-widget')) return; // 위젯 클릭은 무시
+    area.removeEventListener('click', onAreaClick);
+    showFracWithCircle(num, den);
+  });
+}
+
+function showFracWithCircle(num, den) {
   const area = document.getElementById('game-frac-area');
   area.innerHTML = `
     <div class="game-revealed-layout">
-      <div class="game-circle-wrap frac-reveal-anim">${makeFracPieSVG(num, den)}</div>
-      <div class="game-revealed-frac frac-reveal-anim" style="animation-delay:.1s">
+      <div class="game-revealed-frac frac-reveal-anim">
         <div class="game-revealed-num">${num}</div>
         <div class="game-revealed-line"></div>
         <div class="game-revealed-den">${den}</div>
       </div>
+      <div class="game-circle-wrap frac-reveal-anim" style="animation-delay:.1s">${makeFracPieSVG(num, den)}</div>
     </div>
     <button class="game-confirm-btn" id="game-confirm-btn" onclick="resetGameBoard()">↺ 초기화</button>
   `;
