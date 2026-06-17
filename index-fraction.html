@@ -1066,13 +1066,13 @@ body {
 </div>
 
 <!-- 학생 대기 화면 -->
-<div id="page-waiting" style="display:none; flex:1; flex-direction:column; align-items:center; justify-content:center; gap:18px;">
+<div id="page-waiting" style="display:none; flex:1; flex-direction:column; align-items:center; justify-content:center; gap:18px; background:#fff;">
   <div style="font-size:48px;">⏳</div>
   <div style="font-size:20px; font-weight:700; color:#555;">선생님의 허락을 기다리고 있어요</div>
-  <div style="font-size:14px; color:#999;">선생님이 탭을 열어주면 이동됩니다</div>
-  <div id="waiting-debug" style="margin-top:12px; padding:10px 18px; background:#f0f0f0; border-radius:8px; font-size:12px; color:#666; text-align:center; line-height:1.8;">
-    연결 중...
+  <div id="waiting-debug" style="padding:12px 24px; background:#eef; border:1px solid #aac; border-radius:8px; font-size:13px; color:#333; text-align:center; line-height:2;">
+    Firebase 연결 중...
   </div>
+  <button onclick="checkPermsNow()" style="padding:8px 20px; background:#3c7; color:#fff; border:none; border-radius:6px; font-size:14px; cursor:pointer;">🔄 권한 수동 확인</button>
 </div>
 
 <div id="page-concept">
@@ -2368,6 +2368,30 @@ document.getElementById('login-student-submit').addEventListener('click', async 
 
 let tabPermListener = null;
 let studentTabPerms = { concept: false, compare: false, game: false };
+
+async function checkPermsNow() {
+  if (!session.roomCode) { alert('방코드가 없습니다. 로그인 상태를 확인하세요.'); return; }
+  const dbgEl = document.getElementById('waiting-debug');
+  if (dbgEl) dbgEl.textContent = '확인 중...';
+  try {
+    const snap = await db.ref('rooms/' + session.roomCode + '/tabs').once('value');
+    const perms = snap.val();
+    const msg = '방코드: ' + session.roomCode + '\n' +
+      '개념: ' + (perms && perms.concept) + '\n' +
+      '비교: ' + (perms && perms.compare) + '\n' +
+      '게임: ' + (perms && perms.game);
+    alert(msg);
+    if (dbgEl) dbgEl.textContent = '방코드:' + session.roomCode + '  개념:' + (perms&&perms.concept?'O':'X') + '  비교:' + (perms&&perms.compare?'O':'X') + '  게임:' + (perms&&perms.game?'O':'X');
+    // 수동으로도 네비게이션 시도
+    if (perms) {
+      studentTabPerms = { concept: !!perms.concept, compare: !!perms.compare, game: !!perms.game };
+      const firstAllowed = ['concept','compare','game'].find(t => perms[t]);
+      if (firstAllowed) _doSwitchPage(firstAllowed);
+    }
+  } catch(e) {
+    alert('Firebase 오류: ' + e.message);
+  }
+}
 
 function enterAsTeacher() {
   session.role = 'teacher';
