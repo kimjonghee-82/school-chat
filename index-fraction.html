@@ -1070,6 +1070,9 @@ body {
   <div style="font-size:48px;">⏳</div>
   <div style="font-size:20px; font-weight:700; color:#555;">선생님의 허락을 기다리고 있어요</div>
   <div style="font-size:14px; color:#999;">선생님이 탭을 열어주면 이동됩니다</div>
+  <div id="waiting-debug" style="margin-top:12px; padding:10px 18px; background:#f0f0f0; border-radius:8px; font-size:12px; color:#666; text-align:center; line-height:1.8;">
+    연결 중...
+  </div>
 </div>
 
 <div id="page-concept">
@@ -2427,7 +2430,13 @@ function enterAsStudent(name, code) {
     const perms = snap.val() || {};
     const tabs = ['concept','compare','game'];
 
-    // 실제 권한 상태 업데이트 (탭 클릭/switchPage 차단에 사용)
+    // 디버그 패널 업데이트
+    const dbgEl = document.getElementById('waiting-debug');
+    if (dbgEl) {
+      dbgEl.textContent = '방코드:' + session.roomCode + '  개념:' + (perms.concept?'O':'X') + '  비교:' + (perms.compare?'O':'X') + '  게임:' + (perms.game?'O':'X') + '  (' + new Date().toLocaleTimeString() + ')';
+    }
+
+    // 실제 권한 상태 업데이트
     studentTabPerms = {
       concept: !!perms.concept,
       compare: !!perms.compare,
