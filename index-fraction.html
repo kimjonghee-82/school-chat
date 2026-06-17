@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>분수 학습</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
@@ -371,15 +373,202 @@ body {
 
 /* page-compare uses existing flex layout */
 #page-compare { flex: 1; display: flex; flex-direction: column; }
+
+/* ── 로그인 화면 ── */
+#login-screen {
+  position: fixed; inset: 0; z-index: 9999;
+  background: linear-gradient(135deg, #fff5ee 0%, #ffe0c8 100%);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 32px;
+}
+.login-title {
+  font-size: 28px; font-weight: 900; color: #e06020;
+  letter-spacing: -0.5px;
+}
+.login-subtitle {
+  font-size: 14px; color: #888; margin-top: -20px;
+}
+.login-role-row {
+  display: flex; gap: 20px;
+}
+.login-role-btn {
+  width: 140px; height: 140px; border-radius: 20px; border: 3px solid #f0a060;
+  background: white; cursor: pointer; font-size: 15px; font-weight: 700;
+  color: #444; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 10px;
+  transition: all .2s; box-shadow: 0 4px 16px rgba(224,96,32,.1);
+}
+.login-role-btn:hover { border-color: #e06020; background: #fff5f0; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(224,96,32,.2); }
+.login-role-btn .role-icon { font-size: 42px; }
+.login-pw-box {
+  display: none; flex-direction: column; align-items: center; gap: 14px;
+  background: white; padding: 28px 36px; border-radius: 20px;
+  box-shadow: 0 4px 24px rgba(0,0,0,.1);
+}
+.login-pw-box.show { display: flex; }
+.login-pw-title { font-size: 15px; font-weight: 700; color: #555; }
+.login-pw-input {
+  width: 180px; height: 50px; border: 2px solid #f0a060; border-radius: 12px;
+  font-size: 22px; text-align: center; outline: none; letter-spacing: 6px;
+  color: #333;
+}
+.login-pw-input:focus { border-color: #e06020; box-shadow: 0 0 0 3px rgba(224,96,32,.15); }
+.login-pw-save-row {
+  display: flex; align-items: center; gap: 8px; font-size: 13px; color: #888; cursor: pointer;
+}
+.login-pw-save-row input { cursor: pointer; accent-color: #e06020; }
+.login-submit-btn {
+  width: 180px; height: 44px; background: #e06020; border: none;
+  border-radius: 22px; color: white; font-size: 15px; font-weight: 700;
+  cursor: pointer; transition: background .2s;
+}
+.login-submit-btn:hover { background: #c04010; }
+.login-back-btn {
+  background: none; border: none; color: #aaa; font-size: 13px;
+  cursor: pointer; text-decoration: underline;
+}
+.login-student-box {
+  display: none; flex-direction: column; align-items: center; gap: 14px;
+  background: white; padding: 28px 36px; border-radius: 20px;
+  box-shadow: 0 4px 24px rgba(0,0,0,.1);
+}
+.login-student-box.show { display: flex; }
+.login-field-label { font-size: 13px; font-weight: 700; color: #888; align-self: flex-start; }
+.login-text-input {
+  width: 220px; height: 48px; border: 2px solid #f0a060; border-radius: 12px;
+  font-size: 17px; text-align: center; outline: none; color: #333;
+}
+.login-text-input:focus { border-color: #e06020; box-shadow: 0 0 0 3px rgba(224,96,32,.15); }
+.login-error { font-size: 13px; color: #e05050; display: none; }
+.login-error.show { display: block; }
+
+/* ── 분수 게임 탭 ── */
+#page-game { flex: 1; display: none; flex-direction: row; }
+
+/* 교사 게임 보드 (9/10) */
+.game-board {
+  flex: 9; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  background: #1a1a2e; position: relative; gap: 28px;
+}
+.game-room-code {
+  position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+  background: rgba(255,255,255,.1); border: 1.5px solid rgba(255,255,255,.25);
+  border-radius: 14px; padding: 8px 28px;
+  font-size: 14px; font-weight: 700; color: rgba(255,255,255,.7);
+  letter-spacing: 1px; white-space: nowrap;
+}
+.game-room-code span { color: #ffd580; letter-spacing: 6px; font-size: 20px; }
+.game-white-box {
+  width: 380px; height: 320px; background: white; border-radius: 20px;
+  box-shadow: 0 8px 40px rgba(0,0,0,.4);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 0; position: relative;
+}
+.game-frac-input {
+  width: 200px; height: 100px; background: transparent; border: none;
+  outline: none; font-size: 96px; font-weight: 900; color: white;
+  text-align: center; caret-color: transparent; line-height: 1;
+  -webkit-text-fill-color: white;
+}
+.game-frac-line {
+  width: 200px; height: 6px; background: white; border-radius: 3px; margin: 4px 0;
+}
+.game-board-hint {
+  font-size: 13px; color: rgba(255,255,255,.35);
+  position: absolute; bottom: 18px;
+}
+
+/* 학생 목록 패널 (1/10) */
+.game-roster {
+  flex: 1; min-width: 130px; max-width: 180px;
+  background: #12122a; border-left: 1px solid rgba(255,255,255,.08);
+  display: flex; flex-direction: column;
+}
+.roster-title {
+  font-size: 13px; font-weight: 700; color: rgba(255,255,255,.5);
+  padding: 16px 14px 10px; border-bottom: 1px solid rgba(255,255,255,.07);
+  letter-spacing: 1px;
+}
+.roster-list { flex: 1; overflow-y: auto; padding: 8px 0; }
+.roster-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 14px; font-size: 13px; font-weight: 700; color: #e8e8f0;
+  border-bottom: 1px solid rgba(255,255,255,.04); animation: rosterIn .3s ease;
+}
+@keyframes rosterIn {
+  from { opacity: 0; transform: translateX(10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.roster-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: #4cff8a; flex-shrink: 0;
+}
+.roster-empty {
+  font-size: 12px; color: rgba(255,255,255,.25); text-align: center;
+  padding: 24px 10px;
+}
+
+/* 학생 게임 화면 */
+.student-game-wrap {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  background: #1a1a2e; gap: 24px;
+}
+.student-waiting {
+  font-size: 18px; font-weight: 700; color: rgba(255,255,255,.5);
+}
+.student-room-info {
+  font-size: 13px; color: rgba(255,255,255,.3);
+}
 </style>
 </head>
 <body>
+
+<!-- 로그인 화면 -->
+<div id="login-screen">
+  <div class="login-title">분수 학습</div>
+  <div class="login-subtitle">역할을 선택해 주세요</div>
+  <div class="login-role-row" id="login-role-row">
+    <button class="login-role-btn" id="btn-teacher-role">
+      <span class="role-icon">👩‍🏫</span>교사용
+    </button>
+    <button class="login-role-btn" id="btn-student-role">
+      <span class="role-icon">🎒</span>학생용
+    </button>
+  </div>
+
+  <!-- 교사 비밀번호 박스 -->
+  <div class="login-pw-box" id="login-pw-box">
+    <div class="login-pw-title">교사 비밀번호 입력</div>
+    <input type="password" class="login-pw-input" id="login-pw-input" maxlength="6" placeholder="····">
+    <label class="login-pw-save-row">
+      <input type="checkbox" id="login-pw-save"> 비밀번호 저장
+    </label>
+    <div class="login-error" id="login-pw-error">비밀번호가 올바르지 않습니다</div>
+    <button class="login-submit-btn" id="login-pw-submit">입장</button>
+    <button class="login-back-btn" id="login-pw-back">← 돌아가기</button>
+  </div>
+
+  <!-- 학생 입장 박스 -->
+  <div class="login-student-box" id="login-student-box">
+    <div class="login-pw-title">학생 정보 입력</div>
+    <div class="login-field-label">이름</div>
+    <input type="text" class="login-text-input" id="login-student-name" placeholder="이름 입력" maxlength="10">
+    <div class="login-field-label">방 코드 (선생님께 확인)</div>
+    <input type="text" class="login-text-input" id="login-student-code" placeholder="00000" maxlength="5"
+      style="letter-spacing:6px; font-size:22px;">
+    <div class="login-error" id="login-student-error">방 코드를 확인해 주세요</div>
+    <button class="login-submit-btn" id="login-student-submit">입장</button>
+    <button class="login-back-btn" id="login-student-back">← 돌아가기</button>
+  </div>
+</div>
 
 <div class="header">
   <div class="header-left">
     <div class="top-tabs">
       <div class="top-tab" data-page="concept">분수 개념 익히기</div>
       <div class="top-tab active" data-page="compare">분수 크기 비교</div>
+      <div class="top-tab" data-page="game">분수 게임</div>
     </div>
     <div class="count-selector">
       <div class="count-btn" id="count-btn">2</div>
@@ -438,6 +627,37 @@ body {
     <button class="btn-quiz-arrow">→</button>
   </div>
 </div>
+</div>
+
+<!-- 분수 게임 탭 -->
+<div id="page-game">
+  <!-- 교사용 화면 -->
+  <div id="game-teacher-view" style="display:none; flex:1; flex-direction:row; height:100%;">
+    <div class="game-board" id="game-board">
+      <div class="game-room-code">방 코드 &nbsp;<span id="game-room-code-val">-----</span></div>
+      <div class="game-white-box">
+        <input class="game-frac-input" id="game-num-input" type="text" inputmode="numeric"
+          maxlength="3" placeholder=" " autocomplete="off" spellcheck="false">
+        <div class="game-frac-line"></div>
+        <input class="game-frac-input" id="game-den-input" type="text" inputmode="numeric"
+          maxlength="3" placeholder=" " autocomplete="off" spellcheck="false">
+        <div class="game-board-hint">숫자를 입력하세요 (학생에게는 보이지 않습니다)</div>
+      </div>
+    </div>
+    <div class="game-roster">
+      <div class="roster-title">목록</div>
+      <div class="roster-list" id="roster-list">
+        <div class="roster-empty" id="roster-empty">접속한 학생 없음</div>
+      </div>
+    </div>
+  </div>
+  <!-- 학생용 화면 -->
+  <div id="game-student-view" style="display:none; flex:1; flex-direction:column;">
+    <div class="student-game-wrap">
+      <div class="student-waiting">선생님을 기다리고 있습니다...</div>
+      <div class="student-room-info" id="student-room-info"></div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -1398,18 +1618,227 @@ document.getElementById('concept-input').addEventListener('keydown', e => {
 document.getElementById('concept-reset').addEventListener('click', initConcept);
 
 // ── 최상위 탭 전환 ────────────────────────────────────────
+function switchPage(page) {
+  document.querySelectorAll('.top-tab').forEach(t => t.classList.remove('active'));
+  const activeTab = document.querySelector(`.top-tab[data-page="${page}"]`);
+  if (activeTab) activeTab.classList.add('active');
+  document.getElementById('page-concept').style.display = page === 'concept' ? 'flex' : 'none';
+  document.getElementById('page-compare').style.display = page === 'compare' ? 'flex' : 'none';
+  document.getElementById('view-tabs-bar').style.display = page === 'compare' ? 'flex' : 'none';
+  document.getElementById('page-game').style.display = page === 'game' ? 'flex' : 'none';
+  if (page === 'game') onGameTabOpen();
+}
+
 document.querySelectorAll('.top-tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.top-tab').forEach(t => t.classList.remove('active'));
-    tab.classList.add('active');
-    const page = tab.dataset.page;
-    document.getElementById('page-concept').style.display = page === 'concept' ? 'flex' : 'none';
-    document.getElementById('page-compare').style.display = page === 'compare' ? 'flex' : 'none';
-    document.getElementById('view-tabs-bar').style.display = page === 'compare' ? 'flex' : 'none';
-  });
+  tab.addEventListener('click', () => switchPage(tab.dataset.page));
 });
 
 setConceptMode('pizza');
+
+// ── Firebase 초기화 ───────────────────────────────────────
+const firebaseConfig = {
+  apiKey: "AIzaSyACk0Pjmr_l0hhozDN7bVf2o7J3N9g8qXs",
+  authDomain: "school-fraction.firebaseapp.com",
+  databaseURL: "https://school-fraction-default-rtdb.firebaseio.com",
+  projectId: "school-fraction",
+  storageBucket: "school-fraction.firebasestorage.app",
+  messagingSenderId: "786728377471",
+  appId: "1:786728377471:web:29883cc7fa25249d15f34a"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// ── 세션 상태 ────────────────────────────────────────────
+const session = {
+  role: null,       // 'teacher' | 'student'
+  name: null,       // 학생 이름
+  roomCode: null,   // 방 코드
+  studentId: null,  // 학생 고유 ID
+};
+
+// ── 로그인 화면 ──────────────────────────────────────────
+const TEACHER_PW = '1234';
+
+function showLoginScreen() {
+  document.getElementById('login-screen').style.display = 'flex';
+  document.querySelector('.header').style.display = 'none';
+  document.getElementById('page-compare').style.display = 'none';
+  document.getElementById('view-tabs-bar').style.display = 'none';
+}
+
+function hideLoginScreen() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.querySelector('.header').style.display = 'flex';
+}
+
+function resetLoginBoxes() {
+  document.getElementById('login-pw-box').classList.remove('show');
+  document.getElementById('login-student-box').classList.remove('show');
+  document.getElementById('login-role-row').style.display = 'flex';
+  document.getElementById('login-pw-error').classList.remove('show');
+  document.getElementById('login-student-error').classList.remove('show');
+  document.getElementById('login-pw-input').value = '';
+}
+
+// 저장된 교사 비밀번호 확인
+(function checkSavedPw() {
+  if (localStorage.getItem('teacher_pw_saved') === '1') {
+    document.getElementById('login-pw-save').checked = true;
+  }
+})();
+
+document.getElementById('btn-teacher-role').addEventListener('click', () => {
+  // 저장된 비밀번호가 있으면 바로 입장
+  if (localStorage.getItem('teacher_pw_saved') === '1') {
+    enterAsTeacher();
+    return;
+  }
+  document.getElementById('login-role-row').style.display = 'none';
+  document.getElementById('login-pw-box').classList.add('show');
+  setTimeout(() => document.getElementById('login-pw-input').focus(), 50);
+});
+
+document.getElementById('btn-student-role').addEventListener('click', () => {
+  document.getElementById('login-role-row').style.display = 'none';
+  document.getElementById('login-student-box').classList.add('show');
+  setTimeout(() => document.getElementById('login-student-name').focus(), 50);
+});
+
+document.getElementById('login-pw-back').addEventListener('click', resetLoginBoxes);
+document.getElementById('login-student-back').addEventListener('click', resetLoginBoxes);
+
+document.getElementById('login-pw-submit').addEventListener('click', () => {
+  const pw = document.getElementById('login-pw-input').value.trim();
+  if (pw !== TEACHER_PW) {
+    document.getElementById('login-pw-error').classList.add('show');
+    document.getElementById('login-pw-input').value = '';
+    return;
+  }
+  if (document.getElementById('login-pw-save').checked) {
+    localStorage.setItem('teacher_pw_saved', '1');
+  } else {
+    localStorage.removeItem('teacher_pw_saved');
+  }
+  enterAsTeacher();
+});
+
+document.getElementById('login-pw-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('login-pw-submit').click();
+});
+
+document.getElementById('login-student-submit').addEventListener('click', async () => {
+  const name = document.getElementById('login-student-name').value.trim();
+  const code = document.getElementById('login-student-code').value.trim();
+  const errEl = document.getElementById('login-student-error');
+  errEl.classList.remove('show');
+  if (!name || code.length !== 5) { errEl.textContent = '이름과 방 코드(5자리)를 입력해 주세요'; errEl.classList.add('show'); return; }
+  // Firebase에서 방 코드 확인
+  const snap = await db.ref(`rooms/${code}`).once('value');
+  if (!snap.exists()) { errEl.textContent = '방 코드를 찾을 수 없습니다'; errEl.classList.add('show'); return; }
+  enterAsStudent(name, code);
+});
+
+['login-student-name','login-student-code'].forEach(id => {
+  document.getElementById(id).addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('login-student-submit').click();
+  });
+});
+
+function enterAsTeacher() {
+  session.role = 'teacher';
+  hideLoginScreen();
+  switchPage('game');
+}
+
+function enterAsStudent(name, code) {
+  session.role = 'student';
+  session.name = name;
+  session.roomCode = code;
+  session.studentId = 'std_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+  hideLoginScreen();
+  switchPage('game');
+}
+
+// ── 게임 탭 진입 ─────────────────────────────────────────
+let rosterRef = null;
+let rosterListener = null;
+let studentPresenceRef = null;
+
+function onGameTabOpen() {
+  if (session.role === 'teacher') {
+    openTeacherGame();
+  } else if (session.role === 'student') {
+    openStudentGame();
+  }
+}
+
+// ── 교사 게임 ────────────────────────────────────────────
+function genRoomCode() {
+  return String(Math.floor(10000 + Math.random() * 90000));
+}
+
+function openTeacherGame() {
+  document.getElementById('game-teacher-view').style.display = 'flex';
+  document.getElementById('game-student-view').style.display = 'none';
+
+  if (!session.roomCode) {
+    session.roomCode = genRoomCode();
+    db.ref(`rooms/${session.roomCode}`).set({ createdAt: firebase.database.ServerValue.TIMESTAMP });
+  }
+
+  document.getElementById('game-room-code-val').textContent = session.roomCode;
+
+  // 학생 목록 실시간 리스닝
+  if (rosterListener) rosterRef.off('value', rosterListener);
+  rosterRef = db.ref(`rooms/${session.roomCode}/students`);
+  rosterListener = rosterRef.on('value', snap => {
+    const listEl = document.getElementById('roster-list');
+    const emptyEl = document.getElementById('roster-empty');
+    const students = [];
+    snap.forEach(child => {
+      const d = child.val();
+      if (d.active) students.push(d.name);
+    });
+    if (students.length === 0) {
+      listEl.innerHTML = '';
+      listEl.appendChild(emptyEl);
+      emptyEl.style.display = 'block';
+    } else {
+      listEl.innerHTML = students.map(name =>
+        `<div class="roster-item"><div class="roster-dot"></div>${name}</div>`
+      ).join('');
+    }
+  });
+
+  // 분수 입력 → Firebase 저장
+  ['game-num-input','game-den-input'].forEach(id => {
+    document.getElementById(id).addEventListener('input', syncFractionToDb);
+  });
+}
+
+function syncFractionToDb() {
+  if (!session.roomCode) return;
+  const num = document.getElementById('game-num-input').value;
+  const den = document.getElementById('game-den-input').value;
+  db.ref(`rooms/${session.roomCode}/fraction`).set({ num, den });
+}
+
+// ── 학생 게임 ────────────────────────────────────────────
+function openStudentGame() {
+  document.getElementById('game-teacher-view').style.display = 'none';
+  document.getElementById('game-student-view').style.display = 'flex';
+  document.getElementById('student-room-info').textContent = `방 코드: ${session.roomCode}  |  ${session.name}`;
+
+  // Firebase에 학생 등록 (presence)
+  studentPresenceRef = db.ref(`rooms/${session.roomCode}/students/${session.studentId}`);
+  studentPresenceRef.set({ name: session.name, joinedAt: firebase.database.ServerValue.TIMESTAMP, active: true });
+
+  // 접속 끊기면 active: false 처리
+  studentPresenceRef.onDisconnect().update({ active: false });
+}
+
+// ── 최초 로그인 화면 표시 ────────────────────────────────
+showLoginScreen();
 </script>
 </body>
 </html>
