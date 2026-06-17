@@ -2223,9 +2223,8 @@ document.getElementById('concept-reset').addEventListener('click', initConcept);
 
 // ── 최상위 탭 전환 ────────────────────────────────────────
 function switchPage(page) {
-  // locked 탭은 이동 불가 (교사 탭엔 locked 없음)
-  const tabEl = document.querySelector(`.top-tab[data-page="${page}"]`);
-  if (tabEl && tabEl.classList.contains('locked')) return;
+  // 학생: 실제 권한 상태로 차단
+  if (session.role === 'student' && !studentTabPerms[page]) return;
   document.querySelectorAll('.top-tab').forEach(t => t.classList.remove('active'));
   const activeTab = document.querySelector(`.top-tab[data-page="${page}"]`);
   if (activeTab) activeTab.classList.add('active');
@@ -2239,10 +2238,9 @@ function switchPage(page) {
 
 document.querySelectorAll('.top-tab').forEach(tab => {
   tab.addEventListener('click', e => {
-    // 배지 클릭은 badge.onclick이 처리 — 여기선 무시
     if (e.target.classList.contains('tab-perm-badge')) return;
-    // locked 탭은 역할 무관하게 차단 (교사 탭엔 locked를 절대 추가하지 않음)
-    if (tab.classList.contains('locked')) return;
+    // 학생: 실제 권한 상태로 직접 차단 (CSS에 의존하지 않음)
+    if (session.role === 'student' && !studentTabPerms[tab.dataset.page]) return;
     switchPage(tab.dataset.page);
   });
 });
@@ -2361,6 +2359,7 @@ document.getElementById('login-student-submit').addEventListener('click', async 
 });
 
 let tabPermListener = null;
+let studentTabPerms = { concept: false, compare: false, game: false };
 
 function enterAsTeacher() {
   session.role = 'teacher';
@@ -2423,7 +2422,14 @@ function enterAsStudent(name, code) {
     const perms = snap.val() || {};
     const tabs = ['concept','compare','game'];
 
-    // 탭 locked 상태 업데이트
+    // 실제 권한 상태 업데이트 (탭 클릭/switchPage 차단에 사용)
+    studentTabPerms = {
+      concept: !!perms.concept,
+      compare: !!perms.compare,
+      game: !!perms.game
+    };
+
+    // 탭 locked 시각 표시 업데이트
     tabs.forEach(tab => {
       const tabEl = document.querySelector(`.top-tab[data-page="${tab}"]`);
       if (!tabEl) return;
