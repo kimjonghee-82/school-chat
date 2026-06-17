@@ -869,10 +869,6 @@ function onQuizClick(sym) {
   if (!state.compared || state.quizAnswered || !state.correctSym) return;
   state.quizAnswered = true;
 
-  // 선택 후 드롭다운 비활성화
-  const qTrig2 = document.getElementById('quiz-trigger');
-  if (qTrig2) qTrig2.classList.remove('active');
-
   const correct = sym === state.correctSym;
   if (correct) playCorrectSound(); else playWrongSound();
 
@@ -895,11 +891,12 @@ function onQuizClick(sym) {
     overlay.classList.add('show');
     setTimeout(() => {
       overlay.classList.remove('show');
-      setTimeout(() => { state.quizAnswered = false; }, 300);
-    }, 1200);
-  });
-}
-
+      // O/X 후 드롭다운 다시 활성화 (재시도 가능)
+      setTimeout(() => {
+        state.quizAnswered = false;
+        const qTrig = document.getElementById('quiz-trigger');
+        if (qTrig) qTrig.classList.add('active');
+      }, 300);
 // ── 비교하기 ─────────────────────────────────────────────
 function doCompare() {
   const fracs = state.fractions.slice(0, state.count);
