@@ -589,6 +589,7 @@ body {
   background: #fafafa;
   border-left: 2px solid #e0e0e0;
   display: flex; flex-direction: column;
+  position: relative;
   transition: flex-basis .35s ease, width .35s ease;
   position: relative;
 }
@@ -1081,27 +1082,6 @@ body {
       </div>
       <!-- 분수 입력 영역 (중앙, flex:1) -->
       <div class="game-frac-area" id="game-frac-area" style="position:relative;">
-        <!-- 톱니바퀴 채점 설정 버튼 -->
-        <button class="scoring-gear-btn" id="scoring-gear-btn" onclick="toggleScoringPanel()" title="채점 설정">⚙</button>
-        <!-- 채점 설정 드롭다운 -->
-        <div class="scoring-panel" id="scoring-panel" style="display:none;">
-          <div class="scoring-panel-title">채점 기준</div>
-          <div class="scoring-row">
-            <span class="scoring-cond-label equal">선생님과 같을 때</span>
-            <input class="scoring-pts-input" id="score-eq" type="number" min="0" max="999" value="10" placeholder="점">
-            <span class="scoring-pts-unit">점</span>
-          </div>
-          <div class="scoring-row">
-            <span class="scoring-cond-label greater">선생님보다 클 때</span>
-            <input class="scoring-pts-input" id="score-gt" type="number" min="0" max="999" value="0" placeholder="점">
-            <span class="scoring-pts-unit">점</span>
-          </div>
-          <div class="scoring-row">
-            <span class="scoring-cond-label less">선생님보다 작을 때</span>
-            <input class="scoring-pts-input" id="score-lt" type="number" min="0" max="999" value="0" placeholder="점">
-            <span class="scoring-pts-unit">점</span>
-          </div>
-        </div>
         <div class="game-frac-widget" id="game-frac-widget">
           <div class="game-frac-cell">
             <input id="game-num-input" type="text" inputmode="numeric"
@@ -1123,8 +1103,31 @@ body {
       <div class="game-answer-panel" id="game-answer-panel">
         <div class="answer-panel-header">
           <span>정답</span>
-          <button onclick="toggleAnswerPanel()"
-            style="background:none;border:none;color:white;font-size:16px;cursor:pointer;padding:0;">✕</button>
+          <div style="display:flex;align-items:center;gap:6px;position:relative;">
+            <!-- 톱니바퀴 채점 설정 (answer panel 내, 항상 유지) -->
+            <button class="scoring-gear-btn" id="scoring-gear-btn" onclick="toggleScoringPanel()" title="채점 설정" style="width:26px;height:26px;font-size:15px;">⚙</button>
+            <button onclick="toggleAnswerPanel()"
+              style="background:none;border:none;color:white;font-size:16px;cursor:pointer;padding:0;">✕</button>
+          </div>
+        </div>
+        <!-- 채점 설정 드롭다운 (answer panel 내, 항상 유지) -->
+        <div class="scoring-panel" id="scoring-panel" style="display:none;position:absolute;top:44px;right:0;z-index:50;">
+          <div class="scoring-panel-title">채점 기준</div>
+          <div class="scoring-row">
+            <span class="scoring-cond-label equal">선생님과 같을 때</span>
+            <input class="scoring-pts-input" id="score-eq" type="number" min="0" max="999" value="10" placeholder="점">
+            <span class="scoring-pts-unit">점</span>
+          </div>
+          <div class="scoring-row">
+            <span class="scoring-cond-label greater">선생님보다 클 때</span>
+            <input class="scoring-pts-input" id="score-gt" type="number" min="0" max="999" value="0" placeholder="점">
+            <span class="scoring-pts-unit">점</span>
+          </div>
+          <div class="scoring-row">
+            <span class="scoring-cond-label less">선생님보다 작을 때</span>
+            <input class="scoring-pts-input" id="score-lt" type="number" min="0" max="999" value="0" placeholder="점">
+            <span class="scoring-pts-unit">점</span>
+          </div>
         </div>
         <div class="answer-list" id="answer-list">
           <div class="answer-empty" style="grid-column:1/-1">학생이 정답을<br>제출하면 표시됩니다</div>
@@ -2162,7 +2165,13 @@ function switchPage(page) {
 }
 
 document.querySelectorAll('.top-tab').forEach(tab => {
-  tab.addEventListener('click', () => switchPage(tab.dataset.page));
+  tab.addEventListener('click', e => {
+    // 배지 클릭 이벤트는 badge.onclick이 처리 (교사만) — 여기선 무시
+    if (e.target.classList.contains('tab-perm-badge')) return;
+    // 학생: 잠긴 탭 JS 레벨 차단
+    if (session.role === 'student' && tab.classList.contains('locked')) return;
+    switchPage(tab.dataset.page);
+  });
 });
 
 setConceptMode('pizza');
@@ -2818,6 +2827,7 @@ document.getElementById('submission-modal').addEventListener('click', e => {
 // ── 채점 설정 패널 ───────────────────────────────────────
 function toggleScoringPanel() {
   const p = document.getElementById('scoring-panel');
+  if (!p) return;
   p.style.display = p.style.display === 'none' ? 'block' : 'none';
 }
 // 패널 바깥 클릭 시 닫기
@@ -2889,7 +2899,8 @@ async function runScoring() {
   }
 
   await db.ref().update(updates);
-  document.getElementById('scoring-panel').style.display = 'none';
+  const sp = document.getElementById('scoring-panel');
+  if (sp) sp.style.display = 'none';
 }
 
 // ── 점수 초기화 ──────────────────────────────────────────
