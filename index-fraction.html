@@ -1065,6 +1065,13 @@ body {
   <div id="student-role-info" style="display:none; font-size:12px; color:rgba(255,255,255,.4); font-weight:700;"></div>
 </div>
 
+<!-- 학생 대기 화면 -->
+<div id="page-waiting" style="display:none; flex:1; flex-direction:column; align-items:center; justify-content:center; gap:18px;">
+  <div style="font-size:48px;">⏳</div>
+  <div style="font-size:20px; font-weight:700; color:#555;">선생님의 허락을 기다리고 있어요</div>
+  <div style="font-size:14px; color:#999;">선생님이 탭을 열어주면 이동됩니다</div>
+</div>
+
 <div id="page-concept">
   <button class="concept-mode-btn" id="concept-mode-btn">📊 막대</button>
   <div class="concept-body">
@@ -2222,6 +2229,7 @@ function switchPage(page) {
   document.querySelectorAll('.top-tab').forEach(t => t.classList.remove('active'));
   const activeTab = document.querySelector(`.top-tab[data-page="${page}"]`);
   if (activeTab) activeTab.classList.add('active');
+  document.getElementById('page-waiting').style.display = 'none';
   document.getElementById('page-concept').style.display = page === 'concept' ? 'flex' : 'none';
   document.getElementById('page-compare').style.display = page === 'compare' ? 'flex' : 'none';
   document.getElementById('view-tabs-bar').style.display = page === 'compare' ? 'flex' : 'none';
@@ -2402,23 +2410,52 @@ function enterAsStudent(name, code) {
     const tabEl = document.querySelector(`.top-tab[data-page="${tab}"]`);
     if (tabEl) tabEl.classList.add('locked');
   });
-  // 탭 권한 실시간 반영
+  // 모든 페이지 숨기고 대기 화면 표시
+  ['page-concept','page-compare','page-game','view-tabs-bar'].forEach(id => {
+    document.getElementById(id).style.display = 'none';
+  });
+  document.getElementById('page-waiting').style.display = 'flex';
+
+  // 탭 권한 실시간 반영 — 현재 학생이 있는 페이지도 제어
+  let prevPerms = {};
   if (tabPermListener) db.ref(`rooms/${session.roomCode}/tabs`).off('value', tabPermListener);
   tabPermListener = db.ref(`rooms/${session.roomCode}/tabs`).on('value', snap => {
     const perms = snap.val() || {};
-    ['concept','compare','game'].forEach(tab => {
+    const tabs = ['concept','compare','game'];
+
+    // 탭 locked 상태 업데이트
+    tabs.forEach(tab => {
       const tabEl = document.querySelector(`.top-tab[data-page="${tab}"]`);
       if (!tabEl) return;
       if (perms[tab]) tabEl.classList.remove('locked');
       else tabEl.classList.add('locked');
     });
+
+    // 현재 보고 있는 페이지가 차단되었으면 대기 화면으로 이동
+    const activePage = ['concept','compare','game'].find(t => {
+      const el = document.getElementById(`page-${t}`);
+      return el && el.style.display !== 'none';
+    });
+    if (activePage && !perms[activePage]) {
+      // 현재 페이지가 차단됨 → 대기 화면으로
+      ['page-concept','page-compare','page-game','view-tabs-bar'].forEach(id => {
+        document.getElementById(id).style.display = 'none';
+      });
+      document.getElementById('page-waiting').style.display = 'flex';
+    }
+
+    // 새로 허용된 탭이 생기면, 대기 화면 중일 때만 첫 허용 탭으로 이동
+    const onWaiting = document.getElementById('page-waiting').style.display !== 'none';
+    if (onWaiting) {
+      const firstAllowed = tabs.find(t => perms[t]);
+      if (firstAllowed) {
+        document.getElementById('page-waiting').style.display = 'none';
+        switchPage(firstAllowed);
+      }
+    }
+
+    prevPerms = perms;
   });
-  // game 탭 허용 여부와 무관하게 게임 뷰를 열되, 탭 자체는 locked 상태 유지
-  document.getElementById('page-concept').style.display = 'none';
-  document.getElementById('page-compare').style.display = 'none';
-  document.getElementById('view-tabs-bar').style.display = 'none';
-  document.getElementById('page-game').style.display = 'flex';
-  onGameTabOpen();
 }
 
 // ── 게임 탭 진입 ─────────────────────────────────────────
