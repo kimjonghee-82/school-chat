@@ -1065,6 +1065,11 @@ body {
   <div id="student-role-info" style="display:none; font-size:12px; color:rgba(255,255,255,.4); font-weight:700;"></div>
 </div>
 
+<!-- 학생 디버그 바 (항상 고정) -->
+<div id="student-debug-bar" style="display:none; position:fixed; bottom:0; left:0; right:0; background:#222; color:#0f0; font-size:11px; font-family:monospace; padding:4px 10px; z-index:9999; white-space:nowrap;">
+  [학생 디버그] 폴링 대기 중...
+</div>
+
 <!-- 학생 대기 화면 -->
 <div id="page-waiting" style="display:none; flex:1; flex-direction:column; align-items:center; justify-content:center; gap:18px; background:#fff;">
   <div style="font-size:48px;">⏳</div>
@@ -2464,6 +2469,7 @@ function enterAsStudent(name, code) {
   session.roomCode = code;
   session.studentId = 'std_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
   hideLoginScreen();
+  document.getElementById('student-debug-bar').style.display = 'block';
   document.getElementById('role-bar-code-val').textContent = session.roomCode;
   document.getElementById('teacher-tab-perms').style.display = 'none';
   const infoEl = document.getElementById('student-role-info');
@@ -2493,13 +2499,21 @@ function enterAsStudent(name, code) {
   }
 
   // 폴링 방식으로 권한 체크 (2초마다) — 실시간 리스너 대신 안정적인 폴링 사용
+  let pollCount = 0;
   async function pollPerms() {
     if (session.role !== 'student' || !session.roomCode) return;
+    pollCount++;
+    const bar = document.getElementById('student-debug-bar');
+    if (bar) bar.textContent = '[디버그] 폴링#' + pollCount + ' 방:' + session.roomCode + ' 시각:' + new Date().toLocaleTimeString();
     try {
       const snap = await db.ref('rooms/' + session.roomCode + '/tabs').once('value');
-      applyStudentPerms(snap.val() || {});
+      const perms = snap.val() || {};
+      if (bar) bar.textContent = '[디버그] 폴링#' + pollCount + ' 방:' + session.roomCode +
+        ' 개념:' + (perms.concept?'O':'X') + ' 비교:' + (perms.compare?'O':'X') + ' 게임:' + (perms.game?'O':'X') +
+        ' ' + new Date().toLocaleTimeString();
+      applyStudentPerms(perms);
     } catch(e) {
-      console.error('권한 폴링 오류:', e);
+      if (bar) bar.textContent = '[디버그] 오류: ' + e.message;
     }
   }
 
