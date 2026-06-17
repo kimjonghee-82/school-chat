@@ -17,14 +17,41 @@ body {
 
 /* ── 헤더 ── */
 .header {
-  display: flex;
-  align-items: center;
+  display: flex; align-items: center;
   justify-content: space-between;
   padding: 10px 20px;
-  background: white;
-  border-bottom: 1px solid #e0e0e0;
+  background: white; border-bottom: 1px solid #e0e0e0;
+  position: relative; z-index: 300;
 }
+.header-left { display: flex; align-items: center; gap: 10px; }
 .header h1 { font-size: 18px; font-weight: 700; color: #222; }
+
+.count-selector { position: relative; }
+.count-btn {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: #e06020; color: white;
+  font-size: 15px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; border: none;
+  transition: background .2s; user-select: none;
+}
+.count-btn:hover { background: #c04010; }
+.count-dropdown {
+  position: absolute; top: calc(100% + 6px); left: 50%;
+  transform: translateX(-50%);
+  background: white; border: 1.5px solid #ddd;
+  border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.15);
+  overflow: hidden; display: none; z-index: 400; min-width: 60px;
+}
+.count-dropdown.open { display: block; }
+.count-option {
+  padding: 9px 20px; font-size: 15px; font-weight: 700;
+  text-align: center; cursor: pointer; color: #444;
+  transition: background .15s;
+}
+.count-option:hover { background: #fff0e8; color: #e06020; }
+.count-option.active { color: #e06020; background: #fff5f0; }
+
 .header-btns { display: flex; align-items: center; gap: 8px; }
 .hbtn {
   padding: 5px 14px; border-radius: 20px; border: none;
@@ -37,285 +64,184 @@ body {
 
 /* ── 뷰 탭 ── */
 .view-tabs {
-  display: flex;
-  padding: 0 20px;
-  background: white;
-  border-bottom: 2px solid #e8e8e8;
-  gap: 4px;
+  display: flex; padding: 0 20px;
+  background: white; border-bottom: 2px solid #e8e8e8; gap: 4px;
 }
 .vtab {
-  padding: 9px 22px;
-  font-size: 13px; font-weight: 700;
+  padding: 9px 22px; font-size: 13px; font-weight: 700;
   color: #aaa; cursor: pointer;
   border-bottom: 3px solid transparent;
-  transition: color .2s, border-color .2s;
-  user-select: none;
+  transition: color .2s, border-color .2s; user-select: none;
 }
 .vtab.active { color: #e06020; border-bottom-color: #e06020; }
 
 /* ── 메인 ── */
 .main-wrap {
-  flex: 1;
-  display: flex;
-  align-items: stretch;
-  padding: 20px;
-  gap: 12px;
+  flex: 1; display: flex; align-items: stretch;
+  padding: 16px; gap: 8px; overflow: visible;
 }
 
-.side-panel {
-  flex: 1;
-  background: white;
-  border: 2px dashed #c0c0c0;
+.frac-panel {
+  flex: 1; min-width: 0;
+  background: white; border: 2px dashed #c0c0c0;
   border-radius: 14px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 30px 16px 24px;
-  position: relative;
-  min-height: 360px;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 20px 10px 18px;
+  position: relative; min-height: 300px;
 }
 
-.center-col {
-  width: 220px;
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
+/* 가운데 비교 열 */
+.cmp-col {
+  width: 180px; flex-shrink: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 14px; overflow: visible; position: relative;
 }
 
-/* ── 시각화 SVG 래퍼 ── */
-.viz-wrap {
-  position: relative;
-  width: 220px;
-  height: 220px;
+.cmp-viz-wrap {
+  width: 90px; height: 90px;
+  border: 2.5px solid #f0a060; border-radius: 50%;
+  background: white; overflow: visible;
+  transition: width .45s ease, height .45s ease, border-radius .45s ease;
+  position: relative; z-index: 10;
 }
-.viz-wrap svg { width: 100%; height: 100%; }
+.cmp-viz-wrap svg { width: 100%; height: 100%; overflow: visible; }
+.cmp-viz-wrap.expanded       { width: 300px; height: 300px; border-radius: 50%; }
+.cmp-viz-wrap.bar-expanded   { width: 300px; height: 160px; border-radius: 12px; }
 
-/* ── 분수 입력 ── */
+.cmp-symbol {
+  font-size: 40px; font-weight: 900;
+  text-align: center; min-width: 50px; display: none;
+}
+
+.btn-compare {
+  padding: 10px 28px;
+  background: white; border: 2.5px solid #f0a060;
+  border-radius: 24px; font-size: 15px; font-weight: 700;
+  color: #e06020; cursor: pointer;
+  transition: background .2s, color .2s; white-space: nowrap;
+}
+.btn-compare:hover { background: #f0a060; color: white; }
+
+/* 시각화 */
+.viz-wrap { position: relative; }
+.viz-wrap svg { display: block; }
+
+/* 분수 입력 */
 .frac-area {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-top: 18px;
+  position: relative; display: flex;
+  flex-direction: column; align-items: center; margin-top: 14px;
 }
 .frac-cell {
-  width: 64px; height: 56px;
-  border: 2.5px solid #f0a060;
-  border-radius: 10px;
-  background: #fff9f5;
-  font-size: 28px; font-weight: 700;
-  text-align: center; color: #333;
-  outline: none; cursor: pointer;
+  width: 60px; height: 52px;
+  border: 2.5px solid #f0a060; border-radius: 10px;
+  background: #fff9f5; font-size: 26px; font-weight: 700;
+  text-align: center; color: #333; outline: none; cursor: pointer;
   caret-color: transparent; user-select: none;
   transition: border-color .2s, box-shadow .2s;
   display: flex; align-items: center; justify-content: center;
-  line-height: 1;
 }
 .frac-cell.active {
-  border-color: #e06020;
-  box-shadow: 0 0 0 3px rgba(224,96,32,.18);
+  border-color: #e06020; box-shadow: 0 0 0 3px rgba(224,96,32,.18);
 }
-.frac-line { width: 80px; height: 2.5px; background: #555; margin: 5px 0; border-radius: 2px; }
+.frac-line { width: 76px; height: 2.5px; background: #555; margin: 4px 0; border-radius: 2px; }
 
-/* ── 숫자패드 ── */
+/* 숫자패드 */
 .numpad {
-  position: absolute;
-  background: white;
-  border: 1.5px solid #ddd;
-  border-radius: 14px;
-  padding: 10px;
-  box-shadow: 0 8px 28px rgba(0,0,0,.14);
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
-  z-index: 200;
+  position: absolute; background: white;
+  border: 1.5px solid #ddd; border-radius: 14px; padding: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.15);
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 5px; z-index: 250;
   opacity: 0; pointer-events: none;
   transition: opacity .18s, transform .18s;
-  transform: translateY(6px);
-  top: 0;
+  transform: translateY(6px); top: 0;
 }
 .numpad.visible { opacity: 1; pointer-events: all; transform: translateY(0); }
-#pad-left  { left: calc(100% + 12px); }
-#pad-right { right: calc(100% + 12px); }
+.numpad.pad-right { left: calc(100% + 10px); }
+.numpad.pad-left  { right: calc(100% + 10px); }
 
 .np-btn {
-  width: 44px; height: 40px;
+  width: 40px; height: 38px;
   border: 1.5px solid #ddd; border-radius: 8px;
-  background: #f9f9f9; font-size: 17px; font-weight: 600;
-  color: #333; cursor: pointer;
-  transition: background .1s, border-color .1s;
+  background: #f9f9f9; font-size: 16px; font-weight: 600;
+  color: #333; cursor: pointer; transition: background .1s;
 }
 .np-btn:hover { background: #f0e8ff; border-color: #b090e0; }
 .np-btn:active { background: #e0d0ff; }
 .np-btn.del {
-  grid-column: span 2; font-size: 13px;
+  grid-column: span 2; font-size: 12px;
   background: #fff0f0; border-color: #f0b0b0; color: #c04040;
 }
 .np-btn.del:hover { background: #ffe0e0; }
 
-/* ── 가운데 비교원 ── */
-.cmp-viz-wrap {
-  width: 100px; height: 100px;
-  border: 2.5px solid #f0a060;
-  border-radius: 50%;
-  background: white;
-  overflow: hidden;
-  transition: width .45s ease, height .45s ease, border-radius .45s ease;
-  position: relative;
-}
-.cmp-viz-wrap.expanded {
-  width: 200px; height: 200px;
-  border-radius: 50%;
-}
-.cmp-viz-wrap.bar-expanded {
-  width: 200px; height: 120px;
-  border-radius: 10px;
-}
-.cmp-viz-wrap svg { width: 100%; height: 100%; }
-
-/* ── 비교 결과 기호 ── */
-.cmp-symbol {
-  font-size: 42px; font-weight: 900;
-  color: #ccc; min-width: 50px; text-align: center;
-  transition: color .3s;
-}
-
 /* ── 푸터 ── */
 .footer {
-  display: flex; align-items: center;
-  justify-content: space-between;
-  padding: 14px 30px;
-  background: white; border-top: 1px solid #e8e8e8;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 28px; background: white; border-top: 1px solid #e8e8e8;
 }
 .btn-reset {
-  width: 40px; height: 40px; border-radius: 50%;
+  width: 38px; height: 38px; border-radius: 50%;
   background: #f0a060; border: none; cursor: pointer;
-  font-size: 18px; color: white; display: flex;
-  align-items: center; justify-content: center;
+  font-size: 18px; color: white;
+  display: flex; align-items: center; justify-content: center;
   transition: background .2s;
 }
 .btn-reset:hover { background: #e08040; }
-.btn-compare {
-  padding: 10px 36px;
-  background: white; border: 2.5px solid #f0a060;
-  border-radius: 24px; font-size: 16px; font-weight: 700;
-  color: #e06020; cursor: pointer;
-  transition: background .2s, color .2s;
-}
-.btn-compare:hover { background: #f0a060; color: white; }
 .btn-quiz {
   display: flex; align-items: center; gap: 8px;
-  padding: 10px 20px;
-  background: #f5f5f5; border: none; border-radius: 24px;
-  font-size: 15px; font-weight: 700; color: #444; cursor: pointer;
-  transition: background .2s;
+  padding: 9px 18px; background: #f5f5f5; border: none;
+  border-radius: 24px; font-size: 14px; font-weight: 700;
+  color: #444; cursor: pointer; transition: background .2s;
 }
 .btn-quiz:hover { background: #e8e8e8; }
 .btn-quiz-arrow {
-  width: 32px; height: 32px; border-radius: 50%;
+  width: 30px; height: 30px; border-radius: 50%;
   background: #e06020; color: white; border: none;
-  font-size: 16px; cursor: pointer; font-weight: 700;
+  font-size: 15px; cursor: pointer; font-weight: 700;
   display: flex; align-items: center; justify-content: center;
 }
 
-/* ── 고스트 애니메이션 ── */
 .ghost-el {
-  position: fixed;
-  pointer-events: none;
-  z-index: 500;
-  opacity: .75;
-  transition: left .55s ease, top .55s ease, width .55s ease, height .55s ease, opacity .55s ease;
+  position: fixed; pointer-events: none; z-index: 500; opacity: .7;
+  transition: left .5s ease, top .5s ease, width .5s ease, height .5s ease, opacity .5s ease;
 }
 </style>
 </head>
 <body>
 
-<!-- 헤더 -->
 <div class="header">
-  <h1>분수의 크기 비교</h1>
+  <div class="header-left">
+    <h1>분수의 크기 비교</h1>
+    <div class="count-selector">
+      <div class="count-btn" id="count-btn">2</div>
+      <div class="count-dropdown" id="count-dropdown">
+        <div class="count-option active" data-n="2">2</div>
+        <div class="count-option" data-n="3">3</div>
+        <div class="count-option" data-n="4">4</div>
+        <div class="count-option" data-n="5">5</div>
+      </div>
+    </div>
+  </div>
   <div class="header-btns">
     <button class="hbtn hbtn-sound">🔊</button>
-    <button class="hbtn hbtn-help">7 도움말</button>
+    <button class="hbtn hbtn-help">도움말</button>
     <button class="hbtn hbtn-link">🔗 링크복사</button>
     <button class="hbtn hbtn-qr">📱 QR</button>
   </div>
 </div>
 
-<!-- 탭 -->
 <div class="view-tabs">
   <div class="vtab active" data-tab="circle">원형</div>
   <div class="vtab" data-tab="bar">막대그래프</div>
 </div>
 
-<!-- 메인 -->
-<div class="main-wrap">
+<div class="main-wrap" id="main-wrap"></div>
 
-  <!-- 왼쪽 패널 -->
-  <div class="side-panel" id="panel-left">
-    <div class="viz-wrap" id="viz-left"></div>
-
-    <div class="frac-area" id="farea-left">
-      <div class="frac-cell" id="num-left" tabindex="0">?</div>
-      <div class="frac-line"></div>
-      <div class="frac-cell" id="den-left" tabindex="0">?</div>
-
-      <div class="numpad" id="pad-left">
-        <button class="np-btn" data-v="1">1</button>
-        <button class="np-btn" data-v="2">2</button>
-        <button class="np-btn" data-v="3">3</button>
-        <button class="np-btn" data-v="4">4</button>
-        <button class="np-btn" data-v="5">5</button>
-        <button class="np-btn" data-v="6">6</button>
-        <button class="np-btn" data-v="7">7</button>
-        <button class="np-btn" data-v="8">8</button>
-        <button class="np-btn" data-v="9">9</button>
-        <button class="np-btn" data-v="0">0</button>
-        <button class="np-btn del" data-v="del">← 지우기</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 가운데 -->
-  <div class="center-col">
-    <div class="cmp-viz-wrap" id="cmp-wrap"></div>
-    <div class="cmp-symbol" id="cmp-sym">?</div>
-  </div>
-
-  <!-- 오른쪽 패널 -->
-  <div class="side-panel" id="panel-right">
-    <div class="viz-wrap" id="viz-right"></div>
-
-    <div class="frac-area" id="farea-right">
-      <div class="frac-cell" id="num-right" tabindex="0">?</div>
-      <div class="frac-line"></div>
-      <div class="frac-cell" id="den-right" tabindex="0">?</div>
-
-      <div class="numpad" id="pad-right">
-        <button class="np-btn" data-v="1">1</button>
-        <button class="np-btn" data-v="2">2</button>
-        <button class="np-btn" data-v="3">3</button>
-        <button class="np-btn" data-v="4">4</button>
-        <button class="np-btn" data-v="5">5</button>
-        <button class="np-btn" data-v="6">6</button>
-        <button class="np-btn" data-v="7">7</button>
-        <button class="np-btn" data-v="8">8</button>
-        <button class="np-btn" data-v="9">9</button>
-        <button class="np-btn" data-v="0">0</button>
-        <button class="np-btn del" data-v="del">← 지우기</button>
-      </div>
-    </div>
-  </div>
-
-</div>
-
-<!-- 푸터 -->
 <div class="footer">
   <button class="btn-reset" id="btn-reset" title="초기화">↺</button>
-  <button class="btn-compare" id="btn-compare">비교하기</button>
+  <div></div>
   <div style="display:flex;align-items:center;gap:8px;">
     <button class="btn-quiz">🌱 학생용 퀴즈</button>
     <button class="btn-quiz-arrow">→</button>
@@ -323,255 +249,374 @@ body {
 </div>
 
 <script>
-// ── 상태 ──────────────────────────────────────────────────
+const COLORS = ['#e07070','#6aaa40','#4090e0','#9060d0','#e09030'];
+
 const state = {
-  left:  { num: '', den: '' },
-  right: { num: '', den: '' },
-  active: null,        // 현재 포커스된 셀 id
-  viewMode: 'circle',  // 'circle' | 'bar'
+  count: 2,
+  fractions: Array.from({length:5}, () => ({num:'', den:''})),
+  active: null,
+  viewMode: 'circle',
   compared: false,
 };
 
-const COLOR_LEFT  = '#e07070';
-const COLOR_RIGHT = '#6aaa40';
-
-// ── DOM 참조 ──────────────────────────────────────────────
-const cells = {
-  'num-left':  document.getElementById('num-left'),
-  'den-left':  document.getElementById('den-left'),
-  'num-right': document.getElementById('num-right'),
-  'den-right': document.getElementById('den-right'),
-};
-const vizLeft   = document.getElementById('viz-left');
-const vizRight  = document.getElementById('viz-right');
-const cmpWrap   = document.getElementById('cmp-wrap');
-const cmpSym    = document.getElementById('cmp-sym');
-const padLeft   = document.getElementById('pad-left');
-const padRight  = document.getElementById('pad-right');
-const panelLeft  = document.getElementById('panel-left');
-const panelRight = document.getElementById('panel-right');
-
-let padTimers = { left: null, right: null };
-
-// ── SVG 생성 ──────────────────────────────────────────────
+// ── SVG ──────────────────────────────────────────────────
 function makePieSVG(num, den, color, size, alpha) {
-  size = size || 220;
-  alpha = alpha === undefined ? 1 : alpha;
-  const cx = size / 2, cy = size / 2;
-  const r  = size / 2 - 6;
-
+  size = size||200; alpha = alpha===undefined ? 1 : alpha;
+  const cx = size/2, cy = size/2, r = size/2 - 5;
   if (!den || den < 1) {
-    return `<svg viewBox="0 0 ${size} ${size}">
-      <circle cx="${cx}" cy="${cy}" r="${r}" fill="white" stroke="#ccc" stroke-width="1.5"/>
-    </svg>`;
+    return `<svg viewBox="0 0 ${size} ${size}"><circle cx="${cx}" cy="${cy}" r="${r}" fill="white" stroke="#ccc" stroke-width="1.5" opacity="${alpha}"/></svg>`;
   }
-
-  const clampedNum = Math.min(Math.max(0, num || 0), den);
-  let paths = '';
-
+  const n = Math.min(Math.max(0, num||0), den);
+  let p = '';
   for (let i = 0; i < den; i++) {
-    const a0 = (i / den) * 2 * Math.PI - Math.PI / 2;
-    const a1 = ((i + 1) / den) * 2 * Math.PI - Math.PI / 2;
-    const x0 = cx + r * Math.cos(a0), y0 = cy + r * Math.sin(a0);
-    const x1 = cx + r * Math.cos(a1), y1 = cy + r * Math.sin(a1);
-    const large = (a1 - a0 > Math.PI) ? 1 : 0;
-    const filled = i < clampedNum;
-    const fill = filled ? color : 'white';
-    // den=1 일 때 full circle
-    const d = den === 1
+    const a0 = (i/den)*2*Math.PI - Math.PI/2;
+    const a1 = ((i+1)/den)*2*Math.PI - Math.PI/2;
+    const x0 = cx + r*Math.cos(a0), y0 = cy + r*Math.sin(a0);
+    const x1 = cx + r*Math.cos(a1), y1 = cy + r*Math.sin(a1);
+    const lg = (a1-a0 > Math.PI) ? 1 : 0;
+    const d = den===1
       ? `M ${cx} ${cy} m -${r} 0 a ${r} ${r} 0 1 1 ${r*2} 0 a ${r} ${r} 0 1 1 -${r*2} 0 Z`
-      : `M ${cx} ${cy} L ${x0} ${y0} A ${r} ${r} 0 ${large} 1 ${x1} ${y1} Z`;
-    paths += `<path d="${d}" fill="${fill}" stroke="#444" stroke-width="1" stroke-dasharray="${den > 1 ? '4 2' : 'none'}" opacity="${alpha}"/>`;
+      : `M ${cx} ${cy} L ${x0} ${y0} A ${r} ${r} 0 ${lg} 1 ${x1} ${y1} Z`;
+    p += `<path d="${d}" fill="${i<n?color:'white'}" stroke="#444" stroke-width="1" stroke-dasharray="4 2" opacity="${alpha}"/>`;
   }
-
-  // 외곽 원
-  paths += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#333" stroke-width="2" opacity="${alpha}"/>`;
-
-  return `<svg viewBox="0 0 ${size} ${size}">${paths}</svg>`;
+  p += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#333" stroke-width="2" opacity="${alpha}"/>`;
+  return `<svg viewBox="0 0 ${size} ${size}">${p}</svg>`;
 }
 
 function makeBarSVG(num, den, color, w, h, alpha) {
-  w = w || 220; h = h || 100;
-  alpha = alpha === undefined ? 1 : alpha;
-
+  w = w||200; h = h||80; alpha = alpha===undefined ? 1 : alpha;
   if (!den || den < 1) {
-    return `<svg viewBox="0 0 ${w} ${h}">
-      <rect x="2" y="2" width="${w-4}" height="${h-4}" rx="6" fill="#f5f5f5" stroke="#ccc" stroke-width="1.5"/>
-    </svg>`;
+    return `<svg viewBox="0 0 ${w} ${h}"><rect x="2" y="2" width="${w-4}" height="${h-4}" rx="6" fill="#f5f5f5" stroke="#ccc" stroke-width="1.5" opacity="${alpha}"/></svg>`;
   }
-
-  const clampedNum = Math.min(Math.max(0, num || 0), den);
-  const segW = (w - 4) / den;
-  let rects = '';
-
+  const n = Math.min(Math.max(0, num||0), den);
+  const sw = (w-4)/den; let r = '';
   for (let i = 0; i < den; i++) {
-    const x = 2 + i * segW;
-    const filled = i < clampedNum;
-    rects += `<rect x="${x}" y="2" width="${segW - 1}" height="${h - 4}" rx="3"
-      fill="${filled ? color : '#f0f0f0'}" stroke="#bbb" stroke-width="0.5" opacity="${alpha}"/>`;
+    r += `<rect x="${2+i*sw}" y="2" width="${sw-1}" height="${h-4}" rx="3" fill="${i<n?color:'#f0f0f0'}" stroke="#bbb" stroke-width="0.5" opacity="${alpha}"/>`;
   }
-
-  rects += `<rect x="2" y="2" width="${w-4}" height="${h-4}" rx="6" fill="none" stroke="#666" stroke-width="2" opacity="${alpha}"/>`;
-
-  return `<svg viewBox="0 0 ${w} ${h}">${rects}</svg>`;
+  r += `<rect x="2" y="2" width="${w-4}" height="${h-4}" rx="6" fill="none" stroke="#666" stroke-width="2" opacity="${alpha}"/>`;
+  return `<svg viewBox="0 0 ${w} ${h}">${r}</svg>`;
 }
 
-function makeCmpPieSVG(numL, denL, numR, denR, size) {
-  size = size || 200;
-  // 두 분수를 반투명하게 겹쳐 그리기
-  const svgL = makePieSVG(numL, denL, COLOR_LEFT,  size, 0.55);
-  const svgR = makePieSVG(numR, denR, COLOR_RIGHT, size, 0.55);
-  // SVG 내 path만 추출해서 합치기
-  const pathsL = svgL.replace(/<\/?svg[^>]*>/g, '');
-  const pathsR = svgR.replace(/<\/?svg[^>]*>/g, '');
-  return `<svg viewBox="0 0 ${size} ${size}">${pathsL}${pathsR}</svg>`;
+function makeCmpPieSVG(fracs, size) {
+  size = size||300;
+  const inner = fracs.map((f,i) => {
+    const svg = makePieSVG(parseInt(f.num)||0, parseInt(f.den)||0, COLORS[i], size, 0.5);
+    return svg.replace(/<\/?svg[^>]*>/g,'');
+  }).join('');
+  return `<svg viewBox="0 0 ${size} ${size}">${inner}</svg>`;
 }
 
-function makeCmpBarSVG(numL, denL, numR, denR, w, h) {
-  w = w || 200; h = h || 120;
-  // 두 막대를 위아래로 표시
-  const hH = h / 2 - 4;
-  const svgL = makeBarSVG(numL, denL, COLOR_LEFT,  w, hH, 1);
-  const svgR = makeBarSVG(numR, denR, COLOR_RIGHT, w, hH, 1);
-  const pathsL = svgL.replace(/<\/?svg[^>]*>/g, '');
-  const pathsR = svgR.replace(/<\/?svg[^>]*>/g, '');
-  return `<svg viewBox="0 0 ${w} ${h}">
-    <g transform="translate(0,0)">${pathsL}</g>
-    <g transform="translate(0,${hH+8})">${pathsR}</g>
-  </svg>`;
+function makeCmpBarSVG(fracs, w, h) {
+  w = w||300; h = h||160;
+  const rowH = Math.floor(h/fracs.length) - 4;
+  let rows = '';
+  fracs.forEach((f,i) => {
+    const svg = makeBarSVG(parseInt(f.num)||0, parseInt(f.den)||0, COLORS[i], w, rowH, 1);
+    const inner = svg.replace(/<\/?svg[^>]*>/g,'');
+    rows += `<g transform="translate(0,${i*(rowH+4)})">${inner}</g>`;
+  });
+  return `<svg viewBox="0 0 ${w} ${h}">${rows}</svg>`;
 }
 
-// ── 렌더링 ────────────────────────────────────────────────
-function render() {
-  const nl = parseInt(state.left.num)  || 0;
-  const dl = parseInt(state.left.den)  || 0;
-  const nr = parseInt(state.right.num) || 0;
-  const dr = parseInt(state.right.den) || 0;
+function vizSize(count) {
+  if (count<=2) return 200;
+  if (count===3) return 170;
+  if (count===4) return 150;
+  return 130;
+}
 
-  if (state.viewMode === 'circle') {
-    vizLeft.innerHTML  = makePieSVG(nl, dl, COLOR_LEFT,  220, 1);
-    vizRight.innerHTML = makePieSVG(nr, dr, COLOR_RIGHT, 220, 1);
-  } else {
-    vizLeft.innerHTML  = makeBarSVG(nl, dl, COLOR_LEFT,  220, 100, 1);
-    vizRight.innerHTML = makeBarSVG(nr, dr, COLOR_RIGHT, 220, 100, 1);
+// ── 패널 빌드 ────────────────────────────────────────────
+let padTimers = {};
+
+function buildMain() {
+  const wrap = document.getElementById('main-wrap');
+  wrap.innerHTML = ''; padTimers = {};
+  const n = state.count;
+  const sz = vizSize(n);
+  const cmpPos = Math.floor(n/2);
+
+  for (let i = 0; i <= n; i++) {
+    if (i === cmpPos) wrap.appendChild(buildCmpCol());
+    if (i < n) wrap.appendChild(buildFracPanel(i, sz));
   }
 
-  // 셀 텍스트 갱신
-  cells['num-left'].textContent  = state.left.num  || '?';
-  cells['den-left'].textContent  = state.left.den  || '?';
-  cells['num-right'].textContent = state.right.num || '?';
-  cells['den-right'].textContent = state.right.den || '?';
+  renderAll();
+  attachPadEvents();
+}
 
-  // 비교 기호
-  if (nl && dl && nr && dr) {
-    const lv = nl / dl, rv = nr / dr;
-    if (lv > rv)      { cmpSym.textContent = '>'; cmpSym.style.color = '#e06020'; }
-    else if (lv < rv) { cmpSym.textContent = '<'; cmpSym.style.color = '#4090e0'; }
-    else              { cmpSym.textContent = '='; cmpSym.style.color = '#40a060'; }
-  } else {
-    cmpSym.textContent = '?';
-    cmpSym.style.color = '#ccc';
+function buildCmpCol() {
+  const col = document.createElement('div');
+  col.className = 'cmp-col'; col.id = 'cmp-col';
+
+  const vizWrap = document.createElement('div');
+  vizWrap.className = 'cmp-viz-wrap'; vizWrap.id = 'cmp-wrap';
+
+  const sym = document.createElement('div');
+  sym.className = 'cmp-symbol'; sym.id = 'cmp-sym';
+
+  const btn = document.createElement('button');
+  btn.className = 'btn-compare'; btn.id = 'btn-compare';
+  btn.textContent = '비교하기';
+  btn.addEventListener('click', doCompare);
+
+  col.appendChild(vizWrap);
+  col.appendChild(sym);
+  col.appendChild(btn);
+  return col;
+}
+
+function buildFracPanel(idx, sz) {
+  const panel = document.createElement('div');
+  panel.className = 'frac-panel'; panel.id = `panel-${idx}`;
+
+  const vizWrap = document.createElement('div');
+  vizWrap.className = 'viz-wrap'; vizWrap.id = `viz-${idx}`;
+  const barH = Math.round(sz*0.45);
+  vizWrap.style.width  = sz + 'px';
+  vizWrap.style.height = (state.viewMode==='bar' ? barH : sz) + 'px';
+
+  const fracArea = document.createElement('div');
+  fracArea.className = 'frac-area';
+
+  const numCell = document.createElement('div');
+  numCell.className = 'frac-cell'; numCell.id = `num-${idx}`;
+  numCell.tabIndex = 0;
+  numCell.textContent = state.fractions[idx].num || '?';
+
+  const line = document.createElement('div');
+  line.className = 'frac-line';
+
+  const denCell = document.createElement('div');
+  denCell.className = 'frac-cell'; denCell.id = `den-${idx}`;
+  denCell.tabIndex = 0;
+  denCell.textContent = state.fractions[idx].den || '?';
+
+  const cmpPos = Math.floor(state.count/2);
+  const padSide = idx < cmpPos ? 'pad-right' : 'pad-left';
+
+  const pad = document.createElement('div');
+  pad.className = `numpad ${padSide}`; pad.id = `pad-${idx}`;
+  pad.innerHTML = [1,2,3,4,5,6,7,8,9,0].map(v =>
+    `<button class="np-btn" data-v="${v}" data-idx="${idx}">${v}</button>`
+  ).join('') + `<button class="np-btn del" data-v="del" data-idx="${idx}">← 지우기</button>`;
+
+  fracArea.appendChild(numCell);
+  fracArea.appendChild(line);
+  fracArea.appendChild(denCell);
+  fracArea.appendChild(pad);
+  panel.appendChild(vizWrap);
+  panel.appendChild(fracArea);
+
+  padTimers[idx] = null;
+  return panel;
+}
+
+// ── 이벤트 ───────────────────────────────────────────────
+function attachPadEvents() {
+  for (let i = 0; i < state.count; i++) {
+    const panel = document.getElementById(`panel-${i}`);
+    const pad   = document.getElementById(`pad-${i}`);
+    const numEl = document.getElementById(`num-${i}`);
+    const denEl = document.getElementById(`den-${i}`);
+
+    panel.addEventListener('mouseenter', () => showPad(i));
+    panel.addEventListener('mouseleave', () => hidePad(i));
+    pad.addEventListener('mouseenter',   () => clearTimeout(padTimers[i]));
+    pad.addEventListener('mouseleave',   () => hidePad(i));
+
+    numEl.addEventListener('click', () => { setActive(i,'num'); showPad(i); });
+    denEl.addEventListener('click', () => { setActive(i,'den'); showPad(i); });
+
+    pad.querySelectorAll('.np-btn').forEach(btn => {
+      btn.addEventListener('mousedown', e => {
+        e.preventDefault();
+        const val = btn.dataset.v;
+        const fi  = parseInt(btn.dataset.idx);
+        if (!state.active || state.active.idx !== fi) setActive(fi,'num');
+        const {part} = state.active;
+        const f = state.fractions[fi];
+        if (val==='del') f[part] = f[part].slice(0,-1);
+        else if (f[part].length < 2) f[part] += val;
+        state.compared = false; resetCmpWrap(); renderAll();
+      });
+    });
   }
+}
 
-  // 비교 후 상태면 비교 뷰도 갱신
+function showPad(idx) {
+  clearTimeout(padTimers[idx]);
+  const p = document.getElementById(`pad-${idx}`);
+  if (p) p.classList.add('visible');
+}
+function hidePad(idx) {
+  padTimers[idx] = setTimeout(() => {
+    const p = document.getElementById(`pad-${idx}`);
+    if (p) p.classList.remove('visible');
+  }, 220);
+}
+function setActive(idx, part) {
+  document.querySelectorAll('.frac-cell.active').forEach(c => c.classList.remove('active'));
+  const el = document.getElementById(`${part}-${idx}`);
+  if (el) el.classList.add('active');
+  state.active = {idx, part};
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.frac-cell') && !e.target.closest('.numpad')) {
+    document.querySelectorAll('.frac-cell.active').forEach(c => c.classList.remove('active'));
+    state.active = null;
+  }
+});
+
+document.addEventListener('keydown', e => {
+  if (!state.active) return;
+  const {idx, part} = state.active;
+  const f = state.fractions[idx];
+  const order = [];
+  for (let i = 0; i < state.count; i++) {
+    order.push({i, p:'num'}); order.push({i, p:'den'});
+  }
+  const cur = order.findIndex(o => o.i===idx && o.p===part);
+
+  if (e.key>='0' && e.key<='9') {
+    if (f[part].length<2) { f[part]+=e.key; state.compared=false; resetCmpWrap(); renderAll(); }
+  } else if (e.key==='Backspace') {
+    f[part]=f[part].slice(0,-1); renderAll();
+  } else if (['Tab','Enter','ArrowRight','ArrowDown'].includes(e.key)) {
+    e.preventDefault();
+    if (cur<order.length-1) { const nx=order[cur+1]; setActive(nx.i,nx.p); }
+  } else if (['ArrowLeft','ArrowUp'].includes(e.key)) {
+    e.preventDefault();
+    if (cur>0) { const pv=order[cur-1]; setActive(pv.i,pv.p); }
+  }
+});
+
+// ── 렌더링 ───────────────────────────────────────────────
+function renderAll() {
+  const n = state.count;
+  const sz = vizSize(n);
+  const barH = Math.round(sz*0.45);
+
+  for (let i = 0; i < n; i++) {
+    const f = state.fractions[i];
+    const num = parseInt(f.num)||0, den = parseInt(f.den)||0;
+    const vizEl = document.getElementById(`viz-${i}`);
+    if (!vizEl) continue;
+
+    if (state.viewMode==='circle') {
+      vizEl.style.height = sz+'px';
+      vizEl.innerHTML = makePieSVG(num, den, COLORS[i], sz, 1);
+    } else {
+      vizEl.style.height = barH+'px';
+      vizEl.innerHTML = makeBarSVG(num, den, COLORS[i], sz, barH, 1);
+    }
+    const numEl = document.getElementById(`num-${i}`);
+    const denEl = document.getElementById(`den-${i}`);
+    if (numEl) numEl.textContent = f.num||'?';
+    if (denEl) denEl.textContent = f.den||'?';
+  }
   if (state.compared) renderCompareView();
 }
 
 function renderCompareView() {
-  const nl = parseInt(state.left.num)  || 0;
-  const dl = parseInt(state.left.den)  || 0;
-  const nr = parseInt(state.right.num) || 0;
-  const dr = parseInt(state.right.den) || 0;
-  if (state.viewMode === 'circle') {
-    cmpWrap.innerHTML = makeCmpPieSVG(nl, dl, nr, dr, 200);
+  const cmpWrap = document.getElementById('cmp-wrap');
+  if (!cmpWrap) return;
+  const fracs = state.fractions.slice(0, state.count);
+  if (state.viewMode==='circle') {
+    cmpWrap.innerHTML = makeCmpPieSVG(fracs, 300);
   } else {
-    cmpWrap.innerHTML = makeCmpBarSVG(nl, dl, nr, dr, 200, 120);
+    cmpWrap.innerHTML = makeCmpBarSVG(fracs, 300, 160);
   }
 }
 
-// ── 포커스 / 패드 ─────────────────────────────────────────
-function setActive(id) {
-  Object.values(cells).forEach(c => c.classList.remove('active'));
-  if (id) cells[id].classList.add('active');
-  state.active = id;
+function resetCmpWrap() {
+  const cmpWrap = document.getElementById('cmp-wrap');
+  const cmpSym  = document.getElementById('cmp-sym');
+  if (cmpWrap) { cmpWrap.classList.remove('expanded','bar-expanded'); cmpWrap.innerHTML=''; }
+  if (cmpSym)  cmpSym.style.display='none';
 }
 
-function showPad(side) {
-  clearTimeout(padTimers[side]);
-  (side === 'left' ? padLeft : padRight).classList.add('visible');
-}
-function hidePad(side) {
-  padTimers[side] = setTimeout(() => {
-    (side === 'left' ? padLeft : padRight).classList.remove('visible');
-  }, 220);
-}
+// ── 비교하기 ─────────────────────────────────────────────
+function doCompare() {
+  const fracs = state.fractions.slice(0, state.count);
+  if (!fracs.every(f => f.num && f.den && parseInt(f.den)!==0)) {
+    alert('모든 분수를 입력해 주세요!'); return;
+  }
+  spawnGhosts(() => {
+    state.compared = true;
+    const cmpWrap = document.getElementById('cmp-wrap');
+    const cmpSym  = document.getElementById('cmp-sym');
+    if (cmpWrap) cmpWrap.classList.add(state.viewMode==='circle' ? 'expanded' : 'bar-expanded');
 
-// 셀 클릭
-['num-left','den-left'].forEach(id => {
-  cells[id].addEventListener('click', () => { setActive(id); showPad('left'); });
-});
-['num-right','den-right'].forEach(id => {
-  cells[id].addEventListener('click', () => { setActive(id); showPad('right'); });
-});
-
-// hover
-[['left', panelLeft], ['right', panelRight]].forEach(([side, panel]) => {
-  panel.addEventListener('mouseenter', () => showPad(side));
-  panel.addEventListener('mouseleave', () => hidePad(side));
-  const pad = side === 'left' ? padLeft : padRight;
-  pad.addEventListener('mouseenter', () => { clearTimeout(padTimers[side]); });
-  pad.addEventListener('mouseleave', () => hidePad(side));
-});
-
-// 패드 버튼
-document.querySelectorAll('.np-btn').forEach(btn => {
-  btn.addEventListener('mousedown', e => {
-    e.preventDefault();
-    const val  = btn.dataset.v;
-    const side = btn.closest('.numpad').id === 'pad-left' ? 'left' : 'right';
-    if (!state.active || !state.active.includes(side)) {
-      setActive(`num-${side}`);
+    if (cmpSym) {
+      if (state.count===2) {
+        const lv = parseInt(fracs[0].num)/parseInt(fracs[0].den);
+        const rv = parseInt(fracs[1].num)/parseInt(fracs[1].den);
+        if (lv>rv)       { cmpSym.textContent='>'; cmpSym.style.color='#e06020'; }
+        else if (lv<rv)  { cmpSym.textContent='<'; cmpSym.style.color='#4090e0'; }
+        else             { cmpSym.textContent='='; cmpSym.style.color='#40a060'; }
+        cmpSym.style.fontSize='44px';
+      } else {
+        const sorted = fracs
+          .map((f,i) => ({val: parseInt(f.num)/parseInt(f.den), idx: i+1}))
+          .sort((a,b) => b.val - a.val);
+        cmpSym.textContent = sorted.map(s => s.idx+'번').join(' > ');
+        cmpSym.style.color = '#555';
+        cmpSym.style.fontSize = state.count>3 ? '15px' : '20px';
+      }
+      cmpSym.style.display = 'block';
     }
-    if (!state.active) return;
-    const part = state.active.startsWith('num') ? 'num' : 'den';
-    const s    = state[side];
-    if (val === 'del') s[part] = s[part].slice(0, -1);
-    else if (s[part].length < 2) s[part] += val;
-    state.compared = false;
-    resetCmpWrap();
-    render();
+    renderCompareView();
+  });
+}
+
+function spawnGhosts(onDone) {
+  const cmpWrap = document.getElementById('cmp-wrap');
+  if (!cmpWrap) { onDone(); return; }
+  const cmpRect = cmpWrap.getBoundingClientRect();
+  const tcx = cmpRect.left + cmpRect.width/2;
+  const tcy = cmpRect.top  + cmpRect.height/2;
+
+  const ghosts = [];
+  for (let i = 0; i < state.count; i++) {
+    const vizEl = document.getElementById(`viz-${i}`);
+    if (!vizEl) continue;
+    const r = vizEl.getBoundingClientRect();
+    const g = document.createElement('div');
+    g.className = 'ghost-el';
+    g.style.cssText = `left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;`;
+    g.innerHTML = vizEl.innerHTML;
+    document.body.appendChild(g);
+    ghosts.push(g);
+  }
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    ghosts.forEach(g => {
+      g.style.left='    '+( tcx-60)+'px'; g.style.left=(tcx-60)+'px';
+      g.style.top=(tcy-60)+'px';
+      g.style.width='120px'; g.style.height='120px'; g.style.opacity='0';
+    });
+  }));
+  setTimeout(() => { ghosts.forEach(g => g.remove()); onDone(); }, 560);
+}
+
+// ── 드롭다운 ─────────────────────────────────────────────
+document.getElementById('count-btn').addEventListener('click', e => {
+  e.stopPropagation();
+  document.getElementById('count-dropdown').classList.toggle('open');
+});
+document.querySelectorAll('.count-option').forEach(opt => {
+  opt.addEventListener('click', () => {
+    const n = parseInt(opt.dataset.n);
+    state.count = n; state.compared = false; state.active = null;
+    document.getElementById('count-btn').textContent = n;
+    document.querySelectorAll('.count-option').forEach(o => o.classList.remove('active'));
+    opt.classList.add('active');
+    document.getElementById('count-dropdown').classList.remove('open');
+    buildMain();
   });
 });
-
-// 키보드
-document.addEventListener('keydown', e => {
-  if (!state.active) return;
-  const [part, side] = state.active.split('-');
-  const s = state[side];
-  const key = e.key;
-
-  if (key >= '0' && key <= '9') {
-    if (s[part].length < 2) { s[part] += key; state.compared = false; resetCmpWrap(); render(); }
-  } else if (key === 'Backspace') {
-    s[part] = s[part].slice(0, -1); render();
-  } else if (['Tab','Enter','ArrowDown','ArrowRight'].includes(key)) {
-    e.preventDefault();
-    const order = ['num-left','den-left','num-right','den-right'];
-    const idx = order.indexOf(state.active);
-    if (idx < order.length - 1) setActive(order[idx + 1]);
-  } else if (['ArrowUp','ArrowLeft'].includes(key)) {
-    e.preventDefault();
-    const order = ['num-left','den-left','num-right','den-right'];
-    const idx = order.indexOf(state.active);
-    if (idx > 0) setActive(order[idx - 1]);
-  }
-});
-
-// 외부 클릭
-document.addEventListener('click', e => {
-  const inCell = Object.values(cells).some(c => c === e.target);
-  const inPad  = e.target.closest('.numpad');
-  if (!inCell && !inPad) setActive(null);
+document.addEventListener('click', () => {
+  document.getElementById('count-dropdown').classList.remove('open');
 });
 
 // ── 탭 ───────────────────────────────────────────────────
@@ -580,100 +625,17 @@ document.querySelectorAll('.vtab').forEach(tab => {
     document.querySelectorAll('.vtab').forEach(t => t.classList.remove('active'));
     tab.classList.add('active');
     state.viewMode = tab.dataset.tab;
-    state.compared = false;
-    resetCmpWrap();
-    render();
+    state.compared = false; buildMain();
   });
 });
-
-// ── 비교하기 ─────────────────────────────────────────────
-function resetCmpWrap() {
-  cmpWrap.classList.remove('expanded', 'bar-expanded');
-  cmpWrap.innerHTML = '';
-}
-
-document.getElementById('btn-compare').addEventListener('click', () => {
-  const nl = parseInt(state.left.num)  || 0;
-  const dl = parseInt(state.left.den)  || 0;
-  const nr = parseInt(state.right.num) || 0;
-  const dr = parseInt(state.right.den) || 0;
-  if (!nl || !dl || !nr || !dr) {
-    alert('두 분수를 모두 입력해 주세요!');
-    return;
-  }
-
-  // 고스트 애니메이션
-  spawnGhosts(() => {
-    // 애니메이션 완료 후 비교 뷰 표시
-    state.compared = true;
-    if (state.viewMode === 'circle') {
-      cmpWrap.classList.add('expanded');
-    } else {
-      cmpWrap.classList.add('bar-expanded');
-    }
-    renderCompareView();
-  });
-});
-
-function spawnGhosts(onDone) {
-  const leftRect  = vizLeft.getBoundingClientRect();
-  const rightRect = vizRight.getBoundingClientRect();
-  const cmpRect   = cmpWrap.getBoundingClientRect();
-
-  const targetCx = cmpRect.left + cmpRect.width  / 2;
-  const targetCy = cmpRect.top  + cmpRect.height / 2;
-
-  function makeGhost(rect, svgHTML) {
-    const g = document.createElement('div');
-    g.className = 'ghost-el';
-    g.style.left   = rect.left + 'px';
-    g.style.top    = rect.top  + 'px';
-    g.style.width  = rect.width  + 'px';
-    g.style.height = rect.height + 'px';
-    g.innerHTML    = svgHTML;
-    document.body.appendChild(g);
-    return g;
-  }
-
-  const ghostL = makeGhost(leftRect,  vizLeft.innerHTML);
-  const ghostR = makeGhost(rightRect, vizRight.innerHTML);
-
-  // 두 프레임 후 애니메이션 시작
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    const tw = Math.min(leftRect.width, 160);
-    const th = Math.min(leftRect.height, 160);
-    ghostL.style.left    = (targetCx - tw / 2) + 'px';
-    ghostL.style.top     = (targetCy - th / 2) + 'px';
-    ghostL.style.width   = tw + 'px';
-    ghostL.style.height  = th + 'px';
-    ghostL.style.opacity = '0';
-
-    ghostR.style.left    = (targetCx - tw / 2) + 'px';
-    ghostR.style.top     = (targetCy - th / 2) + 'px';
-    ghostR.style.width   = tw + 'px';
-    ghostR.style.height  = th + 'px';
-    ghostR.style.opacity = '0';
-  }));
-
-  setTimeout(() => {
-    ghostL.remove();
-    ghostR.remove();
-    onDone();
-  }, 620);
-}
 
 // ── 초기화 ───────────────────────────────────────────────
 document.getElementById('btn-reset').addEventListener('click', () => {
-  state.left  = { num: '', den: '' };
-  state.right = { num: '', den: '' };
-  state.compared = false;
-  setActive(null);
-  resetCmpWrap();
-  render();
+  state.fractions = Array.from({length:5}, () => ({num:'',den:''}));
+  state.compared = false; state.active = null; buildMain();
 });
 
-// ── 초기 렌더링 ──────────────────────────────────────────
-render();
+buildMain();
 </script>
 </body>
 </html>
