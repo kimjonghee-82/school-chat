@@ -2595,7 +2595,9 @@ function openTeacherGame() {
     window._submissionsListenerRef.ref.off('value', window._submissionsListenerRef.cb);
   }
   const subsRef = db.ref(`rooms/${session.roomCode}/submissions`);
+  let subsRenderSeq = 0;
   const subsCb = snap => {
+    const mySeq = ++subsRenderSeq;
     const listEl = document.getElementById('answer-list');
     if (!snap.exists()) {
       listEl.className = 'answer-list';
@@ -2609,6 +2611,7 @@ function openTeacherGame() {
     const thumbSize = items.length > 4 ? 64 : 80;
     // 현재 점수 가져오기
     db.ref(`rooms/${session.roomCode}/scores`).once('value').then(scSnap => {
+      if (mySeq !== subsRenderSeq) return; // 더 최신 제출 이벤트가 이미 처리됨 → 이 결과는 폐기
       const scores = scSnap.val() || {};
       const html = items.map(d => {
         try {
