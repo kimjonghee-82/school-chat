@@ -852,12 +852,49 @@ body {
   color: white; cursor: pointer; transition: background .2s;
 }
 .score-reset-btn:hover { background: #888; }
-/* 제출 카드 위 점수 배지 */
-.answer-sub-score {
+/* 제출 카드: 이름+점수 가로 배치 */
+.answer-sub-name {
+  font-size: 11px; font-weight: 700; color: #555; text-align: center;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%;
+  display: flex; align-items: center; justify-content: center; gap: 4px;
+}
+.answer-sub-score-inline {
   background: #e06020; color: white;
-  font-size: 11px; font-weight: 900;
-  padding: 2px 8px; border-radius: 10px;
-  position: absolute; top: -8px; right: 4px;
+  font-size: 10px; font-weight: 900;
+  padding: 1px 6px; border-radius: 8px; white-space: nowrap; flex-shrink: 0;
+}
+/* 채점 후 카드 테두리 깜박임 */
+@keyframes flash-red {
+  0%,100% { box-shadow: 0 0 0 3px #e05050; }
+  50%      { box-shadow: 0 0 0 6px rgba(224,80,80,.15); }
+}
+@keyframes flash-green {
+  0%,100% { box-shadow: 0 0 0 3px #3cb371; }
+  50%      { box-shadow: 0 0 0 6px rgba(60,179,113,.15); }
+}
+.answer-submission.flash-red   { animation: flash-red   .6s ease 4; border-color: #e05050; }
+.answer-submission.flash-green { animation: flash-green .6s ease 4; border-color: #3cb371; }
+/* 학생 화면 중앙 점수 팝업 */
+#student-score-popup {
+  display: none; position: fixed; inset: 0; z-index: 8888;
+  align-items: center; justify-content: center;
+  pointer-events: none;
+}
+#student-score-popup.show { display: flex; }
+.score-popup-inner {
+  font-size: 120px; font-weight: 900; color: #e05050;
+  line-height: 1; text-align: center;
+  animation: scorePopBlink 0.5s ease infinite;
+  text-shadow: 0 4px 24px rgba(224,80,80,.5);
+  pointer-events: none;
+}
+@keyframes scorePopBlink {
+  0%,100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.4; transform: scale(1.08); }
+}
+.score-popup-label {
+  font-size: 28px; font-weight: 700; color: #e05050; text-align: center; margin-top: 4px;
+  animation: scorePopBlink 0.5s ease infinite;
 }
 .answer-submission { position: relative; }
 /* 학생 점수 상단 바 */
@@ -1134,6 +1171,14 @@ body {
         <button class="student-submit-btn" id="student-submit-btn">제출하기</button>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- 학생 점수 팝업 -->
+<div id="student-score-popup">
+  <div style="display:flex;flex-direction:column;align-items:center;">
+    <div class="score-popup-inner" id="score-popup-val">+0</div>
+    <div class="score-popup-label">점</div>
   </div>
 </div>
 
@@ -2368,10 +2413,9 @@ function openTeacherGame() {
       const scores = scSnap.val() || {};
       listEl.innerHTML = items.map(d => {
         const sc = scores[d.sid];
-        const badge = (sc && sc.total > 0) ? `<div class="answer-sub-score">${sc.total}점</div>` : '';
+        const badge = (sc && sc.total > 0) ? `<span class="answer-sub-score-inline">${sc.total}점</span>` : '';
         return `<div class="answer-submission" data-sid="${escHtml(d.sid)}" onclick="openSubmissionModal('${escHtml(d.name)}','${d.num}','${d.den}','${(d.coloredSectors||[]).join(',')}')">
-          ${badge}
-          <div class="answer-sub-name">${escHtml(d.name)}</div>
+          <div class="answer-sub-name" data-name="${escHtml(d.name)}">${escHtml(d.name)}${badge}</div>
           <div class="answer-sub-frac">
             <div class="answer-sub-num">${escHtml(d.num)}</div>
             <div class="answer-sub-line"></div>
@@ -2603,6 +2647,8 @@ function submitStudentAnswer() {
     coloredSectors: [...stuColoredSectors],
     submittedAt: firebase.database.ServerValue.TIMESTAMP
   });
+  // 재제출 시 flashType 초기화 (이전 채점 결과 제거)
+  db.ref(`rooms/${session.roomCode}/scores/${session.studentId}/flashType`).remove();
   setTimeout(() => { btn.disabled = false; btn.textContent = '제출하기'; }, 3000);
 }
 
@@ -2789,19 +2835,21 @@ async function runScoring() {
   if (!subSnap.exists()) return;
 
   const updates = {};
+  const roundResults = {}; // sid → { pts, flashType }
   subSnap.forEach(child => {
     const d = child.val();
     const sVal = (d.coloredSectors || []).length / (parseInt(d.den) || 1);
     let pts = 0;
+    let flashType = 'none';
     const diff = sVal - tVal;
-    if (Math.abs(diff) < 1e-9) pts = scoreEq;
-    else if (diff > 0)         pts = scoreGt;
-    else                       pts = scoreLt;
-    // 누적 점수 반영
-    const prevScore = 0; // 누적은 scores 노드에서 처리
+    if (Math.abs(diff) < 1e-9)     { pts = scoreEq; flashType = 'eq'; }
+    else if (diff > 0)             { pts = scoreGt;  flashType = 'gt'; }
+    else                           { pts = scoreLt;  flashType = 'lt'; }
+    roundResults[child.key] = { pts, flashType };
     updates[`rooms/${session.roomCode}/scores/${child.key}`] = {
       name: d.name,
-      round: pts
+      round: pts,
+      flashType
     };
   });
 
@@ -2825,51 +2873,87 @@ async function resetAllScores() {
   await db.ref(`rooms/${session.roomCode}/scores`).remove();
 }
 
-// ── 교사: 점수 실시간 반영 (정답 패널 배지) ─────────────
+// ── 교사: 점수 실시간 반영 (카드 이름 옆 + 깜박임) ──────
 function listenScores() {
   db.ref(`rooms/${session.roomCode}/scores`).on('value', snap => {
     const scores = snap.val() || {};
-    // 정답 패널 카드에 점수 배지 업데이트
     document.querySelectorAll('.answer-submission[data-sid]').forEach(card => {
       const sid = card.getAttribute('data-sid');
       const sc = scores[sid];
-      let badge = card.querySelector('.answer-sub-score');
+      const nameEl = card.querySelector('.answer-sub-name');
+      if (!nameEl) return;
+
+      // 이름 텍스트 (첫 텍스트 노드만)
+      const rawName = nameEl.getAttribute('data-name') || nameEl.textContent.replace(/\d+점/, '').trim();
+      nameEl.setAttribute('data-name', rawName);
+
+      // 점수 배지 업데이트
+      let badge = nameEl.querySelector('.answer-sub-score-inline');
       if (sc && sc.total > 0) {
         if (!badge) {
-          badge = document.createElement('div');
-          badge.className = 'answer-sub-score';
-          card.appendChild(badge);
+          badge = document.createElement('span');
+          badge.className = 'answer-sub-score-inline';
+          nameEl.appendChild(badge);
         }
         badge.textContent = sc.total + '점';
       } else if (badge) {
         badge.remove();
+      }
+
+      // 채점 결과 깜박임 (flashType 기반)
+      card.classList.remove('flash-red', 'flash-green');
+      if (sc && sc.flashType) {
+        void card.offsetWidth; // reflow
+        if (sc.flashType === 'eq') card.classList.add('flash-green');
+        else if (sc.flashType === 'gt' || sc.flashType === 'lt') card.classList.add('flash-red');
+        // 애니메이션 끝나면 클래스 제거
+        setTimeout(() => { card.classList.remove('flash-red','flash-green'); }, 2500);
       }
     });
   });
 }
 
 // ── 학생: 내 점수 실시간 수신 ────────────────────────────
+let _lastScoreTotal = -1;
+
 function listenMyScore() {
   db.ref(`rooms/${session.roomCode}/scores/${session.studentId}`).on('value', snap => {
     const sc = snap.val();
     const bar = document.getElementById('student-score-bar');
     const val = document.getElementById('student-score-val');
     if (!bar || !val) return;
+
     if (sc && typeof sc.total === 'number') {
       bar.style.display = 'flex';
-      const prev = parseInt(val.textContent) || 0;
+      const prev = _lastScoreTotal;
+      _lastScoreTotal = sc.total;
       val.textContent = sc.total;
-      if (sc.total !== prev) {
+
+      // 점수가 새로 갱신됐을 때
+      if (prev !== sc.total && prev !== -1) {
         val.classList.remove('bump');
         void val.offsetWidth;
         val.classList.add('bump');
         setTimeout(() => val.classList.remove('bump'), 400);
+        // 가운데 팝업
+        showScorePopup(sc.round || 0);
       }
     } else {
       bar.style.display = 'none';
       val.textContent = '0';
+      _lastScoreTotal = -1;
     }
   });
+}
+
+function showScorePopup(pts) {
+  const popup = document.getElementById('student-score-popup');
+  const popVal = document.getElementById('score-popup-val');
+  if (!popup || !popVal) return;
+  popVal.textContent = '+' + pts;
+  popup.classList.add('show');
+  clearTimeout(popup._hideTimer);
+  popup._hideTimer = setTimeout(() => popup.classList.remove('show'), 3000);
 }
 
 // ── 최초 로그인 화면 표시 ────────────────────────────────
