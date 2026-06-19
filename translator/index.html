@@ -2304,12 +2304,14 @@ function liveBuildRecog() {
   const r = new SR();
   r.lang = 'ko-KR'; r.continuous = true; r.interimResults = true; r.maxAlternatives = 1;
   let silenceTimer = null;
-  let forcedText = '';
-  const forceFinalize = (text) => {
-    silenceTimer = null;
-    if (!text.trim()) return;
-    forcedText = text.trim();
-    liveTranslateFinal(forcedText);
+  let forcedText = ''; // cumulative text already committed as final paragraphs for the current (still-open) segment
+  const commitDelta = (fullText) => {
+    const text = fullText.trim();
+    if (!text) return;
+    let delta = text;
+    if (forcedText && text.startsWith(forcedText)) delta = text.slice(forcedText.length).trim();
+    forcedText = text;
+    if (delta) liveTranslateFinal(delta);
     liveRenderKo('');
   };
   r.onresult = (e) => {
@@ -2322,19 +2324,13 @@ function liveBuildRecog() {
     if (newFinal) {
       const combined = (liveCurKo + newFinal).trim();
       liveCurKo = '';
-      let toPush = combined;
-      if (forcedText) {
-        if (combined === forcedText) toPush = '';
-        else if (combined.startsWith(forcedText)) toPush = combined.slice(forcedText.length).trim();
-        forcedText = '';
-      }
-      if (toPush) liveTranslateFinal(toPush);
-      liveRenderKo('');
+      commitDelta(combined);
+      forcedText = ''; // segment is truly finished, reset cumulative tracking
     }
     if (interim) {
       liveRenderKo(interim);
       liveTranslateInterim(interim);
-      silenceTimer = setTimeout(() => forceFinalize(interim), 1500);
+      silenceTimer = setTimeout(() => commitDelta(interim), 1500);
     }
   };
   r.onerror = (e) => { if (e.error === 'no-speech' || e.error === 'aborted') return; };
