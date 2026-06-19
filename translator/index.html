@@ -2302,6 +2302,7 @@ async function liveTranslateFinal(koText) {
 
 function liveBuildRecog() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) throw new Error('이 브라우저는 음성 인식을 지원하지 않습니다. (크롬 권장)');
   const r = new SR();
   r.lang = 'ko-KR'; r.continuous = true; r.interimResults = true; r.maxAlternatives = 1;
   r.onresult = (e) => {
@@ -2349,8 +2350,14 @@ async function enableLivePanel() {
   document.getElementById('liveBtnStop').style.display = '';
   document.getElementById('liveBtnResume').style.display = 'none';
   liveSetDot('active');
-  liveRecog = liveBuildRecog();
-  liveRecog.start();
+  try {
+    liveRecog = liveBuildRecog();
+    liveRecog.start();
+  } catch (e) {
+    alert('음성 인식을 시작할 수 없습니다: ' + e.message);
+    liveStop();
+    return;
+  }
   if (slots[currentSlot]) renderCurrentPage(true);
 }
 
