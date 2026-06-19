@@ -114,6 +114,36 @@ async function googleTranslate(text, lc) {
   return result;
 }
 
+// Whisper가 무음/저음량 구간에서 자주 만들어내는 환각(hallucination) 문구 목록
+const HALLUCINATION_PHRASES = [
+  '시청해주셔서 감사합니다', '시청해 주셔서 감사합니다', '구독과 좋아요', '구독 좋아요',
+  '다음 영상에서 만나요', '다음 시간에 만나요', '영상 시청해주셔서', 'MBC 뉴스', 'KBS 뉴스',
+  'SBS 뉴스', '자막 제공', '자막제공', '이 영상은', '오늘도 시청해주셔서',
+  '감사합니다', '고맙습니다', '수고하셨습니다'
+];
+function isLikelyHallucination(text) {
+  const t = text.replace(/\s/g, '');
+  if (t.length < 3) return true;
+  return HALLUCINATION_PHRASES.some(p => t === p.replace(/\s/g, ''));
+}
+
+// 오디오 블롭의 평균 음량(RMS)을 계산해 무음 여부 판단
+async function isSilent(blob, threshold = 0.01) {
+  try {
+    const arrayBuf = await blob.arrayBuffer();
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const audioBuf = await ctx.decodeAudioData(arrayBuf.slice(0));
+    const data = audioBuf.getChannelData(0);
+    let sum = 0;
+    for (let i = 0; i < data.length; i++) sum += data[i] * data[i];
+    const rms = Math.sqrt(sum / data.length);
+    ctx.close();
+    return rms < threshold;
+  } catch {
+    return false; // 디코딩 실패 시 일단 보내본다
+  }
+}
+
 async function transcribeChunk(blob, apiKey) {
   const fd = new FormData();
   fd.append('file', blob, 'chunk.webm');
@@ -138,11 +168,11 @@ async function processChunk(blob) {
   const apiKey = document.getElementById('apiKey').value.trim();
   if (!apiKey) { setStatus('Groq API 키를 입력하세요'); return; }
   const seq = ++chunkSeq;
+  if (await isSilent(blob)) { return; } // 무음 구간은 API 호출 없이 건너뜀 (환각 방지 + 비용 절약)
   setDot('busy'); setStatus(`인식 중... (#${seq})`);
   try {
     const koText = await transcribeChunk(blob, apiKey);
-    // Whisper는 무음 구간에서 빈 문자열 또는 의미없는 짧은 잡음을 반환하기도 함 — 필터링
-    if (!koText || koText.length < 2) { setDot(active ? 'active' : ''); setStatus(''); return; }
+    if (!koText || koText.length < 2 || isLikelyHallucination(koText)) { setDot(active ? 'active' : ''); setStatus(''); return; }
     const lc = GTRANSLATE_CODES[document.getElementById('targetLang').value] || 'en';
     const tr = await googleTranslate(koText, lc);
     paras.push({ ko: koText, tr });
