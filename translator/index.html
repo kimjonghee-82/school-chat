@@ -617,6 +617,7 @@ body.live-on .nav-arrow.right { right: 30%; }
       <h1>📚 나의 서재</h1>
       <div class="lib-header-sub">PDF 교과서를 추가하세요</div>
     </div>
+    <button class="back-btn" onclick="openBlankTranslator()" style="margin-left:auto">📷 책 없이 시작</button>
   </div>
   <div class="bookshelf-container" id="bookshelfContainer">
     <!-- 선반은 JS로 동적 생성 -->
@@ -1125,6 +1126,15 @@ async function openBook(id) {
   } catch(e) {
     alert('PDF 오류: ' + e.message);
   }
+}
+
+function openBlankTranslator() {
+  document.getElementById('libraryScreen').style.display = 'none';
+  document.getElementById('translatorScreen').style.display = 'block';
+  currentBookId = null;
+  slots.length = 0; slots.push(null);
+  pdfDoc = null; currentSlot = 0;
+  renderSlot(); updateNav();
 }
 
 function saveCurrentPage() {
