@@ -1220,10 +1220,6 @@ function openSettings() { document.getElementById('settingsModal').classList.add
 function closeSettingsOutside(e) { if (e.target === document.getElementById('settingsModal')) closeSettings(); }
 
 function saveApiKey() {
-  const k = document.getElementById('apiInput').value.trim();
-  if (!k) return;
-  localStorage.setItem('gemini_api_key', k);
-  updateApiChip(true);
   closeSettings();
 }
 function closeSettings() {
@@ -2305,18 +2301,37 @@ function liveBuildRecog() {
   if (!SR) throw new Error('이 브라우저는 음성 인식을 지원하지 않습니다. (크롬 권장)');
   const r = new SR();
   r.lang = 'ko-KR'; r.continuous = true; r.interimResults = true; r.maxAlternatives = 1;
+  let silenceTimer = null;
+  let forcedText = '';
+  const forceFinalize = (text) => {
+    silenceTimer = null;
+    if (!text.trim()) return;
+    forcedText = text.trim();
+    liveTranslateFinal(forcedText);
+    liveRenderKo('');
+  };
   r.onresult = (e) => {
     let interim = '', newFinal = '';
     for (let i = e.resultIndex; i < e.results.length; i++) {
       const t = e.results[i][0].transcript;
       if (e.results[i].isFinal) newFinal += t; else interim += t;
     }
+    if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
     if (newFinal) {
-      liveCurKo += newFinal;
-      liveTranslateFinal(liveCurKo.trim());
-      liveCurKo = ''; liveRenderKo('');
+      const combined = (liveCurKo + newFinal).trim();
+      liveCurKo = '';
+      if (forcedText && combined === forcedText) {
+        forcedText = '';
+      } else {
+        liveTranslateFinal(combined);
+      }
+      liveRenderKo('');
     }
-    if (interim) { liveRenderKo(interim); liveTranslateInterim(interim); }
+    if (interim) {
+      liveRenderKo(interim);
+      liveTranslateInterim(interim);
+      silenceTimer = setTimeout(() => forceFinalize(interim), 1500);
+    }
   };
   r.onerror = (e) => { if (e.error === 'no-speech' || e.error === 'aborted') return; };
   r.onend = () => {
