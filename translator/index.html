@@ -2302,7 +2302,7 @@ function liveBuildRecog() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) throw new Error('이 브라우저는 음성 인식을 지원하지 않습니다. (크롬 권장)');
   const r = new SR();
-  r.lang = 'ko-KR'; r.continuous = false; r.interimResults = true; r.maxAlternatives = 1;
+  r.lang = 'ko-KR'; r.continuous = true; r.interimResults = true; r.maxAlternatives = 1;
   r.onresult = (e) => {
     let interim = '', finalText = '';
     for (let i = e.resultIndex; i < e.results.length; i++) {
@@ -2310,7 +2310,7 @@ function liveBuildRecog() {
       if (e.results[i].isFinal) finalText += t; else interim += t;
     }
     if (finalText.trim()) { liveTranslateFinal(finalText.trim()); liveRenderKo(''); }
-    else if (interim) { liveRenderKo(interim); liveTranslateInterim(interim); }
+    if (interim) { liveRenderKo(interim); liveTranslateInterim(interim); }
   };
   r.onerror = (e) => { if (e.error === 'no-speech' || e.error === 'aborted') return; };
   r.onend = () => {
