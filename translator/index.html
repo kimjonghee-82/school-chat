@@ -2315,7 +2315,10 @@ function liveBuildRecog() {
   r.onerror = (e) => { if (e.error === 'no-speech' || e.error === 'aborted') return; };
   r.onend = () => {
     if (liveActive) {
-      try { r.start(); } catch { /* already starting */ }
+      setTimeout(() => {
+        if (!liveActive) return;
+        try { r.start(); } catch (err) { console.warn('liveRecog restart failed', err); }
+      }, 300);
     }
   };
   return r;
