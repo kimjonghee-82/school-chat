@@ -584,9 +584,11 @@ body.live-on .nav-arrow.right { right: 30%; }
 }
 .live-content {
   flex: 1; overflow-y: auto; padding: 10px 14px; font-size: .92rem; line-height: 1.75;
+  scrollbar-width: thin; scrollbar-color: var(--sub) transparent;
 }
-.live-content::-webkit-scrollbar { width: 4px; }
-.live-content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.live-content::-webkit-scrollbar { width: 6px; }
+.live-content::-webkit-scrollbar-track { background: transparent; }
+.live-content::-webkit-scrollbar-thumb { background: var(--sub); border-radius: 3px; }
 .live-para { margin-bottom: 1.5em; }
 .live-para:last-child { margin-bottom: 0; }
 .live-para.final   { color: var(--text); }
@@ -2320,11 +2322,13 @@ function liveBuildRecog() {
     if (newFinal) {
       const combined = (liveCurKo + newFinal).trim();
       liveCurKo = '';
-      if (forcedText && combined === forcedText) {
+      let toPush = combined;
+      if (forcedText) {
+        if (combined === forcedText) toPush = '';
+        else if (combined.startsWith(forcedText)) toPush = combined.slice(forcedText.length).trim();
         forcedText = '';
-      } else {
-        liveTranslateFinal(combined);
       }
+      if (toPush) liveTranslateFinal(toPush);
       liveRenderKo('');
     }
     if (interim) {
