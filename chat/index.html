@@ -2586,17 +2586,43 @@ textarea.finput{resize:vertical;}
             // Show persistent navigation
             document.getElementById('persistent-top-nav').style.display = 'flex';
             currentUser = { grade: grade, classNum: classNum, name: name, role: isTeacher ? 'teacher' : 'student' };
+
+            // ── 동아리 입장: 포인트 화면 숨김 + 스쿨톡 즉시 허용 ──
+            const isClub = (grade === '동아리');
+            var tabPointsBtn = document.getElementById('tab-points');
+            if (tabPointsBtn) tabPointsBtn.style.display = isClub ? 'none' : '';
+            if (isClub) {
+                _tabPerms.chat = true; // 로컬에서 즉시 허용 처리 (리스너 응답 대기 없이)
+                if (typeof database !== 'undefined' && database) {
+                    database.ref('permissions/' + grade + '-' + classNum + '/chat').set(true);
+                }
+            }
+
             if (isTeacher) {
-                document.getElementById('pts-teacher-screen').style.display = 'flex';
-                if (typeof tch_initTeacherApp === 'function') tch_initTeacherApp();
+                if (isClub) {
+                    document.getElementById('teacher-screen').style.display = 'flex';
+                } else {
+                    document.getElementById('pts-teacher-screen').style.display = 'flex';
+                    if (typeof tch_initTeacherApp === 'function') tch_initTeacherApp();
+                }
                 var monBtn = document.getElementById('tab-monitor');
                 if (monBtn) monBtn.style.display = '';
             } else {
-                document.getElementById('pts-student-screen').style.display = 'block';
-                if (typeof stu_initStudentApp === 'function') stu_initStudentApp(name);
+                if (isClub) {
+                    document.getElementById('chat-screen').style.display = 'flex';
+                } else {
+                    document.getElementById('pts-student-screen').style.display = 'block';
+                    if (typeof stu_initStudentApp === 'function') stu_initStudentApp(name);
+                }
                 setTimeout(function() { if (typeof mon_startStudentStream === 'function') mon_startStudentStream(); }, 1500);
                 var shareBtn = document.getElementById('tab-share');
                 if (shareBtn) shareBtn.style.display = '';
+            }
+            if (isClub) {
+                if (tabPointsBtn) tabPointsBtn.classList.remove('active');
+                var tabChatBtn = document.getElementById('tab-chat');
+                if (tabChatBtn) tabChatBtn.classList.add('active');
+                if (!isTeacher) _activeStuTab = 'chat';
             }
 
             if (!isTeacher) {
