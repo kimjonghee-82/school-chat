@@ -259,6 +259,7 @@
 
   <div class="actions">
     <button id="btnEnd">턴 종료(등록)</button>
+    <button id="btnUndo">한 단계 되돌리기</button>
     <button id="btnDraw">타일 뽑기 / 되돌리기</button>
   </div>
   <div id="msg"></div>
@@ -295,6 +296,7 @@ let lastTurnOwner = -2;
 let selected = null;       // {from:'rack'|'table', setIndex, tile}
 let dragRef = null;
 let sortMode = null;       // null | 'num' | 'color' — auto-applied to newly drawn/returned rack tiles
+let undoStack = [];
 
 function sortRack(rack){
   if (sortMode === 'num'){
@@ -587,8 +589,13 @@ function maybeStartTurn(){
     lockedIds = G.players[G.current].melded ? new Set() : new Set(G.table.flat().map(t=>t.id));
     turnTableSnapshot = deepCloneTable(G.table);
     turnRackSnapshot = G.players[G.current].rack.map(t=>({...t}));
+    undoStack = [];
     setMsg('');
   }
+}
+
+function snapshotForUndo(){
+  return { table: deepCloneTable(G.table), rack: G.players[G.current].rack.map(t=>({...t})) };
 }
 
 function setMsg(text){ const el = document.getElementById('msg'); if (el) el.textContent = text || ''; }
@@ -749,12 +756,56 @@ function render(){
 
   document.getElementById('btnEnd').disabled = !iAct;
   document.getElementById('btnDraw').disabled = !iAct;
+  document.getElementById('btnUndo').disabled = !iAct || undoStack.length === 0;
 }
 
 // ============================================================
 // MOVES (shared by click-select and drag & drop)
 // ============================================================
-function performMove(ref, dest){
+function autoArrangeSet(set){
+  if (!set || set.length < 3) return;
+  const check = checkSet(set);
+  if (!check.valid) return;
+  const nonJokers = set.filter(t=>!t.joker);
+  const jokers = set.filter(t=>t.joker);
+  if (nonJokers.length === 0) return;
+  const num = nonJokers[0].num;
+  const sameNum = nonJokers.every(t=>t.num===num);
+  const colorsSeen = new Set(nonJokers.map(t=>t.color));
+  const isGroup = sameNum && colorsSeen.size === nonJokers.length;
+  if (isGroup){
+    nonJokers.sort((a,b) => COLORS.indexOf(a.color) - COLORS.indexOf(b.color));
+    const arranged = nonJokers.concat(jokers);
+    set.splice(0, set.length, ...arranged);
+    return;
+  }
+  // run
+  const color = nonJokers[0].color;
+  const sameColor = nonJokers.every(t=>t.color===color);
+  if (!sameColor) return;
+  const L = set.length;
+  const nums = nonJokers.map(t=>t.num);
+  const minNum = Math.min(...nums);
+  const maxNum = Math.max(...nums);
+  const sMin = Math.max(1, maxNum - L + 1);
+  const sMax = Math.min(minNum, 13 - L + 1);
+  if (sMin > sMax) return;
+  const start = sMax;
+  const byNum = new Map(nonJokers.map(t=>[t.num, t]));
+  const arranged = [];
+  let jokerPool = jokers.slice();
+  for (let n = start; n < start + L; n++){
+    if (byNum.has(n)) arranged.push(byNum.get(n));
+    else arranged.push(jokerPool.shift());
+  }
+  if (arranged.some(t=>!t)) return;
+  set.splice(0, set.length, ...arranged);
+}
+
+function performMove(ref, dest, recordUndo){
+  if (recordUndo !== false){
+    undoStack.push(snapshotForUndo());
+  }
   const owner = rackOwnerIndex();
   const tile = ref.tile;
   if (ref.from === 'rack'){
@@ -784,6 +835,7 @@ function performMove(ref, dest){
     }
   }
   G.table = G.table.filter(s => s.length>0);
+  G.table.forEach(autoArrangeSet);
 }
 
 function afterStateChange(){
@@ -868,6 +920,10 @@ document.getElementById('btnEnd').addEventListener('click', () => {
     return;
   }
   const player = G.players[G.current];
+  if (player.rack.length >= turnRackSnapshot.length){
+    setMsg('타일을 내려놓지 않았다면 반드시 타일을 뽑아야 합니다. "타일 뽑기 / 되돌리기" 버튼을 눌러주세요.');
+    return;
+  }
   if (!player.melded){
     const placed = newlyPlacedTiles();
     if (placed.length === 0){
@@ -911,6 +967,21 @@ document.getElementById('btnDraw').addEventListener('click', () => {
     setMsg('풀에 더 이상 타일이 없습니다.');
   }
   advanceTurn();
+});
+
+document.getElementById('btnUndo').addEventListener('click', () => {
+  if (!canAct()) return;
+  if (undoStack.length === 0){
+    setMsg('되돌릴 동작이 없습니다.');
+    return;
+  }
+  const prev = undoStack.pop();
+  G.table = prev.table;
+  G.players[G.current].rack = prev.rack;
+  selected = null;
+  dragRef = null;
+  setMsg('');
+  render();
 });
 
 function advanceTurn(){
