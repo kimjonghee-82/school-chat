@@ -2581,6 +2581,9 @@ textarea.finput{resize:vertical;}
             const name = document.getElementById('username').value.trim();
 
             myInfo = { grade: grade, classNum: classNum, name: name, isTeacher: isTeacher };
+            if (typeof sketchDb !== 'undefined' && sketchDb) {
+                sk_ns = sketchDb.ref(grade + '-' + classNum);
+            }
             document.getElementById('login-screen').style.display = 'none';
             sessionStartTime = Date.now();
             // Show persistent navigation
@@ -4114,6 +4117,8 @@ window.addEventListener('beforeunload',function(){
     } catch(e) { console.error("스케치북 Firebase 초기화 에러:", e); }
 
     let sk_myUid = "", sk_myInfo = {}, sk_lastSyncTs = 0;
+    let sk_ns = null; // class-scoped Firebase ref (skRef("grade-classNum"))
+    function skRef(path) { return sk_ns ? sk_ns.child(path) : sketchDb.ref(path); }
     let sk_canvasBg, sk_ctxBg, sk_canvas, sk_ctx, sk_teacherCanvas, sk_tOverlayCtx;
     let sk_wrapper, sk_container;
     let sk_isDrawing = false, sk_currentTool = 'pen', sk_lastX = 0, sk_lastY = 0;
@@ -4142,17 +4147,17 @@ window.addEventListener('beforeunload',function(){
         sk_myInfo = { grade: myInfo.grade, classNum: myInfo.classNum, name: myInfo.name, submitted: false };
         sk_sessionStartTs = Date.now();
         sk_lastEditTs = sk_sessionStartTs;
-        const userRef = sketchDb.ref('users/' + sk_myUid);
+        const userRef = skRef('users/' + sk_myUid);
         userRef.set(sk_myInfo);
         userRef.onDisconnect().remove();
-        sketchDb.ref('live/' + sk_myUid).onDisconnect().remove();
-        sketchDb.ref('live_edits/' + sk_myUid).onDisconnect().remove();
-        sketchDb.ref('direct_broadcast/' + sk_myUid).onDisconnect().remove();
+        skRef('live/' + sk_myUid).onDisconnect().remove();
+        skRef('live_edits/' + sk_myUid).onDisconnect().remove();
+        skRef('direct_broadcast/' + sk_myUid).onDisconnect().remove();
         if (myInfo.isTeacher) {
             document.getElementById('pts-teacher-screen').style.display = 'none';
             document.getElementById('sk-teacher-screen').style.display = 'flex';
-            sketchDb.ref('broadcast').onDisconnect().remove();
-            sketchDb.ref('teacherMode').set({ active: true, ts: Date.now() });
+            skRef('broadcast').onDisconnect().remove();
+            skRef('teacherMode').set({ active: true, ts: Date.now() });
             if (!sk_teacherInited) {
                 sk_teacherInited = true;
                 sk_initTeacherDashboard();
@@ -4187,8 +4192,8 @@ window.addEventListener('beforeunload',function(){
         document.getElementById('sk-teacher-screen').style.display = 'none';
         switchMainTab('chat');
         if (sketchDb) {
-            sketchDb.ref('teacherMode').remove();
-            sketchDb.ref('broadcast').remove();
+            skRef('teacherMode').remove();
+            skRef('broadcast').remove();
         }
     }
 
@@ -4197,7 +4202,7 @@ window.addEventListener('beforeunload',function(){
 
     function sk_listenToTeacherModeFromChat() {
         if (!sketchDb) return;
-        sketchDb.ref('teacherMode').on('value', snap => {
+        skRef('teacherMode').on('value', snap => {
             const d = snap.val();
             const banner = document.getElementById('sk-teacher-mode-banner');
             if (banner) banner.style.display = (d && d.active) ? 'flex' : 'none';
@@ -4206,11 +4211,11 @@ window.addEventListener('beforeunload',function(){
 
     function sk_listenToClearCommands() {
         if (!sketchDb || !sk_myUid) return;
-        sketchDb.ref('teacherCmd/clearAll').on('value', snap => {
+        skRef('teacherCmd/clearAll').on('value', snap => {
             const d = snap.val();
             if (d && d.ts > sk_lastClearTs) { sk_lastClearTs = d.ts; sk_clearCanvasSilently(); }
         });
-        sketchDb.ref('teacherCmd/clearStudent/' + sk_myUid).on('value', snap => {
+        skRef('teacherCmd/clearStudent/' + sk_myUid).on('value', snap => {
             const d = snap.val();
             if (d && d.ts > sk_lastClearTs) { sk_lastClearTs = d.ts; sk_clearCanvasSilently(); }
         });
@@ -4227,7 +4232,7 @@ window.addEventListener('beforeunload',function(){
 
     function sk_clearAllStudentsCanvas() {
         if (confirm('모든 학생의 스케치북을 초기화할까요?\n이 작업은 되돌릴 수 없습니다.')) {
-            sketchDb.ref('teacherCmd/clearAll').set({ ts: Date.now() });
+            skRef('teacherCmd/clearAll').set({ ts: Date.now() });
         }
     }
 
@@ -4235,7 +4240,7 @@ window.addEventListener('beforeunload',function(){
         const checked = Array.from(document.querySelectorAll('.sk-clear-cb:checked'));
         if (checked.length === 0) { alert('초기화할 학생을 선택해주세요.'); return; }
         if (confirm(`선택한 ${checked.length}명의 스케치북을 초기화할까요?`)) {
-            checked.forEach(cb => sketchDb.ref('teacherCmd/clearStudent/' + cb.value).set({ ts: Date.now() }));
+            checked.forEach(cb => skRef('teacherCmd/clearStudent/' + cb.value).set({ ts: Date.now() }));
         }
     }
 
@@ -4907,8 +4912,8 @@ window.addEventListener('beforeunload',function(){
             const cap=await html2canvas(target,{scale:1});
             const imgData=cap.toDataURL('image/jpeg',0.85);
             sk_lastSyncTs=Date.now();
-            sketchDb.ref('live/'+sk_myUid).set({img:imgData,ts:sk_lastSyncTs});
-            if(sk_myRoomId) sketchDb.ref('sk_rooms/'+sk_myRoomId+'/canvases/'+sk_myUid).set({img:imgData,ts:sk_lastSyncTs});
+            skRef('live/'+sk_myUid).set({img:imgData,ts:sk_lastSyncTs});
+            if(sk_myRoomId) skRef('sk_rooms/'+sk_myRoomId+'/canvases/'+sk_myUid).set({img:imgData,ts:sk_lastSyncTs});
         } catch(e) {}
         finally { document.querySelectorAll('#sk-canvas-wrapper .drag-handle, #sk-canvas-wrapper .resize-handle').forEach(h=>h.style.display=''); sk_restoreSelectionAfterCapture(prev); }
     }
@@ -4921,7 +4926,7 @@ window.addEventListener('beforeunload',function(){
         try {
             const cap=await html2canvas(target,{scale:1.5});
             const imgData=cap.toDataURL('image/jpeg',0.9);
-            const subRef=sketchDb.ref('submissions/'+sk_myUid);
+            const subRef=skRef('submissions/'+sk_myUid);
             const snap=await subRef.once('value');
             const existing=snap.val()||{};
             // 현재 쓸 슬롯 결정 (0 또는 1, 순환)
@@ -4933,7 +4938,7 @@ window.addEventListener('beforeunload',function(){
             };
             update[slotKey]={image:imgData,timestamp:Date.now()};
             await subRef.update(update);
-            await sketchDb.ref('users/'+sk_myUid).update({submitted:true});
+            await skRef('users/'+sk_myUid).update({submitted:true});
             alert('제출 완료! 🎉  ('+(nextSlot+1)+'번째 작품)');
         } catch(e) { alert("제출 오류"); }
         finally {
@@ -4944,19 +4949,19 @@ window.addEventListener('beforeunload',function(){
     }
 
     function sk_listenToTeacherBroadcast() {
-        sketchDb.ref('broadcast').on('value', snap=>{
+        skRef('broadcast').on('value', snap=>{
             const d=snap.val();
             if(d&&d.img&&d.ts>sk_sessionStartTs) sk_createFloatingImage(d.img);
         });
         // 개인 전송 수신 (교사가 드래그로 이 학생에게만 보낸 자료)
-        sketchDb.ref('direct_broadcast/'+sk_myUid).on('value', snap=>{
+        skRef('direct_broadcast/'+sk_myUid).on('value', snap=>{
             const d=snap.val();
             if(d&&d.img&&d.ts>sk_sessionStartTs) sk_createFloatingImage(d.img);
         });
     }
 
     function sk_listenToTeacherEdits() {
-        sketchDb.ref('live_edits/'+sk_myUid).on('value', snap=>{
+        skRef('live_edits/'+sk_myUid).on('value', snap=>{
             const d=snap.val();
             if(d&&d.ts>sk_lastEditTs&&d.img) {
                 sk_lastEditTs=d.ts;
@@ -4977,7 +4982,7 @@ window.addEventListener('beforeunload',function(){
     let sk_teacherRecs = {}; // uid → {frames, isRecording, isPlaying, playIdx, playTimer, startTs, lastFrameTs, speed}
 
     function sk_initTeacherDashboard() {
-        sketchDb.ref('users').on('value', snap=>{
+        skRef('users').on('value', snap=>{
             const users=snap.val()||{};
             const list=document.getElementById('sk-active-user-list');
             document.getElementById('sk-user-count').innerText=Object.keys(users).length;
@@ -4988,7 +4993,7 @@ window.addEventListener('beforeunload',function(){
                 list.innerHTML+=`<li style="background:#34495e;padding:8px 10px;margin-bottom:6px;border-radius:6px;font-size:12px;display:flex;align-items:center;gap:6px;"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;flex:1;"><input type="checkbox" class="sk-clear-cb" value="${uid}" style="width:14px;height:14px;cursor:pointer;accent-color:#e67e22;flex-shrink:0;"><span style="flex:1;line-height:1.2;">${u.grade}-${u.classNum}<br>${u.name}</span>${tag}</label></li>`;
             });
         });
-        sketchDb.ref('live').on('value', snap=>{
+        skRef('live').on('value', snap=>{
             const lives=snap.val()||{};
             const gallery=document.getElementById('sk-live-gallery');
             const uids=Object.keys(lives);
@@ -5027,7 +5032,7 @@ window.addEventListener('beforeunload',function(){
                 }
             });
         });
-        sketchDb.ref('submissions').on('value', snap=>{
+        skRef('submissions').on('value', snap=>{
             const subs=snap.val()||{};
             const gallery=document.getElementById('sk-sub-gallery');
             gallery.innerHTML='';
@@ -5053,7 +5058,7 @@ window.addEventListener('beforeunload',function(){
             });
         });
         // Clean up recording data when teacher leaves
-        sketchDb.ref('sk_rec').onDisconnect().remove();
+        skRef('sk_rec').onDisconnect().remove();
     }
 
     function sk_createTeacherCard(uid, imgSrc, imgH) {
@@ -5101,7 +5106,7 @@ window.addEventListener('beforeunload',function(){
             if(!file||!file.type.startsWith('image/')) return alert('이미지 파일만 전송 가능합니다.');
             const reader=new FileReader();
             reader.onload=ev=>{
-                sketchDb.ref('direct_broadcast/'+uid).set({img:ev.target.result,ts:Date.now()});
+                skRef('direct_broadcast/'+uid).set({img:ev.target.result,ts:Date.now()});
                 const fb=document.createElement('div');
                 fb.textContent='✅ '+displayName+'에게 전송 완료!';
                 fb.style.cssText='position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(39,174,96,.92);color:white;padding:8px 16px;border-radius:8px;font-weight:bold;font-size:13px;pointer-events:none;z-index:10;white-space:nowrap;';
@@ -5144,7 +5149,7 @@ window.addEventListener('beforeunload',function(){
             // Save to Firebase for persistence
             if(rec.frames.length>0&&sketchDb){
                 const slim=rec.frames.filter((_,i)=>i%3===0).map(f=>({img:f.img,ts:f.ts}));
-                sketchDb.ref('sk_rec/'+uid).set({frames:slim,ts:Date.now()}).catch(()=>{});
+                skRef('sk_rec/'+uid).set({frames:slim,ts:Date.now()}).catch(()=>{});
             }
         } else {
             if(rec.isPlaying) sk_pauseRec(uid);
@@ -5252,20 +5257,20 @@ window.addEventListener('beforeunload',function(){
 
     function sk_sendBroadcastImage(e) {
         const f=e.target.files[0]; if(!f) return;
-        const r=new FileReader(); r.onload=(ev)=>{sketchDb.ref('broadcast').set({img:ev.target.result,ts:Date.now()});alert("전송 완료!");}; r.readAsDataURL(f); e.target.value='';
+        const r=new FileReader(); r.onload=(ev)=>{skRef('broadcast').set({img:ev.target.result,ts:Date.now()});alert("전송 완료!");}; r.readAsDataURL(f); e.target.value='';
     }
 
     function sk_clearSubmissions() {
         if(confirm("제출함을 비울까요?")) {
-            sketchDb.ref('submissions').remove();
-            sketchDb.ref('users').once('value', snap=>{ snap.forEach(c=>c.ref.update({submitted:false})); });
+            skRef('submissions').remove();
+            skRef('users').once('value', snap=>{ snap.forEach(c=>c.ref.update({submitted:false})); });
         }
     }
 
     function sk_clearUserList() {
         if(!confirm('접속 명단을 초기화할까요?\n현재 접속 중이더라도 목록에서 모두 제거됩니다.')) return;
-        sketchDb.ref('users').remove();
-        sketchDb.ref('live').remove();
+        skRef('users').remove();
+        skRef('live').remove();
     }
 
     function sk_openTeacherModal(uid, imgSrc) {
@@ -5276,7 +5281,7 @@ window.addEventListener('beforeunload',function(){
         bgImg.onload=function(){ sk_resizeTeacherModalCanvas(bgImg); bgImg.onload=null; };
         bgImg.src=imgSrc;
         document.getElementById('sk-teacher-modal').style.display='flex';
-        sk_teacherLiveRef=sketchDb.ref('live/'+uid);
+        sk_teacherLiveRef=skRef('live/'+uid);
         sk_teacherLiveRef.on('value', snap=>{ const d=snap.val(); if(d&&d.img&&sk_editingUid===uid) bgImg.src=d.img; });
     }
 
@@ -5310,7 +5315,7 @@ window.addEventListener('beforeunload',function(){
         const end=()=>{
             if(sk_isTDrawing){
                 sk_isTDrawing=false; sk_tCtx.beginPath();
-                if(sk_editingUid) sketchDb.ref('live_edits/'+sk_editingUid).set({img:sk_tCanvas.toDataURL('image/png'),ts:Date.now()});
+                if(sk_editingUid) skRef('live_edits/'+sk_editingUid).set({img:sk_tCanvas.toDataURL('image/png'),ts:Date.now()});
             }
         };
         sk_tCanvas.addEventListener('mousedown',start); sk_tCanvas.addEventListener('mousemove',move);
@@ -5368,7 +5373,7 @@ window.addEventListener('beforeunload',function(){
         if(!modal||!list) return;
         list.innerHTML='<li style="color:#999;font-size:12px;padding:8px 0;">불러오는 중...</li>';
         modal.style.display='flex';
-        sketchDb.ref('users').once('value', snap=>{
+        skRef('users').once('value', snap=>{
             const users=snap.val()||{};
             list.innerHTML='';
             const uids=Object.keys(users).filter(u=>u!==sk_myUid);
@@ -5395,7 +5400,7 @@ window.addEventListener('beforeunload',function(){
         }
         const fromName=sk_myInfo.grade+'-'+sk_myInfo.classNum+'-'+sk_myInfo.name;
         const inviteId=Date.now().toString();
-        const ref=sketchDb.ref('sk_invites/'+toUid+'/'+inviteId);
+        const ref=skRef('sk_invites/'+toUid+'/'+inviteId);
         ref.set({from:sk_myUid, fromName:fromName, roomId:sk_myRoomId, ts:Date.now()});
         ref.onDisconnect().remove();
         sk_closeInviteModal();
@@ -5404,7 +5409,7 @@ window.addEventListener('beforeunload',function(){
 
     function sk_listenForInvites() {
         if(!sketchDb||!sk_myUid) return;
-        sketchDb.ref('sk_invites/'+sk_myUid).on('child_added', snap=>{
+        skRef('sk_invites/'+sk_myUid).on('child_added', snap=>{
             const inv=snap.val(); if(!inv) return;
             sk_pendingInviteData={id:snap.key, ...inv};
             const notif=document.getElementById('sk-invite-notification');
@@ -5412,7 +5417,7 @@ window.addEventListener('beforeunload',function(){
             if(notif&&txt){ txt.textContent=inv.fromName+'님이 스케치북 공유를 초대했습니다!'; notif.style.display='block'; }
             setTimeout(()=>{
                 if(notif) notif.style.display='none';
-                sketchDb.ref('sk_invites/'+sk_myUid+'/'+snap.key).remove();
+                skRef('sk_invites/'+sk_myUid+'/'+snap.key).remove();
             }, 30000);
         });
     }
@@ -5420,14 +5425,14 @@ window.addEventListener('beforeunload',function(){
     function sk_acceptInviteNotif() {
         if(!sk_pendingInviteData) return;
         const {id, roomId}=sk_pendingInviteData;
-        sketchDb.ref('sk_invites/'+sk_myUid+'/'+id).remove();
+        skRef('sk_invites/'+sk_myUid+'/'+id).remove();
         sk_joinRoom(roomId);
         document.getElementById('sk-invite-notification').style.display='none';
         sk_pendingInviteData=null;
     }
     function sk_declineInviteNotif() {
         if(!sk_pendingInviteData) return;
-        sketchDb.ref('sk_invites/'+sk_myUid+'/'+sk_pendingInviteData.id).remove();
+        skRef('sk_invites/'+sk_myUid+'/'+sk_pendingInviteData.id).remove();
         document.getElementById('sk-invite-notification').style.display='none';
         sk_pendingInviteData=null;
     }
@@ -5435,11 +5440,11 @@ window.addEventListener('beforeunload',function(){
     function sk_joinRoom(roomId) {
         sk_myRoomId=roomId;
         const displayName=sk_myInfo.grade+'-'+sk_myInfo.classNum+'-'+sk_myInfo.name;
-        sketchDb.ref('sk_rooms/'+roomId+'/members/'+sk_myUid).set(displayName);
-        sketchDb.ref('sk_rooms/'+roomId+'/members/'+sk_myUid).onDisconnect().remove();
+        skRef('sk_rooms/'+roomId+'/members/'+sk_myUid).set(displayName);
+        skRef('sk_rooms/'+roomId+'/members/'+sk_myUid).onDisconnect().remove();
         // listen to canvases of room members
         if(sk_roomCanvasRef) sk_roomCanvasRef.off();
-        sk_roomCanvasRef=sketchDb.ref('sk_rooms/'+roomId+'/canvases');
+        sk_roomCanvasRef=skRef('sk_rooms/'+roomId+'/canvases');
         sk_roomCanvasRef.on('value', snap=>{
             const data=snap.val()||{};
             Object.keys(sk_collabImgElements).forEach(uid=>{ if(!data[uid]) delete sk_collabImgElements[uid]; });
@@ -5454,7 +5459,7 @@ window.addEventListener('beforeunload',function(){
         });
         // listen to members
         if(sk_roomMembersRef) sk_roomMembersRef.off();
-        sk_roomMembersRef=sketchDb.ref('sk_rooms/'+roomId+'/members');
+        sk_roomMembersRef=skRef('sk_rooms/'+roomId+'/members');
         sk_roomMembersRef.on('value', snap=>{ sk_collabMemberNames=snap.val()||{}; sk_updateCollabPanel(); });
         const panel=document.getElementById('sk-collab-panel');
         if(panel) panel.style.display='flex';
@@ -5463,7 +5468,7 @@ window.addEventListener('beforeunload',function(){
 
     function sk_leaveRoom() {
         if(!sk_myRoomId) return;
-        sketchDb.ref('sk_rooms/'+sk_myRoomId+'/members/'+sk_myUid).remove();
+        skRef('sk_rooms/'+sk_myRoomId+'/members/'+sk_myUid).remove();
         if(sk_roomCanvasRef){sk_roomCanvasRef.off();sk_roomCanvasRef=null;}
         if(sk_roomMembersRef){sk_roomMembersRef.off();sk_roomMembersRef=null;}
         sk_myRoomId=null; sk_collabImgElements={}; sk_collabMemberNames={};
