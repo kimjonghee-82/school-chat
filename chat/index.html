@@ -5039,7 +5039,7 @@ window.addEventListener('beforeunload',function(){
             window._skSubImgs=window._skSubImgs||{};
             Object.keys(subs).forEach(uid=>{
                 const s=subs[uid];
-                const title=s.grade+'학년 '+s.classNum+'반 '+s.name;
+                const title=s.grade+' '+s.classNum+' '+s.name;
                 const esc=uid.replace(/'/g,"\\'");
                 // 구형 포맷(단일 image 필드) 호환 처리
                 const slots=[];
@@ -5069,7 +5069,7 @@ window.addEventListener('beforeunload',function(){
         // uid = "{grade}-{classNum}-{name}" 형식에서 이름 추출
         const uidParts=uid.split('-');
         const displayName=uidParts.length>=3?uidParts.slice(2).join('-'):uid;
-        const displayClass=uidParts.length>=2?uidParts[0]+'학년 '+uidParts[1]+'반':'';
+        const displayClass=uidParts.length>=2?uidParts[0]+' '+uidParts[1]:'';
         card.innerHTML=`
             <div style="display:flex;align-items:center;justify-content:space-between;gap:4px;">
                 <div style="flex:1;min-width:0;overflow:hidden">
