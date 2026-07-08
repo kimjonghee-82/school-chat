@@ -5,27 +5,34 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🏆 학급 포인트</title>
 
-<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
 <style>
-/* ── LOGIN PAGE CSS ── */
+/* ════ 공통 기본값 ════ */
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;background:linear-gradient(135deg,#1E1B4B 0%,#312e81 60%,#4338ca 100%);min-height:100vh;color:#fff;}
+:root{
+    --primary:#4F46E5;--primary-dark:#3730A3;--primary-light:#818CF8;
+    --success:#10B981;--danger:#EF4444;--warning:#F59E0B;
+    --bg:#F1F5F9;--card:#FFFFFF;--text:#1E293B;--text-light:#64748B;
+    --border:#E2E8F0;--radius:14px;--radius-sm:8px;
+    --shadow:0 1px 3px rgba(0,0,0,.10);--shadow-md:0 4px 6px -1px rgba(0,0,0,.10);
+    --nav-bg:#F59E0B;--nav-txt:#78350F;
+    --sidebar-bg:#1E1B4B;--sidebar-text:#C7D2FE;
+    --shadow-lg:0 10px 15px -3px rgba(0,0,0,.10),0 4px 6px -2px rgba(0,0,0,.05);
+}
+body{font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;min-height:100vh;}
 
-#pts-login-screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;z-index:100;}
+/* ════ 로그인 화면 ════ */
+body.mode-login{background:linear-gradient(135deg,#1E1B4B 0%,#312e81 60%,#4338ca 100%);color:#fff;}
+#pts-login-screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;z-index:200;overflow-y:auto;}
 .pts-login-logo{font-size:64px;margin-bottom:12px;}
 .pts-login-title{font-size:28px;font-weight:800;margin-bottom:6px;}
 .pts-login-sub{font-size:14px;color:#FDE68A;margin-bottom:32px;}
-
-/* Role selector (first screen) */
 .pts-role-btns{display:flex;gap:20px;flex-wrap:wrap;justify-content:center;margin-bottom:24px;}
 .pts-role-btn{display:flex;flex-direction:column;align-items:center;gap:10px;padding:28px 44px;border-radius:16px;border:2px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:#fff;cursor:pointer;font-size:16px;font-weight:700;font-family:inherit;transition:all .2s;backdrop-filter:blur(4px);}
 .pts-role-btn:hover{background:rgba(255,255,255,.22);border-color:rgba(255,255,255,.5);transform:translateY(-3px);}
 .pts-role-btn .ri{font-size:44px;}
-
-/* Form section */
 .pts-form-section{display:none;width:100%;max-width:400px;}
 .pts-form-back{background:rgba(255,255,255,.15);border:none;color:#fff;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:14px;font-family:inherit;margin-bottom:20px;}
 .pts-form-head{font-size:20px;font-weight:700;margin-bottom:20px;}
@@ -37,22 +44,21 @@ body{font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif
 .pts-finput option{background:#312e81;color:#fff;}
 .pts-btn-login{width:100%;padding:14px;background:linear-gradient(90deg,#818CF8,#6366F1);border:none;border-radius:10px;color:#fff;font-size:16px;font-weight:800;font-family:inherit;cursor:pointer;margin-top:8px;transition:transform .18s,box-shadow .18s;}
 .pts-btn-login:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(99,102,241,.4);}
-
-/* Saved info notice */
 .pts-saved-notice{background:rgba(99,102,241,.25);border:1px solid rgba(129,140,248,.4);border-radius:8px;padding:10px 14px;font-size:12px;color:#C7D2FE;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
 
+/* ════ 학생 모드 ════ */
+body.mode-student{background:var(--bg);color:var(--text);}
+#pts-student-screen{position:fixed;inset:0;overflow-y:auto;z-index:50;background:var(--bg);}
+
+/* ════ 교사 모드 ════ */
+body.mode-teacher{background:var(--bg);color:var(--text);}
+#pts-teacher-screen{position:fixed;inset:0;overflow:hidden;z-index:50;background:var(--bg);display:flex;flex-direction:row;}
+#pts-teacher-screen .sidebar{width:230px;background:#1E1B4B;display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;}
+#pts-teacher-screen .main{flex:1;overflow-y:auto;display:flex;flex-direction:column;}
+
+/* ════ 포인트 앱 CSS ════ */
         /* ── CSS from student points app (scoped) ── */
         
-:root{
-    --primary:#4F46E5;--primary-dark:#3730A3;--primary-light:#818CF8;
-    --success:#10B981;--danger:#EF4444;--warning:#F59E0B;
-    --bg:#F1F5F9;--card:#FFFFFF;--text:#1E293B;--text-light:#64748B;
-    --border:#E2E8F0;--radius:14px;--radius-sm:8px;
-    --shadow:0 1px 3px rgba(0,0,0,.10);--shadow-md:0 4px 6px -1px rgba(0,0,0,.10);
-    --nav-bg:#F59E0B;--nav-txt:#78350F;
-}
-*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
 
 /* ── 역할/학생 선택 ── */
 .full-screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,#1E1B4B 0%,#312e81 60%,#4338ca 100%);z-index:500;padding:24px;}
@@ -113,7 +119,7 @@ body{font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif
 .home-item{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:12px;}
 .home-item:last-child{border-bottom:none;}
 .hi-icon{font-size:22px;width:36px;text-align:center;flex-shrink:0;margin-top:2px;}
-.hi-body{flex:1;min-width:0;}
+.hi-
 .hi-title{font-weight:600;font-size:14px;margin-bottom:3px;}
 .hi-sub{font-size:12px;color:var(--text-light);}
 .hi-action{flex-shrink:0;margin-top:2px;}
@@ -260,34 +266,13 @@ textarea.finput{resize:vertical;}
 .fade{animation:fadeIn .2s ease;}
 
         
-        /* ── CSS from teacher points app (scoped) ── */
         
-        :root {
-            --primary:       #4F46E5;
-            --primary-light: #818CF8;
-            --primary-dark:  #3730A3;
-            --success:       #10B981;
-            --danger:        #EF4444;
-            --warning:       #F59E0B;
-            --bg:            #F1F5F9;
-            --sidebar-bg:    #1E1B4B;
-            --sidebar-text:  #C7D2FE;
-            --card:          #FFFFFF;
-            --text:          #1E293B;
-            --text-light:    #64748B;
-            --border:        #E2E8F0;
-            --shadow:     0 1px 3px rgba(0,0,0,.10), 0 1px 2px rgba(0,0,0,.06);
-            --shadow-md:  0 4px 6px -1px rgba(0,0,0,.10), 0 2px 4px -1px rgba(0,0,0,.06);
-            --shadow-lg:  0 10px 15px -3px rgba(0,0,0,.10), 0 4px 6px -2px rgba(0,0,0,.05);
-            --radius:     12px;
-            --radius-sm:   8px;
-        }
-        *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
-        body {
-            font-family: 'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;
-            background: var(--bg); color: var(--text);
-            display: flex; height: 100vh; overflow: hidden;
-        }
+
+/* ── CSS from teacher points app (scoped) ── */
+        
+        
+        
+        
 
         /* ─── SIDEBAR ─── */
         .sidebar { width:230px; background:var(--sidebar-bg); display:flex; flex-direction:column; flex-shrink:0; }
@@ -657,98 +642,71 @@ textarea.finput{resize:vertical;}
 /* Fix body for pts-teacher-screen */
 #pts-teacher-screen{position:fixed;inset:0;overflow:hidden;z-index:50;background:#F1F5F9;box-sizing:border-box;flex-direction:row;}
 #pts-student-screen{position:fixed;inset:0;overflow-y:auto;z-index:50;background:#F1F5F9;box-sizing:border-box;}
+
 </style>
 </head>
-<body>
+<body class="mode-login">
 
-<!-- ═══ POINTS LOGIN SCREEN ═══ -->
+<!-- ═══ 로그인 화면 ═══ -->
 <div id="pts-login-screen">
     <div class="pts-login-logo">🏆</div>
     <h1 class="pts-login-title">학급 포인트</h1>
     <p class="pts-login-sub">역할을 선택하세요</p>
-
-    <!-- Role selection -->
     <div id="pts-role-select">
         <div class="pts-role-btns">
-            <button class="pts-role-btn" onclick="pts_showLoginScreen('teacher')">
-                <span class="ri">👩‍🏫</span>선생님
-            </button>
-            <button class="pts-role-btn" onclick="pts_showLoginScreen('student')">
-                <span class="ri">👨‍🎓</span>학생
-            </button>
+            <button class="pts-role-btn" onclick="pts_showLoginScreen('teacher')"><span class="ri">👩‍🏫</span>선생님</button>
+            <button class="pts-role-btn" onclick="pts_showLoginScreen('student')"><span class="ri">👨‍🎓</span>학생</button>
         </div>
     </div>
-
-    <!-- Teacher login form -->
     <div class="pts-form-section" id="pts-teacher-form">
         <button class="pts-form-back" onclick="pts_showLoginScreen('role')">← 뒤로</button>
         <div class="pts-form-head">👩‍🏫 선생님 로그인</div>
-        <div id="pts-teacher-saved-notice" class="pts-saved-notice" style="display:none">
-            💾 저장된 계정으로 자동 입력되었습니다
-        </div>
-        <div class="pts-fg">
-            <label>학년</label>
+        <div id="pts-teacher-saved-notice" class="pts-saved-notice" style="display:none">💾 저장된 계정으로 자동 입력되었습니다</div>
+        <div class="pts-fg"><label>학년</label>
             <select id="pts-tch-grade" class="pts-finput">
                 <option value="1학년">1학년</option><option value="2학년">2학년</option>
                 <option value="3학년">3학년</option><option value="4학년">4학년</option>
                 <option value="5학년">5학년</option><option value="6학년">6학년</option>
-            </select>
-        </div>
-        <div class="pts-fg">
-            <label>반</label>
+            </select></div>
+        <div class="pts-fg"><label>반</label>
             <select id="pts-tch-class" class="pts-finput">
                 <option value="1반">1반</option><option value="2반">2반</option>
                 <option value="3반">3반</option><option value="4반">4반</option>
                 <option value="5반">5반</option><option value="6반">6반</option>
-            </select>
-        </div>
-        <div class="pts-fg">
-            <label>선생님 이름</label>
-            <input type="text" id="pts-tch-name" class="pts-finput" placeholder="이름을 입력하세요">
-        </div>
-        <div class="pts-fg">
-            <label>암호</label>
+            </select></div>
+        <div class="pts-fg"><label>선생님 이름</label>
+            <input type="text" id="pts-tch-name" class="pts-finput" placeholder="이름을 입력하세요"></div>
+        <div class="pts-fg"><label>암호</label>
             <input type="password" id="pts-tch-pwd" class="pts-finput" placeholder="선생님 암호"
-                onkeydown="if(event.key==='Enter')pts_teacherLogin()">
-        </div>
+                onkeydown="if(event.key==='Enter')pts_teacherLogin()"></div>
         <button class="pts-btn-login" onclick="pts_teacherLogin()">🏫 입장하기</button>
     </div>
-
-    <!-- Student login form -->
     <div class="pts-form-section" id="pts-student-form">
         <button class="pts-form-back" onclick="pts_showLoginScreen('role')">← 뒤로</button>
         <div class="pts-form-head">👨‍🎓 학생 로그인</div>
-        <div id="pts-student-saved-notice" class="pts-saved-notice" style="display:none">
-            💾 이전에 저장된 코드로 자동 로그인됩니다
-        </div>
-        <div class="pts-fg">
-            <label>학년</label>
+        <div id="pts-student-saved-notice" class="pts-saved-notice" style="display:none">💾 이전에 저장된 코드로 자동 로그인됩니다</div>
+        <div class="pts-fg"><label>학년</label>
             <select id="pts-stu-grade" class="pts-finput">
                 <option value="1학년">1학년</option><option value="2학년">2학년</option>
                 <option value="3학년">3학년</option><option value="4학년">4학년</option>
                 <option value="5학년">5학년</option><option value="6학년">6학년</option>
-            </select>
-        </div>
-        <div class="pts-fg">
-            <label>반</label>
+            </select></div>
+        <div class="pts-fg"><label>반</label>
             <select id="pts-stu-class" class="pts-finput">
                 <option value="1반">1반</option><option value="2반">2반</option>
                 <option value="3반">3반</option><option value="4반">4반</option>
                 <option value="5반">5반</option><option value="6반">6반</option>
-            </select>
-        </div>
-        <div class="pts-fg">
-            <label>선생님이 알려준 5자리 코드</label>
+            </select></div>
+        <div class="pts-fg"><label>선생님이 알려준 5자리 코드</label>
             <input type="text" id="pts-stu-code" class="pts-finput" maxlength="5"
                 inputmode="numeric" placeholder="00000"
                 style="text-align:center;font-size:28px;letter-spacing:8px;font-weight:800;font-family:monospace"
-                onkeydown="if(event.key==='Enter')pts_studentLogin()">
-        </div>
+                onkeydown="if(event.key==='Enter')pts_studentLogin()"></div>
         <button class="pts-btn-login" onclick="pts_studentLogin()">🏫 입장하기</button>
     </div>
 </div>
 
-<!-- ═══ STUDENT POINTS SCREEN ═══ -->
+<!-- ═══ 학생 포인트 화면 ═══ -->
 <div id="pts-student-screen" style="display:none;">
     <div id="pts-student-screen" style="display:none; position:fixed; inset:0; overflow-y:auto; z-index:50; background:#F1F5F9; padding-top:52px; box-sizing:border-box;">
         <!-- ═══ 역할 선택 ═══ -->
@@ -1138,6 +1096,9 @@ textarea.finput{resize:vertical;}
 </div>
 
 <!-- ═══ TEACHER POINTS SCREEN ═══ -->
+</div>
+
+<!-- ═══ 교사 포인트 화면 ═══ -->
 <div id="pts-teacher-screen" style="display:none;">
     <div id="pts-teacher-screen" style="display:none; position:fixed; inset:0; overflow:hidden; z-index:50; background:#F1F5F9; padding-top:52px; box-sizing:border-box; flex-direction:row;">
         <!-- ═══════════════════════════ SIDEBAR ═══════════════════════════ -->
@@ -1767,6 +1728,8 @@ textarea.finput{resize:vertical;}
 
 </div>
 
+</div>
+
 <!-- ═══ 프로필 편집 모달 ═══ -->
 <div id="stu-modal-profile-edit" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;">
   <div style="background:white;border-radius:16px;padding:22px;width:320px;max-height:80vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,0.3);">
@@ -1804,6 +1767,14 @@ try {
     const firebaseConfig = { databaseURL: "https://school-chat-7051e-default-rtdb.firebaseio.com/" };
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     database = firebase.database();
+
+<!-- ═══ Firebase 초기화 ═══ -->
+<script>
+var database = null;
+try {
+    var _fbCfg = { databaseURL: "https://school-chat-7051e-default-rtdb.firebaseio.com/" };
+    if (!firebase.apps.length) firebase.initializeApp(_fbCfg);
+    database = firebase.database();
 } catch(e) { console.error("Firebase 초기화 에러:", e); }
 
 function pts_fbPath() {
@@ -1811,78 +1782,80 @@ function pts_fbPath() {
     return 'points/' + window.currentUser.grade + '-' + window.currentUser.classNum;
 }
 function pts_fbSave(key, data) {
-    const path = pts_fbPath();
+    var path = pts_fbPath();
     if (!database || !path) return;
     database.ref(path + '/' + key).set(data).catch(function(e){ console.warn('Firebase 저장 오류:', e); });
 }
 function pts_fbLoad(callback) {
-    const path = pts_fbPath();
+    var path = pts_fbPath();
     if (!database || !path) { callback(null); return; }
-    database.ref(path).once('value', function(snap){ callback(snap.val()); }, function(e){ console.warn('Firebase 읽기 오류:', e); callback(null); });
+    database.ref(path).once('value',
+        function(snap){ callback(snap.val()); },
+        function(e){ console.warn('Firebase 읽기 오류:', e); callback(null); }
+    );
 }
-
 var currentUser = null;
 </script>
 
-<!-- ═══ POINTS LOGIN LOGIC ═══ -->
+<!-- ═══ 로그인 로직 ═══ -->
 <script>
-var pts_loginRole = null; // 'teacher' | 'student'
-
 function pts_showLoginScreen(section) {
-    document.getElementById('pts-role-select').style.display = (section === 'role') ? '' : 'none';
+    document.getElementById('pts-role-select').style.display  = (section === 'role')    ? '' : 'none';
     document.getElementById('pts-teacher-form').style.display = (section === 'teacher') ? '' : 'none';
     document.getElementById('pts-student-form').style.display = (section === 'student') ? '' : 'none';
-    pts_loginRole = (section === 'role') ? null : section;
-
     if (section === 'teacher') {
-        // Auto-fill saved teacher info
         var g = localStorage.getItem('pts_tch_grade');
         var c = localStorage.getItem('pts_tch_class');
         var n = localStorage.getItem('pts_tch_name');
         if (g) document.getElementById('pts-tch-grade').value = g;
         if (c) document.getElementById('pts-tch-class').value = c;
         if (n) document.getElementById('pts-tch-name').value = n;
-        document.getElementById('pts-teacher-saved-notice').style.display = (g || c || n) ? '' : 'none';
+        document.getElementById('pts-teacher-saved-notice').style.display = (g||c||n) ? '' : 'none';
     }
-
     if (section === 'student') {
-        // Auto-fill saved student info
         var sg = localStorage.getItem('pts_stu_grade');
         var sc = localStorage.getItem('pts_stu_class');
-        var scode = localStorage.getItem('sch_saved_code');
+        var sk = localStorage.getItem('sch_saved_code');
         if (sg) document.getElementById('pts-stu-grade').value = sg;
         if (sc) document.getElementById('pts-stu-class').value = sc;
-        if (sg && sc && scode) {
-            // Attempt auto-login
+        if (sg && sc && sk) {
             document.getElementById('pts-student-saved-notice').style.display = '';
-            document.getElementById('pts-stu-code').value = scode;
-            // Auto-login after short delay
-            setTimeout(function() { pts_studentAutoLogin(sg, sc, scode); }, 300);
+            document.getElementById('pts-stu-code').value = sk;
+            setTimeout(function(){ pts_studentAutoLogin(sg, sc, sk); }, 400);
         } else {
             document.getElementById('pts-student-saved-notice').style.display = 'none';
         }
     }
 }
 
-function pts_teacherLogin() {
-    var grade   = document.getElementById('pts-tch-grade').value;
-    var classNum = document.getElementById('pts-tch-class').value;
-    var name    = document.getElementById('pts-tch-name').value.trim();
-    var pwd     = document.getElementById('pts-tch-pwd').value;
+function pts_enterStudent(studentName) {
+    document.getElementById('pts-login-screen').style.display = 'none';
+    document.getElementById('pts-student-screen').style.display = 'block';
+    document.body.className = 'mode-student';
+    var r = document.getElementById('stu-screen-role');
+    var s = document.getElementById('stu-screen-students');
+    var a = document.getElementById('stu-app');
+    if (r) r.style.display = 'none';
+    if (s) s.style.display = 'none';
+    if (a) a.style.display = 'block';
+    if (typeof stu_initStudentApp === 'function') stu_initStudentApp(studentName);
+}
 
+function pts_teacherLogin() {
+    var grade    = document.getElementById('pts-tch-grade').value;
+    var classNum = document.getElementById('pts-tch-class').value;
+    var name     = document.getElementById('pts-tch-name').value.trim();
+    var pwd      = document.getElementById('pts-tch-pwd').value;
     if (!name) { alert('선생님 이름을 입력해주세요'); return; }
     if (pwd !== 'school1234') { alert('❌ 암호가 일치하지 않습니다'); return; }
-
-    // Save teacher info
     localStorage.setItem('pts_tch_grade', grade);
     localStorage.setItem('pts_tch_class', classNum);
     localStorage.setItem('pts_tch_name', name);
-
     currentUser = { grade: grade, classNum: classNum, name: name, role: 'teacher' };
     window.currentUser = currentUser;
-
     document.getElementById('pts-login-screen').style.display = 'none';
     document.getElementById('pts-teacher-screen').style.display = 'flex';
+    document.body.className = 'mode-teacher';
     if (typeof tch_initTeacherApp === 'function') tch_initTeacherApp();
 }
 
@@ -1890,48 +1863,34 @@ function pts_studentLogin() {
     var grade    = document.getElementById('pts-stu-grade').value;
     var classNum = document.getElementById('pts-stu-class').value;
     var code     = document.getElementById('pts-stu-code').value.trim();
-
     if (code.length !== 5) { alert('5자리 코드를 입력해주세요'); return; }
-
-    // Save grade/class for next time
+    if (!database) { alert('서버 연결을 확인해주세요'); return; }
     localStorage.setItem('pts_stu_grade', grade);
     localStorage.setItem('pts_stu_class', classNum);
-
-    // Set currentUser so pts_fbPath works
     currentUser = { grade: grade, classNum: classNum, role: 'student' };
     window.currentUser = currentUser;
-
-    // Load student list from Firebase, then match code
     pts_fbLoad(function(data) {
         var students = (data && data.students) ? data.students : [];
         var found = students.find(function(s){ return s && s.code === code; });
         if (!found) {
             alert('❌ 코드를 찾을 수 없습니다.\n선생님에게 코드를 다시 확인해주세요.');
+            currentUser = null; window.currentUser = null;
             return;
         }
-        // Save code for next auto-login
         localStorage.setItem('sch_saved_code', code);
-
         currentUser.name = found.name;
         window.currentUser = currentUser;
-
-        document.getElementById('pts-login-screen').style.display = 'none';
-        document.getElementById('pts-student-screen').style.display = 'block';
-
-        // Init student app
-        if (typeof stu_initStudentApp === 'function') stu_initStudentApp(found.name);
+        pts_enterStudent(found.name);
     });
 }
 
 function pts_studentAutoLogin(grade, classNum, code) {
     currentUser = { grade: grade, classNum: classNum, role: 'student' };
     window.currentUser = currentUser;
-
     pts_fbLoad(function(data) {
         var students = (data && data.students) ? data.students : [];
         var found = students.find(function(s){ return s && s.code === code; });
         if (!found) {
-            // Saved code no longer valid
             localStorage.removeItem('sch_saved_code');
             document.getElementById('pts-student-saved-notice').style.display = 'none';
             document.getElementById('pts-stu-code').value = '';
@@ -1940,40 +1899,31 @@ function pts_studentAutoLogin(grade, classNum, code) {
         }
         currentUser.name = found.name;
         window.currentUser = currentUser;
-
-        document.getElementById('pts-login-screen').style.display = 'none';
-        document.getElementById('pts-student-screen').style.display = 'block';
-
-        if (typeof stu_initStudentApp === 'function') stu_initStudentApp(found.name);
+        pts_enterStudent(found.name);
     });
 }
 
 function pts_handleLogout() {
-    currentUser = null;
-    window.currentUser = null;
+    currentUser = null; window.currentUser = null;
     document.getElementById('pts-student-screen').style.display = 'none';
     document.getElementById('pts-teacher-screen').style.display = 'none';
     document.getElementById('pts-login-screen').style.display = 'flex';
     document.getElementById('pts-role-select').style.display = '';
     document.getElementById('pts-teacher-form').style.display = 'none';
     document.getElementById('pts-student-form').style.display = 'none';
+    document.body.className = 'mode-login';
 }
-
-// Alias for student code modal cancel button
 function handleLogout() { pts_handleLogout(); }
 
-// Init: check if saved student info exists for auto-login attempt
 window.addEventListener('load', function() {
     var sg = localStorage.getItem('pts_stu_grade');
     var sc = localStorage.getItem('pts_stu_class');
-    var scode = localStorage.getItem('sch_saved_code');
-    if (sg && sc && scode) {
-        // Auto-navigate to student form which will attempt auto-login
-        pts_showLoginScreen('student');
-    }
+    var sk = localStorage.getItem('sch_saved_code');
+    if (sg && sc && sk) { pts_showLoginScreen('student'); }
 });
 </script>
 
+<!-- ═══ STUDENT POINTS APP JS ═══ -->
 <script>
 /* ────────────────────────────────────────────────────────── */
 /*  STUDENT POINTS SYSTEM (학생 포인트 앱)                       */
@@ -3251,7 +3201,7 @@ function stu_initStudentApp(studentName) {
 }
 </script>
 
-
+<!-- ═══ TEACHER POINTS APP JS ═══ -->
 <script>
 /* ────────────────────────────────────────────────────────── */
 /*  TEACHER POINTS SYSTEM (교사 포인트 앱)                       */
@@ -4874,7 +4824,6 @@ function tch_initTeacherApp() {
     tch_load();
 }
 </script>
-
 
 <script>
 /* ── 프로필 편집 ── */
