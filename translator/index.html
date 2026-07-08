@@ -2817,12 +2817,29 @@ async function dbAddPost() {
   msg.style.color = 'var(--sub)'; msg.textContent = '등록 중...';
   btn.disabled = true;
   try {
-    await fbDb.ref('download_board').push({ title, url, desc, createdAt: Date.now() });
+    const now = Date.now();
+    const ref = await fbDb.ref('download_board').push({ title, url, desc, createdAt: now });
     document.getElementById('dbInputTitle').value = '';
     document.getElementById('dbInputUrl').value = '';
     document.getElementById('dbInputDesc').value = '';
     msg.style.color = '#66bb6a'; msg.textContent = '✅ 등록되었습니다!';
-    await dbRenderPosts();
+    // 목록 맨 위에 새 카드 바로 추가
+    const listEl = document.getElementById('dbPostList');
+    if (listEl.querySelector('div[style*="text-align:center"]')) listEl.innerHTML = '';
+    const card = document.createElement('div');
+    card.style.cssText = 'background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:4px';
+    card.innerHTML = `
+      <div style="display:flex;align-items:flex-start;gap:8px">
+        <div style="flex:1">
+          <a href="${url}" target="_blank" rel="noopener"
+            style="font-size:.95rem;font-weight:700;color:var(--accent);text-decoration:none;word-break:break-all">${title}</a>
+          ${desc ? `<div style="font-size:.8rem;color:var(--sub);margin-top:3px">${desc}</div>` : ''}
+        </div>
+        <button onclick="dbDeletePost('${ref.key}')" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--sub);flex-shrink:0" title="삭제">🗑️</button>
+      </div>
+      <div style="font-size:.72rem;color:var(--sub)">${new Date(now).toLocaleDateString('ko-KR')}</div>
+    `;
+    listEl.prepend(card);
   } catch(e) {
     msg.style.color = '#e57373'; msg.textContent = '❌ 등록 실패: ' + e.message;
   } finally {
