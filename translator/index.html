@@ -2748,16 +2748,18 @@ function closeShareReceive() {
 ══════════════════════════════ */
 const DB_PW = 'school1234';
 let dbAuthed = false;
-let dbPostsQuery = null;
 
 function openDownloadBoard() {
   document.getElementById('downloadBoardModal').style.display = 'flex';
-  dbLoadPosts();
+  dbRenderPosts();
 }
 
 function closeDownloadBoard() {
   document.getElementById('downloadBoardModal').style.display = 'none';
-  if (dbPostsQuery) { dbPostsQuery.off(); dbPostsQuery = null; }
+  dbAuthed = false;
+  document.getElementById('dbAuthArea').style.display = 'flex';
+  document.getElementById('dbWriteArea').style.display = 'none';
+  document.getElementById('dbPwInput').value = '';
 }
 
 function dbAuth() {
@@ -2766,14 +2768,14 @@ function dbAuth() {
   dbAuthed = true;
   document.getElementById('dbAuthArea').style.display = 'none';
   document.getElementById('dbWriteArea').style.display = 'block';
+  dbRenderPosts();
 }
 
-function dbLoadPosts() {
+async function dbRenderPosts() {
   const listEl = document.getElementById('dbPostList');
   listEl.innerHTML = '<div style="text-align:center;color:var(--sub);font-size:.85rem;padding:20px">불러오는 중...</div>';
-  if (dbPostsQuery) dbPostsQuery.off();
-  dbPostsQuery = fbDb.ref('download_board').orderByChild('createdAt');
-  dbPostsQuery.on('value', snap => {
+  try {
+    const snap = await fbDb.ref('download_board').orderByChild('createdAt').get();
     const posts = [];
     snap.forEach(c => posts.unshift({ id: c.key, ...c.val() }));
     if (!posts.length) {
@@ -2797,7 +2799,9 @@ function dbLoadPosts() {
       `;
       listEl.appendChild(card);
     });
-  });
+  } catch(e) {
+    listEl.innerHTML = `<div style="text-align:center;color:#e57373;font-size:.85rem;padding:20px">불러오기 실패: ${e.message}</div>`;
+  }
 }
 
 async function dbAddPost() {
@@ -2806,18 +2810,26 @@ async function dbAddPost() {
   const desc  = document.getElementById('dbInputDesc').value.trim();
   if (!title) { alert('제목을 입력하세요.'); return; }
   if (!url || !url.startsWith('http')) { alert('올바른 링크를 입력하세요.'); return; }
+  const btn = document.querySelector('#dbWriteArea .btn-primary');
+  btn.disabled = true; btn.textContent = '등록 중...';
   try {
     await fbDb.ref('download_board').push({ title, url, desc, createdAt: Date.now() });
     document.getElementById('dbInputTitle').value = '';
     document.getElementById('dbInputUrl').value = '';
     document.getElementById('dbInputDesc').value = '';
-  } catch(e) { alert('등록 실패: ' + e.message); }
+    await dbRenderPosts();
+  } catch(e) {
+    alert('등록 실패: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '✅ 등록';
+  }
 }
 
 async function dbDeletePost(id) {
   if (!confirm('이 자료를 삭제할까요?')) return;
   try {
     await fbDb.ref(`download_board/${id}`).remove();
+    await dbRenderPosts();
   } catch(e) { alert('삭제 실패: ' + e.message); }
 }
 </script>
