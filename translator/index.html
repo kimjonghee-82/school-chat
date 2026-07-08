@@ -68,7 +68,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
 }
 .shelf-books {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 10px;
   align-items: flex-end;
   padding: 20px 16px 6px;
@@ -1006,6 +1006,14 @@ function renderBookshelf() {
       } else {
         booksEl.appendChild(createBookEl(item));
       }
+    }
+    // 마지막 선반의 빈 자리를 투명 placeholder로 채워 셀 너비를 균일하게 유지
+    for (let i = end - start; i < booksPerShelf; i++) {
+      const ph = document.createElement('div');
+      ph.className = 'book-item';
+      ph.style.visibility = 'hidden';
+      ph.innerHTML = '<div class="book-cover"></div>';
+      booksEl.appendChild(ph);
     }
 
     shelfEl.appendChild(booksEl);
