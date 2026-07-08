@@ -2602,7 +2602,7 @@ window.addEventListener('beforeunload',function(){
     function handleMissionFile(event) {
         const file = event.target.files[0];
         if (!file) return;
-        if (file.size > 600000) { alert('❌ 파일이 너무 큽니다 (최대 600KB). 이미지는 압축 후 업로드하세요.'); event.target.value = ''; return; }
+        if (file.size > 10 * 1024 * 1024) { alert('❌ 파일이 너무 큽니다 (최대 10MB).'); event.target.value = ''; return; }
         missionFileName = file.name;
         missionFileType = file.type.startsWith('image/') ? 'image' : 'file';
         document.getElementById('mission-file-name').innerText = file.name;
@@ -3767,6 +3767,7 @@ window.addEventListener('beforeunload',function(){
 
     function sk_sendBroadcastImage(e) {
         const f=e.target.files[0]; if(!f) return;
+        if(f.size > 10 * 1024 * 1024) { alert('❌ 파일이 너무 큽니다 (최대 10MB).'); e.target.value=''; return; }
         const r=new FileReader(); r.onload=(ev)=>{skRef('broadcast').set({img:ev.target.result,ts:Date.now()});alert("전송 완료!");}; r.readAsDataURL(f); e.target.value='';
     }
 
@@ -4297,7 +4298,13 @@ function switchToShareScreen() {
 async function mon_startScreenShare() {
     if (!myInfo || myInfo.isTeacher || !database) return;
     try {
-        var stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+        var stream = await navigator.mediaDevices.getDisplayMedia({
+            video: { displaySurface: 'monitor' },
+            audio: false,
+            preferCurrentTab: false,
+            selfBrowserSurface: 'exclude',
+            monitorTypeSurfaces: 'include'
+        });
         mon_shareStream = stream;
         mon_shareActive = true;
 
