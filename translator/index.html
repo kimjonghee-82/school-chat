@@ -2748,7 +2748,7 @@ function closeShareReceive() {
 ══════════════════════════════ */
 const DB_PW = 'school1234';
 let dbAuthed = false;
-let dbPostsRef = null;
+let dbPostsQuery = null;
 
 function openDownloadBoard() {
   document.getElementById('downloadBoardModal').style.display = 'flex';
@@ -2757,7 +2757,7 @@ function openDownloadBoard() {
 
 function closeDownloadBoard() {
   document.getElementById('downloadBoardModal').style.display = 'none';
-  if (dbPostsRef) { dbPostsRef.off(); dbPostsRef = null; }
+  if (dbPostsQuery) { dbPostsQuery.off(); dbPostsQuery = null; }
 }
 
 function dbAuth() {
@@ -2771,9 +2771,9 @@ function dbAuth() {
 function dbLoadPosts() {
   const listEl = document.getElementById('dbPostList');
   listEl.innerHTML = '<div style="text-align:center;color:var(--sub);font-size:.85rem;padding:20px">불러오는 중...</div>';
-  if (dbPostsRef) dbPostsRef.off();
-  dbPostsRef = fbDb.ref('download_board');
-  dbPostsRef.orderByChild('createdAt').on('value', snap => {
+  if (dbPostsQuery) dbPostsQuery.off();
+  dbPostsQuery = fbDb.ref('download_board').orderByChild('createdAt');
+  dbPostsQuery.on('value', snap => {
     const posts = [];
     snap.forEach(c => posts.unshift({ id: c.key, ...c.val() }));
     if (!posts.length) {
