@@ -722,16 +722,17 @@ body.live-on .nav-arrow.right { right: 30%; }
     </div>
 
     <!-- 글쓰기 영역 (비밀번호 확인 후 표시) -->
-    <div id="dbWriteArea" style="display:none;border-top:1px solid var(--border);padding-top:14px;display:none">
+    <div id="dbWriteArea" style="display:none;border-top:1px solid var(--border);padding-top:14px">
+      <div id="dbAddMsg" style="font-size:.82rem;margin-bottom:8px;min-height:18px"></div>
       <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px">
         <input id="dbInputTitle" placeholder="제목" maxlength="80"
           style="width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:.9rem">
-        <input id="dbInputUrl" placeholder="구글 드라이브 링크 (https://...)" type="url"
+        <input id="dbInputUrl" placeholder="구글 드라이브 링크 (https://...)" type="text"
           style="width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:.9rem">
         <input id="dbInputDesc" placeholder="설명 (선택)" maxlength="120"
           style="width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:.85rem">
       </div>
-      <button class="btn btn-primary" style="width:100%" onclick="dbAddPost()">✅ 등록</button>
+      <button id="dbAddBtn" class="btn btn-primary" style="width:100%" onclick="dbAddPost()">✅ 등록</button>
     </div>
 
     <!-- 비밀번호 버튼 / 잠금 해제 -->
@@ -2809,20 +2810,23 @@ async function dbAddPost() {
   const title = document.getElementById('dbInputTitle').value.trim();
   const url   = document.getElementById('dbInputUrl').value.trim();
   const desc  = document.getElementById('dbInputDesc').value.trim();
-  if (!title) { alert('제목을 입력하세요.'); return; }
-  if (!url || !url.startsWith('http')) { alert('올바른 링크를 입력하세요.'); return; }
-  const btn = document.querySelector('#dbWriteArea .btn-primary');
-  btn.disabled = true; btn.textContent = '등록 중...';
+  const msg   = document.getElementById('dbAddMsg');
+  const btn   = document.getElementById('dbAddBtn');
+  if (!title) { msg.style.color='#e57373'; msg.textContent='⚠️ 제목을 입력하세요.'; return; }
+  if (!url)   { msg.style.color='#e57373'; msg.textContent='⚠️ 링크를 입력하세요.'; return; }
+  msg.style.color = 'var(--sub)'; msg.textContent = '등록 중...';
+  btn.disabled = true;
   try {
     await fbDb.ref('download_board').push({ title, url, desc, createdAt: Date.now() });
     document.getElementById('dbInputTitle').value = '';
     document.getElementById('dbInputUrl').value = '';
     document.getElementById('dbInputDesc').value = '';
+    msg.style.color = '#66bb6a'; msg.textContent = '✅ 등록되었습니다!';
     await dbRenderPosts();
   } catch(e) {
-    alert('등록 실패: ' + e.message);
+    msg.style.color = '#e57373'; msg.textContent = '❌ 등록 실패: ' + e.message;
   } finally {
-    btn.disabled = false; btn.textContent = '✅ 등록';
+    btn.disabled = false;
   }
 }
 
