@@ -548,6 +548,9 @@
                     <button onclick="sk_clearAllStudentsCanvas()" style="width:100%; padding:9px; background:#922b21; color:white; border:none; border-radius:6px; cursor:pointer; font-size:12px; font-weight:bold; margin-bottom:5px;">🗑️ 전체 지우기</button>
                     <button onclick="sk_clearSelectedStudentsCanvas()" style="width:100%; padding:9px; background:#e67e22; color:white; border:none; border-radius:6px; cursor:pointer; font-size:12px;">✂️ 선택 지우기</button>
                 </div>
+                <div style="margin-top:10px; border-top:1px solid #3d5165; padding-top:10px;">
+                    <button onclick="openGiveTokenModal()" style="width:100%; padding:10px; background:#FF6B35; color:white; border:none; border-radius:6px; cursor:pointer; font-size:13px; font-weight:bold;">🪙 토큰 지급</button>
+                </div>
             </div>
         </div>
         <div id="sk-teacher-main" style="flex-grow:1; display:flex; flex-direction:column; overflow:hidden;">
@@ -4018,19 +4021,36 @@ window.addEventListener('beforeunload',function(){
 <script>
 /* ── Teacher Token Give (from chat) ── */
 function openGiveTokenModal() {
-    // Populate student list from Firebase users
-    const sel = document.getElementById('tch-give-token-student');
-    sel.innerHTML = '<option value="">학생 선택</option>';
+    // Collect connected student names
+    const names = new Set();
+    // From chat user list
     const ul = document.getElementById('teacher-user-list-ul');
-    if (ul) {
-        ul.querySelectorAll('li[data-username]').forEach(li => {
-            const name = li.getAttribute('data-username');
-            if (name) {
-                const opt = document.createElement('option');
-                opt.value = name;
-                opt.textContent = name;
-                sel.appendChild(opt);
-            }
+    if (ul) ul.querySelectorAll('li[data-username]').forEach(li => { const n = li.getAttribute('data-username'); if (n) names.add(n); });
+    // From sketchbook user list
+    const skul = document.getElementById('sk-active-user-list');
+    if (skul) skul.querySelectorAll('li[data-username]').forEach(li => { const n = li.getAttribute('data-username'); if (n) names.add(n); });
+    // Also from localUsers
+    if (typeof localUsers === 'object') {
+        Object.values(localUsers).forEach(u => { if (u && u.name && !u.isTeacher) names.add(u.name); });
+    }
+
+    const box = document.getElementById('tch-give-token-list');
+    box.innerHTML = '';
+    if (names.size === 0) {
+        box.innerHTML = '<div style="color:#999;font-size:12px;text-align:center;padding:10px">접속 중인 학생이 없습니다</div>';
+    } else {
+        // "전체 선택" checkbox
+        const allLabel = document.createElement('label');
+        allLabel.style.cssText = 'display:flex;align-items:center;gap:6px;padding:5px 4px;border-bottom:1px solid #eee;margin-bottom:4px;font-weight:700;cursor:pointer';
+        allLabel.innerHTML = '<input type="checkbox" id="tch-token-check-all" onchange="(function(e){document.querySelectorAll(\'.tch-token-chk\').forEach(c=>c.checked=e.target.checked)})(event)" style="width:15px;height:15px;cursor:pointer"> 전체 선택';
+        box.appendChild(allLabel);
+        names.forEach(name => {
+            const label = document.createElement('label');
+            label.style.cssText = 'display:flex;align-items:center;gap:8px;padding:5px 4px;border-radius:4px;cursor:pointer;transition:background .1s';
+            label.onmouseenter = () => label.style.background='#FFF3E0';
+            label.onmouseleave = () => label.style.background='';
+            label.innerHTML = `<input type="checkbox" class="tch-token-chk" value="${name}" style="width:15px;height:15px;cursor:pointer"> <span style="font-size:13px">👤 ${name}</span>`;
+            box.appendChild(label);
         });
     }
     document.getElementById('tch-give-token-amount').value = '';
@@ -4039,24 +4059,38 @@ function openGiveTokenModal() {
 }
 
 function confirmGiveToken() {
-    const studentName = document.getElementById('tch-give-token-student').value;
+    const checked = Array.from(document.querySelectorAll('.tch-token-chk:checked')).map(c => c.value);
     const amount = parseInt(document.getElementById('tch-give-token-amount').value);
     const reason = document.getElementById('tch-give-token-reason').value.trim() || '교사 지급';
-    if (!studentName) { alert('학생을 선택해주세요'); return; }
+    if (!checked.length) { alert('학생을 한 명 이상 선택해주세요'); return; }
     if (!amount || amount < 1) { alert('토큰 수량을 입력해주세요'); return; }
-    // Give token via Firebase
-    if (typeof db !== 'undefined' && db) {
-        const usersRef = db.ref('users');
-        usersRef.orderByChild('name').equalTo(studentName).once('value', snap => {
-            snap.forEach(child => {
-                const cur = child.val().tokens || 0;
-                child.ref.update({ tokens: cur + amount });
-                db.ref('token_log').push({ from: '교사', to: studentName, amount, reason, at: new Date().toISOString() });
-            });
+    _giveTokensToPoints(checked, amount, reason, function(successNames) {
+        document.getElementById('tch-give-token-modal').style.display = 'none';
+        if (successNames.length) alert('✅ ' + successNames.join(', ') + '에게 🪙' + amount + ' 지급 완료!\n\n포인트 앱에 반영되었습니다.');
+        else alert('❌ 포인트 앱에 등록된 학생을 찾지 못했습니다.\n학생 이름이 포인트 앱과 동일한지 확인해주세요.');
+    });
+}
+
+// 포인트 앱 DB에 토큰 지급 (공통 함수)
+function _giveTokensToPoints(names, amount, reason, callback) {
+    if (!database) { alert('Firebase 연결을 확인해주세요'); return; }
+    pts_fbLoad(function(data) {
+        var students = (data && data.students) ? data.students.slice() : [];
+        var successNames = [];
+        names.forEach(function(name) {
+            var stu = students.find(function(s){ return s && s.name === name; });
+            if (stu) {
+                stu.tokens = (stu.tokens || 0) + amount;
+                successNames.push(name);
+            }
         });
-    }
-    document.getElementById('tch-give-token-modal').style.display = 'none';
-    alert(`✅ ${studentName}에게 🪙${amount} 지급 완료!`);
+        if (successNames.length) {
+            pts_fbSave('students', students);
+            // 지급 로그
+            database.ref('pts_token_log').push({ from: myInfo.name || '교사', to: names.join(','), amount: amount, reason: reason, at: new Date().toISOString() });
+        }
+        if (callback) callback(successNames);
+    });
 }
 
 var _currentRoomParticipants = [];
@@ -4074,22 +4108,13 @@ function confirmRoomToken() {
     const amount = parseInt(document.getElementById('tch-room-token-amount').value);
     const reason = document.getElementById('tch-room-token-reason').value.trim() || '채팅방 참여';
     if (!amount || amount < 1) { alert('토큰 수량을 입력해주세요'); return; }
-    const participants = _currentRoomParticipants;
+    const participants = _currentRoomParticipants.filter(Boolean);
     if (!participants.length) { alert('참여자가 없습니다'); return; }
-    if (typeof db !== 'undefined' && db) {
-        participants.forEach(name => {
-            const usersRef = db.ref('users');
-            usersRef.orderByChild('name').equalTo(name).once('value', snap => {
-                snap.forEach(child => {
-                    const cur = child.val().tokens || 0;
-                    child.ref.update({ tokens: cur + amount });
-                    db.ref('token_log').push({ from: '교사', to: name, amount, reason, at: new Date().toISOString() });
-                });
-            });
-        });
-    }
-    document.getElementById('tch-room-token-modal').style.display = 'none';
-    alert(`✅ ${participants.length}명에게 각 🪙${amount} 지급 완료!`);
+    _giveTokensToPoints(participants, amount, reason, function(successNames) {
+        document.getElementById('tch-room-token-modal').style.display = 'none';
+        if (successNames.length) alert('✅ ' + successNames.join(', ') + '에게 각 🪙' + amount + ' 지급 완료!\n\n포인트 앱에 반영되었습니다.');
+        else alert('❌ 포인트 앱에 등록된 학생을 찾지 못했습니다.');
+    });
 }
 
 <!-- 토큰 지급 모달 (교사 채팅) -->
@@ -4155,28 +4180,29 @@ function confirmRoomToken() {
 </div>
 
 <div id="tch-give-token-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">
-    <div style="background:white;border-radius:12px;padding:20px;width:320px;box-shadow:0 8px 30px rgba(0,0,0,0.3);">
+    <div style="background:white;border-radius:12px;padding:20px;width:340px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 30px rgba(0,0,0,0.3);box-sizing:border-box;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-            <div style="font-size:16px;font-weight:700">🪙 토큰 지급</div>
+            <div style="font-size:16px;font-weight:700">🪙 포인트 토큰 지급</div>
             <button onclick="document.getElementById('tch-give-token-modal').style.display='none'" style="background:none;border:none;font-size:18px;cursor:pointer;color:#888">✕</button>
         </div>
-        <div style="margin-bottom:10px">
-            <label style="font-size:12px;color:#666;display:block;margin-bottom:4px">학생 선택</label>
-            <select id="tch-give-token-student" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px">
-                <option value="">학생 선택</option>
-            </select>
+        <div style="background:#FFF3E0;border-radius:6px;padding:8px 10px;font-size:11px;color:#E65100;margin-bottom:12px">
+            ℹ️ 접속 중인 학생 중 포인트 앱에 등록된 학생에게만 반영됩니다
         </div>
         <div style="margin-bottom:10px">
-            <label style="font-size:12px;color:#666;display:block;margin-bottom:4px">토큰 수량</label>
+            <label style="font-size:12px;color:#666;display:block;margin-bottom:6px;font-weight:700">학생 선택 (중복 가능)</label>
+            <div id="tch-give-token-list" style="border:1px solid #ddd;border-radius:6px;max-height:180px;overflow-y:auto;padding:6px;"></div>
+        </div>
+        <div style="margin-bottom:10px">
+            <label style="font-size:12px;color:#666;display:block;margin-bottom:4px;font-weight:700">토큰 수량</label>
             <input type="number" id="tch-give-token-amount" min="1" placeholder="예) 10" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;box-sizing:border-box">
         </div>
-        <div style="margin-bottom:12px">
-            <label style="font-size:12px;color:#666;display:block;margin-bottom:4px">사유 (선택)</label>
+        <div style="margin-bottom:14px">
+            <label style="font-size:12px;color:#666;display:block;margin-bottom:4px;font-weight:700">사유 (선택)</label>
             <input type="text" id="tch-give-token-reason" placeholder="예) 발표 참여" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;box-sizing:border-box">
         </div>
         <div style="display:flex;gap:8px">
             <button onclick="document.getElementById('tch-give-token-modal').style.display='none'" style="flex:1;padding:10px;background:#e0e0e0;border:none;border-radius:6px;cursor:pointer;font-weight:bold">취소</button>
-            <button onclick="confirmGiveToken()" style="flex:1;padding:10px;background:#FF6B35;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:bold">지급</button>
+            <button onclick="confirmGiveToken()" style="flex:1;padding:10px;background:#FF6B35;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:bold">🪙 지급</button>
         </div>
     </div>
 </div>
