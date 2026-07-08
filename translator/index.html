@@ -12,7 +12,6 @@
 <meta name="apple-mobile-web-app-title" content="번역기">
 <link rel="apple-touch-icon" href="icon192.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/simple-peer@9.11.1/simplepeer.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script><style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -2507,8 +2506,8 @@ document.addEventListener('drop', e=>{
 ══════════════════════════════ */
 
 /* ══════════════════════════════
-   P2P 책 전송 (SimplePeer + Firebase RTDB 신호)
-   Firebase RTDB(포트 443)로 신호교환, TURN으로 망달라도 연결
+   책 전송 (Firebase RTDB 업로드/다운로드)
+   P2P 없이 RTDB를 파일 중계로 사용
 ══════════════════════════════ */
 
 // Firebase 초기화
@@ -2522,36 +2521,24 @@ if (!firebase.apps.length) {
 }
 const fbDb = firebase.database();
 
-const SHARE_ICE = {
-  iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun.cloudflare.com:3478' },
-    { urls: 'turn:openrelay.metered.ca:80',            username: 'openrelayproject', credential: 'openrelayproject' },
-    { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
-  ]
-};
-const SHARE_CHUNK = 32 * 1024;
-let shareSendBook = null, sharePeerSend = null, shareRoomRef = null;
-let sharePeerRecv = null, shareRecvRoomRef = null;
+const SHARE_CHUNK = 600 * 1024; // 600KB → base64 약 800KB, RTDB 안전 크기
+let shareSendBook = null, shareRoomRef = null;
 
-/* 1바이트 타입 프리픽스로 JSON/바이너리 구분 */
-function spSendJson(peer, obj) {
-  const enc = new TextEncoder().encode(JSON.stringify(obj));
-  const buf = new Uint8Array(1 + enc.length);
-  buf[0] = 0x01; buf.set(enc, 1);
-  peer.send(buf.buffer);
+// Uint8Array → base64 변환 (스택 오버플로 방지)
+function u8ToB64(u8) {
+  let s = '', i = 0;
+  while (i < u8.length) {
+    s += String.fromCharCode.apply(null, u8.subarray(i, i + 8192));
+    i += 8192;
+  }
+  return btoa(s);
 }
-function spSendChunk(peer, ab) {
-  const src = new Uint8Array(ab);
-  const buf = new Uint8Array(1 + src.length);
-  buf[0] = 0x02; buf.set(src, 1);
-  peer.send(buf.buffer);
-}
-function spParse(data) {
-  const view = data instanceof Uint8Array ? data : new Uint8Array(data);
-  if (view[0] === 0x01) return { json: JSON.parse(new TextDecoder().decode(view.slice(1))) };
-  if (view[0] === 0x02) return { chunk: view.slice(1) };
-  return {};
+// base64 → Uint8Array 변환
+function b64ToU8(b64) {
+  const s = atob(b64);
+  const u = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i);
+  return u;
 }
 
 /* ─── 파일 직접 선택 ─── */
@@ -2589,83 +2576,55 @@ async function openShareSend() {
   document.getElementById('shareSendModal').style.display = 'flex';
 }
 
-function shareSendStart() {
+async function shareSendStart() {
   if (!shareSendBook) return;
   document.getElementById('shareSendStep1').style.display = 'none';
   document.getElementById('shareSendStep2').style.display = '';
   document.getElementById('shareRoomCode').textContent = '...';
-  document.getElementById('shareStudentList').textContent = '준비 중...';
-  document.getElementById('shareSendProgress').style.display = 'none';
+  document.getElementById('shareStudentList').textContent = '업로드 준비 중...';
+  document.getElementById('shareSendProgress').style.display = '';
+  document.getElementById('shareSendBar').style.width = '0%';
+  document.getElementById('shareSendProgressText').textContent = '';
 
   const code = String(Math.floor(100000 + Math.random() * 900000));
   const buf = shareSendBook.pdfData instanceof ArrayBuffer ? shareSendBook.pdfData : shareSendBook.pdfData.buffer;
+  const u8 = new Uint8Array(buf);
+  const totalChunks = Math.ceil(u8.length / SHARE_CHUNK);
 
-  if (sharePeerSend) { try { sharePeerSend.destroy(); } catch {} }
-  if (shareRoomRef) { shareRoomRef.remove(); }
-
+  if (shareRoomRef) { try { shareRoomRef.remove(); } catch {} }
   shareRoomRef = fbDb.ref(`schoolbook_rooms/${code}`);
-  // 세션 종료 시 자동 삭제
-  shareRoomRef.onDisconnect().remove();
+  shareRoomRef.onDisconnect().remove(); // 창 닫으면 자동 삭제
 
-  sharePeerSend = new SimplePeer({ initiator: true, trickle: true, config: SHARE_ICE });
+  try {
+    // 메타데이터 먼저 업로드
+    await shareRoomRef.child('meta').set({
+      title: shareSendBook.title || '교과서',
+      totalChunks,
+      totalBytes: u8.length
+    });
 
-  // 선생님 신호 → RTDB에 push
-  sharePeerSend.on('signal', (sdp) => {
-    shareRoomRef.child('t2s').push(sdp);
-  });
-
-  // 학생 신호 수신
-  shareRoomRef.child('s2t').on('child_added', (snap) => {
-    if (sharePeerSend) try { sharePeerSend.signal(snap.val()); } catch {}
-  });
-
-  document.getElementById('shareRoomCode').textContent = code;
-  document.getElementById('shareStudentList').textContent = '학생 연결 대기 중...';
-
-  const peerTimeout = setTimeout(() => {
-    document.getElementById('shareStudentList').textContent = '❌ 60초 안에 학생이 연결하지 않았습니다.';
-  }, 60000);
-
-  sharePeerSend.on('connect', () => {
-    clearTimeout(peerTimeout);
-    document.getElementById('shareStudentList').textContent = '📡 학생 연결됨 — 전송 중...';
-    document.getElementById('shareSendProgress').style.display = '';
-    document.getElementById('shareSendBar').style.width = '0%';
-
-    spSendJson(sharePeerSend, { type: 'meta', name: shareSendBook.title || '교과서', size: buf.byteLength });
-
-    let offset = 0;
-    const total = buf.byteLength;
-    function sendNext() {
-      if (offset >= total) {
-        spSendJson(sharePeerSend, { type: 'done' });
-        document.getElementById('shareSendBar').style.width = '100%';
-        document.getElementById('shareSendProgressText').textContent = '✅ 전송 완료!';
-        document.getElementById('shareStudentList').textContent = '✅ 전송 완료';
-        return;
-      }
-      const ch = sharePeerSend._channel;
-      if (ch && ch.bufferedAmount > 512 * 1024) { setTimeout(sendNext, 50); return; }
-      spSendChunk(sharePeerSend, buf.slice(offset, Math.min(offset + SHARE_CHUNK, total)));
-      offset = Math.min(offset + SHARE_CHUNK, total);
-      const pct = Math.round(offset / total * 100);
+    // 청크 업로드
+    for (let i = 0; i < totalChunks; i++) {
+      const slice = u8.slice(i * SHARE_CHUNK, Math.min((i + 1) * SHARE_CHUNK, u8.length));
+      await shareRoomRef.child(`chunks/${i}`).set(u8ToB64(slice));
+      const pct = Math.round((i + 1) / totalChunks * 100);
       document.getElementById('shareSendBar').style.width = pct + '%';
-      document.getElementById('shareSendProgressText').textContent = `전송 중... ${pct}%`;
-      setTimeout(sendNext, 2);
+      document.getElementById('shareSendProgressText').textContent = `업로드 중... ${pct}%`;
     }
-    sendNext();
-  });
 
-  sharePeerSend.on('error', (e) => {
-    document.getElementById('shareStudentList').textContent = '❌ P2P 오류: ' + e.message;
-  });
+    document.getElementById('shareRoomCode').textContent = code;
+    document.getElementById('shareSendBar').style.width = '100%';
+    document.getElementById('shareSendProgressText').textContent = '✅ 업로드 완료! 학생이 코드를 입력하면 받을 수 있어요.';
+    document.getElementById('shareStudentList').textContent = `📁 "${shareSendBook.title}"`;
+  } catch (e) {
+    document.getElementById('shareStudentList').textContent = '❌ 업로드 실패: ' + e.message;
+  }
 }
 
 function closeShareSend() {
   document.getElementById('shareSendModal').style.display = 'none';
   shareSendBook = null;
-  if (sharePeerSend) { try { sharePeerSend.destroy(); } catch {} sharePeerSend = null; }
-  if (shareRoomRef) { shareRoomRef.remove(); shareRoomRef = null; }
+  if (shareRoomRef) { try { shareRoomRef.remove(); } catch {} shareRoomRef = null; }
 }
 
 /* ─── 학생: 받기 열기 ─── */
@@ -2676,89 +2635,51 @@ function openShareReceive() {
   document.getElementById('shareReceiveModal').style.display = 'flex';
 }
 
-function shareReceiveConnect() {
+async function shareReceiveConnect() {
   const code = document.getElementById('shareCodeInput').value.trim().replace(/\D/g, '');
   if (code.length !== 6) { alert('6자리 숫자 코드를 입력하세요.'); return; }
   document.getElementById('shareReceiveStep1').style.display = 'none';
   document.getElementById('shareReceiveStep2').style.display = '';
-  document.getElementById('shareReceiveStatus').textContent = '선생님 연결 중...';
+  document.getElementById('shareReceiveStatus').textContent = '코드 확인 중...';
   document.getElementById('shareReceiveProgress').style.display = 'none';
 
-  if (sharePeerRecv) { try { sharePeerRecv.destroy(); } catch {} }
-  if (shareRecvRoomRef) { shareRecvRoomRef.off(); }
-
-  const chunks = [];
-  let totalSize = 0, receivedSize = 0, bookName = '교과서';
-  let recvPeer = null;
-
-  shareRecvRoomRef = fbDb.ref(`schoolbook_rooms/${code}`);
-
-  const peerTimeout = setTimeout(() => {
-    if (!recvPeer) document.getElementById('shareReceiveStatus').textContent = '❌ 60초 안에 연결되지 않았습니다. 코드를 확인하세요.';
-  }, 60000);
-
-  // 선생님 신호 수신 (trickle: child_added로 순서대로)
-  shareRecvRoomRef.child('t2s').on('child_added', (snap) => {
-    const sdp = snap.val();
-    if (!recvPeer) {
-      clearTimeout(peerTimeout);
-      document.getElementById('shareReceiveStatus').textContent = 'P2P 연결 중...';
-      recvPeer = new SimplePeer({ initiator: false, trickle: true, config: SHARE_ICE });
-      sharePeerRecv = recvPeer;
-
-      recvPeer.on('signal', (answer) => {
-        shareRecvRoomRef.child('s2t').push(answer);
-      });
-
-      recvPeer.on('connect', () => {
-        document.getElementById('shareReceiveStatus').textContent = '📡 선생님 연결됨 — 파일 수신 대기...';
-      });
-
-      recvPeer.on('data', (raw) => {
-        const parsed = spParse(raw);
-        if (parsed.json) {
-          const m = parsed.json;
-          if (m.type === 'meta') {
-            bookName = m.name || '교과서';
-            totalSize = m.size || 0;
-            document.getElementById('shareReceiveStatus').textContent = `📖 "${bookName}" 받는 중...`;
-            document.getElementById('shareReceiveProgress').style.display = '';
-          } else if (m.type === 'done') {
-            const full = new Uint8Array(totalSize);
-            let off = 0;
-            for (const c of chunks) { full.set(c, off); off += c.length; }
-            const book = { id: Date.now(), title: bookName, cover: null, pdfData: full.buffer };
-            dbPut(book).then(() => {
-              bookList.push(book);
-              renderBookshelf();
-              document.getElementById('shareReceiveBar').style.width = '100%';
-              document.getElementById('shareReceiveStatus').textContent = `✅ "${bookName}" 서재에 추가되었습니다!`;
-              document.getElementById('shareReceiveProgressText').textContent = '완료!';
-            });
-            shareRecvRoomRef.off();
-            sharePeerRecv = recvPeer = null;
-          }
-        } else if (parsed.chunk) {
-          chunks.push(parsed.chunk);
-          receivedSize += parsed.chunk.length;
-          const pct = totalSize ? Math.min(100, Math.round(receivedSize / totalSize * 100)) : 0;
-          document.getElementById('shareReceiveBar').style.width = pct + '%';
-          document.getElementById('shareReceiveProgressText').textContent = `받는 중... ${pct}%`;
-        }
-      });
-
-      recvPeer.on('error', (e) => {
-        document.getElementById('shareReceiveStatus').textContent = '❌ P2P 오류: ' + e.message;
-      });
+  try {
+    const metaSnap = await fbDb.ref(`schoolbook_rooms/${code}/meta`).get();
+    if (!metaSnap.exists()) {
+      document.getElementById('shareReceiveStatus').textContent = '❌ 코드를 찾을 수 없습니다. 선생님이 전송을 시작했는지 확인하세요.';
+      return;
     }
-    try { recvPeer.signal(sdp); } catch {}
-  });
+    const { title, totalChunks, totalBytes } = metaSnap.val();
+    document.getElementById('shareReceiveStatus').textContent = `📖 "${title}" 다운로드 중...`;
+    document.getElementById('shareReceiveProgress').style.display = '';
+
+    // 청크 순서대로 다운로드
+    const full = new Uint8Array(totalBytes);
+    let offset = 0;
+    for (let i = 0; i < totalChunks; i++) {
+      const snap = await fbDb.ref(`schoolbook_rooms/${code}/chunks/${i}`).get();
+      const chunk = b64ToU8(snap.val());
+      full.set(chunk, offset);
+      offset += chunk.length;
+      const pct = Math.round((i + 1) / totalChunks * 100);
+      document.getElementById('shareReceiveBar').style.width = pct + '%';
+      document.getElementById('shareReceiveProgressText').textContent = `받는 중... ${pct}%`;
+    }
+
+    const book = { id: Date.now(), title, cover: null, pdfData: full.buffer };
+    await dbPut(book);
+    bookList.push(book);
+    renderBookshelf();
+    document.getElementById('shareReceiveBar').style.width = '100%';
+    document.getElementById('shareReceiveStatus').textContent = `✅ "${title}" 서재에 추가되었습니다!`;
+    document.getElementById('shareReceiveProgressText').textContent = '완료!';
+  } catch (e) {
+    document.getElementById('shareReceiveStatus').textContent = '❌ ' + e.message;
+  }
 }
 
 function closeShareReceive() {
   document.getElementById('shareReceiveModal').style.display = 'none';
-  if (sharePeerRecv) { try { sharePeerRecv.destroy(); } catch {} sharePeerRecv = null; }
-  if (shareRecvRoomRef) { shareRecvRoomRef.off(); shareRecvRoomRef = null; }
 }
 </script>
 <script>
