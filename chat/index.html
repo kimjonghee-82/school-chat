@@ -971,6 +971,71 @@
         } catch(e) { console.warn("로컬스토리지 접근 제한"); }
     };
 
+    function switchMainTab(tab) {
+        // Update active button
+        ['chat','sketch','monitor','share'].forEach(function(t) {
+            var btn = document.getElementById('tab-' + t);
+            if (btn) btn.classList.toggle('active', t === tab);
+        });
+
+        var isTeacher = myInfo && myInfo.isTeacher;
+
+        // For chat tab: just show the right chat screen, hide sketch screens
+        if (tab === 'chat') {
+            _activeStuTab = 'chat';
+            _expiryShown = false;
+            if (isTeacher) {
+                document.getElementById('teacher-screen').style.display = 'flex';
+                var sk = document.getElementById('sk-teacher-screen');
+                if (sk) sk.style.display = 'none';
+            } else {
+                document.getElementById('chat-screen').style.display = 'flex';
+                var sk = document.getElementById('sk-student-screen');
+                if (sk) sk.style.display = 'none';
+            }
+            var mon = document.getElementById('mon-screen');
+            var shr = document.getElementById('share-screen');
+            if (mon) mon.style.display = 'none';
+            if (shr) shr.style.display = 'none';
+            return;
+        }
+
+        // For sketch tab: hide chat screens, init sketchbook
+        if (tab === 'sketch') {
+            _activeStuTab = 'sketch';
+            _expiryShown = false;
+            if (isTeacher) {
+                document.getElementById('teacher-screen').style.display = 'none';
+            } else {
+                document.getElementById('chat-screen').style.display = 'none';
+            }
+            var mon = document.getElementById('mon-screen');
+            var shr = document.getElementById('share-screen');
+            if (mon) mon.style.display = 'none';
+            if (shr) shr.style.display = 'none';
+            if (typeof switchToSketchbook === 'function') switchToSketchbook();
+            return;
+        }
+
+        // For monitor tab (teacher only)
+        if (tab === 'monitor') {
+            document.getElementById('teacher-screen').style.display = 'none';
+            var sk = document.getElementById('sk-teacher-screen');
+            if (sk) sk.style.display = 'none';
+            if (typeof switchToMonitoring === 'function') switchToMonitoring();
+            return;
+        }
+
+        // For share tab (student only)
+        if (tab === 'share') {
+            document.getElementById('chat-screen').style.display = 'none';
+            var sk = document.getElementById('sk-student-screen');
+            if (sk) sk.style.display = 'none';
+            if (typeof switchToShareScreen === 'function') switchToShareScreen();
+            return;
+        }
+    }
+
     function login(isTeacher) {
         if(!database) { alert("파이어베이스 연결을 확인해주세요."); return; }
         const name = document.getElementById('username').value.trim();
