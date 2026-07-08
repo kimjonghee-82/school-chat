@@ -700,8 +700,7 @@ textarea.finput{resize:vertical;}
 </div>
 
 <!-- ═══ 학생 포인트 화면 ═══ -->
-<div id="pts-student-screen" style="display:none;">
-    <div id="pts-student-screen" style="display:none; position:fixed; inset:0; overflow-y:auto; z-index:50; background:#F1F5F9; padding-top:52px; box-sizing:border-box;">
+<div id="pts-student-screen" style="display:none; position:fixed; inset:0; overflow-y:auto; z-index:50; background:#F1F5F9; box-sizing:border-box;">
         <!-- ═══ 역할 선택 ═══ -->
 <div id="stu-screen-role" class="full-screen">
     <div class="app-logo">🏫</div>
@@ -1086,14 +1085,8 @@ textarea.finput{resize:vertical;}
 <!-- ════════════════ JAVASCRIPT ════════════════ -->
     </div>
 
-</div>
-
-<!-- ═══ TEACHER POINTS SCREEN ═══ -->
-</div>
-
 <!-- ═══ 교사 포인트 화면 ═══ -->
-<div id="pts-teacher-screen" style="display:none;">
-    <div id="pts-teacher-screen" style="display:none; position:fixed; inset:0; overflow:hidden; z-index:50; background:#F1F5F9; padding-top:52px; box-sizing:border-box; flex-direction:row;">
+<div id="pts-teacher-screen" style="display:none; position:fixed; inset:0; overflow:hidden; z-index:50; background:#F1F5F9; box-sizing:border-box; flex-direction:row;">
         <!-- ═══════════════════════════ SIDEBAR ═══════════════════════════ -->
 <aside class="sidebar">
     <div class="sidebar-header">
@@ -1716,13 +1709,6 @@ textarea.finput{resize:vertical;}
     </div>
 </div>
 
-<!-- ═══════════════════════ JAVASCRIPT ════════════════════════ -->
-    </div>
-
-</div>
-
-</div>
-
 <!-- ═══ 프로필 편집 모달 ═══ -->
 <div id="stu-modal-profile-edit" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;">
   <div style="background:white;border-radius:16px;padding:22px;width:320px;max-height:80vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,0.3);">
@@ -1752,14 +1738,6 @@ textarea.finput{resize:vertical;}
   </div>
 </div>
 
-
-<!-- ═══ FIREBASE ═══ -->
-<script>
-var database = null;
-try {
-    const firebaseConfig = { databaseURL: "https://school-chat-7051e-default-rtdb.firebaseio.com/" };
-    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-    database = firebase.database();
 
 <!-- ═══ Firebase 초기화 ═══ -->
 <script>
@@ -1793,9 +1771,9 @@ var currentUser = null;
 <!-- ═══ 로그인 로직 ═══ -->
 <script>
 function pts_showLoginScreen(section) {
-    document.getElementById('pts-role-select').style.display  = (section === 'role')    ? '' : 'none';
-    document.getElementById('pts-teacher-form').style.display = (section === 'teacher') ? '' : 'none';
-    document.getElementById('pts-student-form').style.display = (section === 'student') ? '' : 'none';
+    document.getElementById('pts-role-select').style.display  = (section === 'role')    ? 'flex' : 'none';
+    document.getElementById('pts-teacher-form').style.display = (section === 'teacher') ? 'block' : 'none';
+    document.getElementById('pts-student-form').style.display = (section === 'student') ? 'block' : 'none';
     if (section === 'teacher') {
         var g = localStorage.getItem('pts_tch_grade');
         var c = localStorage.getItem('pts_tch_class');
@@ -1901,7 +1879,7 @@ function pts_handleLogout() {
     document.getElementById('pts-student-screen').style.display = 'none';
     document.getElementById('pts-teacher-screen').style.display = 'none';
     document.getElementById('pts-login-screen').style.display = 'flex';
-    document.getElementById('pts-role-select').style.display = '';
+    document.getElementById('pts-role-select').style.display = 'flex';
     document.getElementById('pts-teacher-form').style.display = 'none';
     document.getElementById('pts-student-form').style.display = 'none';
     document.body.className = 'mode-login';
