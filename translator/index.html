@@ -2775,9 +2775,10 @@ async function dbRenderPosts() {
   const listEl = document.getElementById('dbPostList');
   listEl.innerHTML = '<div style="text-align:center;color:var(--sub);font-size:.85rem;padding:20px">불러오는 중...</div>';
   try {
-    const snap = await fbDb.ref('download_board').orderByChild('createdAt').get();
+    const snap = await fbDb.ref('download_board').get();
     const posts = [];
-    snap.forEach(c => posts.unshift({ id: c.key, ...c.val() }));
+    snap.forEach(c => posts.push({ id: c.key, ...c.val() }));
+    posts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     if (!posts.length) {
       listEl.innerHTML = '<div style="text-align:center;color:var(--sub);font-size:.85rem;padding:20px">등록된 자료가 없습니다.</div>';
       return;
