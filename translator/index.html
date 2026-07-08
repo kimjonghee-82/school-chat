@@ -485,7 +485,13 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
   background: var(--card); border: 1px solid var(--primary);
   border-radius: 16px; padding: 18px 20px 16px; max-width: 500px; min-width: 300px;
   box-shadow: 0 8px 36px rgba(0,0,0,.55);
+  max-height: 80vh; overflow-y: auto;
+  scrollbar-width: thin; scrollbar-color: var(--sub) transparent;
 }
+.trans-popup::-webkit-scrollbar { width: 5px; }
+.trans-popup::-webkit-scrollbar-thumb { background: var(--sub); border-radius: 3px; }
+.trans-popup .pop-header { cursor: grab; user-select: none; }
+.trans-popup .pop-header:active { cursor: grabbing; }
 .trans-popup.visible { display: block; }
 .trans-popup .pop-header {
   display: flex; align-items: center; justify-content: space-between;
@@ -1196,6 +1202,8 @@ function saveTargetLang() {
   targetLang = document.getElementById('targetLang').value;
   localStorage.setItem('target_lang', targetLang);
   document.getElementById('popLangLabel').textContent = '🌐 ' + LANG_NAMES[targetLang];
+  liveCache.clear(); // 언어 변경 시 이전 번역 캐시 초기화
+  document.getElementById('liveTrLabel').textContent = '🌐 ' + LANG_NAMES[targetLang];
 }
 
 /* ══════════════════════════════
@@ -1444,6 +1452,31 @@ function setTtsIcon(on) {
   btn.classList.toggle('speaking', on);
   btn.textContent = on ? '⏹' : '🔊';
 }
+
+/* 팝업 드래그 이동 */
+(function() {
+  let dragging = false, ox = 0, oy = 0;
+  document.addEventListener('DOMContentLoaded', () => {
+    const popup = document.getElementById('transPopup');
+    const header = popup.querySelector('.pop-header');
+    header.addEventListener('mousedown', (e) => {
+      if (e.target.closest('button')) return;
+      dragging = true;
+      ox = e.clientX - popup.getBoundingClientRect().left;
+      oy = e.clientY - popup.getBoundingClientRect().top;
+      e.preventDefault();
+    });
+    document.addEventListener('mousemove', (e) => {
+      if (!dragging) return;
+      let nx = e.clientX - ox, ny = e.clientY - oy;
+      nx = Math.max(0, Math.min(nx, window.innerWidth - popup.offsetWidth));
+      ny = Math.max(0, Math.min(ny, window.innerHeight - popup.offsetHeight));
+      popup.style.left = nx + 'px';
+      popup.style.top  = ny + 'px';
+    });
+    document.addEventListener('mouseup', () => { dragging = false; });
+  });
+})();
 
 /* 팝업 닫기 */
 function closePopup() {
