@@ -640,7 +640,7 @@ body.live-on .nav-arrow.right { right: 30%; }
 <!-- ══════════════════════════════
      책 전송 모달 (선생님용)
 ══════════════════════════════ -->
-<div class="modal-overlay" id="shareSendModal" onclick="if(event.target===this)closeShareSend()" style="display:none;opacity:1;pointer-events:auto">
+<div class="modal-overlay" id="shareSendModal" onclick="if(event.target===this)closeShareSend()" style="display:none;opacity:1;pointer-events:auto;z-index:1200">
   <div class="modal" style="max-width:380px">
     <h2>📤 책 전송</h2>
     <div id="shareSendStep1">
@@ -670,7 +670,7 @@ body.live-on .nav-arrow.right { right: 30%; }
 <!-- ══════════════════════════════
      책 받기 모달 (학생용)
 ══════════════════════════════ -->
-<div class="modal-overlay" id="shareReceiveModal" onclick="if(event.target===this)closeShareReceive()" style="display:none;opacity:1;pointer-events:auto">
+<div class="modal-overlay" id="shareReceiveModal" onclick="if(event.target===this)closeShareReceive()" style="display:none;opacity:1;pointer-events:auto;z-index:1200">
   <div class="modal" style="max-width:340px;text-align:center">
     <h2>📥 책 받기</h2>
     <div id="shareReceiveStep1">
