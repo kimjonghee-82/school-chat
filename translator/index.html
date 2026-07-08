@@ -629,6 +629,7 @@ body.live-on .nav-arrow.right { right: 30%; }
       <div class="lib-header-sub">PDF 교과서를 추가하세요</div>
     </div>
     <div style="margin-left:auto;display:flex;gap:8px">
+      <button class="back-btn" onclick="openDownloadBoard()">📋 자료 게시판</button>
       <button class="back-btn" onclick="openShareSend()">📤 책 전송</button>
       <button class="back-btn" onclick="openShareReceive()">📥 책 받기</button>
       <button class="back-btn" onclick="openBlankTranslator()">📷 책 없이 시작</button>
@@ -705,6 +706,43 @@ body.live-on .nav-arrow.right { right: 30%; }
 <div class="ctx-menu" id="ctxMenu">
   <div class="ctx-menu-item" onclick="ctxOpen()">📖 열기</div>
   <div class="ctx-menu-item danger" onclick="ctxDelete()">🗑️ 삭제</div>
+</div>
+
+<!-- ══════════════════════════════
+     자료 게시판 모달
+══════════════════════════════ -->
+<div class="modal-overlay" id="downloadBoardModal" onclick="if(event.target===this)closeDownloadBoard()" style="display:none;opacity:1;pointer-events:auto;z-index:1200">
+  <div class="modal" style="max-width:500px;width:94vw">
+    <h2>📋 자료 게시판</h2>
+    <p style="font-size:.85rem;color:var(--sub);margin-bottom:14px">구글 드라이브 등 외부 링크를 등록해두세요</p>
+
+    <!-- 게시물 목록 -->
+    <div id="dbPostList" style="display:flex;flex-direction:column;gap:10px;max-height:55vh;overflow-y:auto;margin-bottom:14px">
+      <div style="text-align:center;color:var(--sub);font-size:.85rem;padding:20px">불러오는 중...</div>
+    </div>
+
+    <!-- 글쓰기 영역 (비밀번호 확인 후 표시) -->
+    <div id="dbWriteArea" style="display:none;border-top:1px solid var(--border);padding-top:14px;display:none">
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px">
+        <input id="dbInputTitle" placeholder="제목" maxlength="80"
+          style="width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:.9rem">
+        <input id="dbInputUrl" placeholder="구글 드라이브 링크 (https://...)" type="url"
+          style="width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:.9rem">
+        <input id="dbInputDesc" placeholder="설명 (선택)" maxlength="120"
+          style="width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:.85rem">
+      </div>
+      <button class="btn btn-primary" style="width:100%" onclick="dbAddPost()">✅ 등록</button>
+    </div>
+
+    <!-- 비밀번호 버튼 / 잠금 해제 -->
+    <div id="dbAuthArea" style="border-top:1px solid var(--border);padding-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <input id="dbPwInput" type="password" placeholder="선생님 비밀번호" maxlength="20"
+        style="flex:1;min-width:150px;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:.9rem"
+        onkeydown="if(event.key==='Enter')dbAuth()">
+      <button class="btn btn-primary" onclick="dbAuth()">🔓 글쓰기</button>
+      <button class="btn btn-ghost" onclick="closeDownloadBoard()">닫기</button>
+    </div>
+  </div>
 </div>
 
 <!-- 삭제 확인 팝업 -->
@@ -2703,6 +2741,84 @@ async function shareReceiveConnect() {
 
 function closeShareReceive() {
   document.getElementById('shareReceiveModal').style.display = 'none';
+}
+
+/* ══════════════════════════════
+   자료 게시판
+══════════════════════════════ */
+const DB_PW = 'school1234';
+let dbAuthed = false;
+let dbPostsRef = null;
+
+function openDownloadBoard() {
+  document.getElementById('downloadBoardModal').style.display = 'flex';
+  dbLoadPosts();
+}
+
+function closeDownloadBoard() {
+  document.getElementById('downloadBoardModal').style.display = 'none';
+  if (dbPostsRef) { dbPostsRef.off(); dbPostsRef = null; }
+}
+
+function dbAuth() {
+  const pw = document.getElementById('dbPwInput').value;
+  if (pw !== DB_PW) { alert('비밀번호가 틀렸습니다.'); return; }
+  dbAuthed = true;
+  document.getElementById('dbAuthArea').style.display = 'none';
+  document.getElementById('dbWriteArea').style.display = 'block';
+}
+
+function dbLoadPosts() {
+  const listEl = document.getElementById('dbPostList');
+  listEl.innerHTML = '<div style="text-align:center;color:var(--sub);font-size:.85rem;padding:20px">불러오는 중...</div>';
+  if (dbPostsRef) dbPostsRef.off();
+  dbPostsRef = fbDb.ref('download_board');
+  dbPostsRef.orderByChild('createdAt').on('value', snap => {
+    const posts = [];
+    snap.forEach(c => posts.unshift({ id: c.key, ...c.val() }));
+    if (!posts.length) {
+      listEl.innerHTML = '<div style="text-align:center;color:var(--sub);font-size:.85rem;padding:20px">등록된 자료가 없습니다.</div>';
+      return;
+    }
+    listEl.innerHTML = '';
+    posts.forEach(p => {
+      const card = document.createElement('div');
+      card.style.cssText = 'background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:4px';
+      card.innerHTML = `
+        <div style="display:flex;align-items:flex-start;gap:8px">
+          <div style="flex:1">
+            <a href="${p.url}" target="_blank" rel="noopener"
+              style="font-size:.95rem;font-weight:700;color:var(--accent);text-decoration:none;word-break:break-all">${p.title}</a>
+            ${p.desc ? `<div style="font-size:.8rem;color:var(--sub);margin-top:3px">${p.desc}</div>` : ''}
+          </div>
+          ${dbAuthed ? `<button onclick="dbDeletePost('${p.id}')" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--sub);flex-shrink:0" title="삭제">🗑️</button>` : ''}
+        </div>
+        <div style="font-size:.72rem;color:var(--sub)">${new Date(p.createdAt).toLocaleDateString('ko-KR')}</div>
+      `;
+      listEl.appendChild(card);
+    });
+  });
+}
+
+async function dbAddPost() {
+  const title = document.getElementById('dbInputTitle').value.trim();
+  const url   = document.getElementById('dbInputUrl').value.trim();
+  const desc  = document.getElementById('dbInputDesc').value.trim();
+  if (!title) { alert('제목을 입력하세요.'); return; }
+  if (!url || !url.startsWith('http')) { alert('올바른 링크를 입력하세요.'); return; }
+  try {
+    await fbDb.ref('download_board').push({ title, url, desc, createdAt: Date.now() });
+    document.getElementById('dbInputTitle').value = '';
+    document.getElementById('dbInputUrl').value = '';
+    document.getElementById('dbInputDesc').value = '';
+  } catch(e) { alert('등록 실패: ' + e.message); }
+}
+
+async function dbDeletePost(id) {
+  if (!confirm('이 자료를 삭제할까요?')) return;
+  try {
+    await fbDb.ref(`download_board/${id}`).remove();
+  } catch(e) { alert('삭제 실패: ' + e.message); }
 }
 </script>
 <script>
