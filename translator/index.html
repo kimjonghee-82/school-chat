@@ -11,9 +11,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="번역기">
 <link rel="apple-touch-icon" href="icon192.png">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script><style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
   --primary: #5c6bc0;
@@ -680,7 +678,7 @@ body.live-on .nav-arrow.right { right: 30%; }
     <h2>📥 책 받기</h2>
     <div id="shareReceiveStep1">
       <p style="font-size:.9rem;color:var(--sub);margin-bottom:16px">선생님께 받은 코드를 입력하세요</p>
-      <input id="shareCodeInput" maxlength="6" placeholder="000000" inputmode="numeric" pattern="[0-9]*" style="width:100%;text-align:center;font-size:2rem;font-weight:700;letter-spacing:.2em;font-family:monospace;padding:12px;border-radius:10px;border:2px solid var(--border);background:var(--card);color:var(--text);margin-bottom:16px" oninput="this.value=this.value.replace(/\D/g,'')">
+      <input id="shareCodeInput" maxlength="12" placeholder="코드 입력" autocomplete="off" autocapitalize="none" style="width:100%;text-align:center;font-size:1.8rem;font-weight:700;letter-spacing:.15em;font-family:monospace;padding:12px;border-radius:10px;border:2px solid var(--border);background:var(--card);color:var(--text);margin-bottom:16px" oninput="this.value=this.value.toUpperCase()">
       <div class="modal-actions">
         <button class="btn btn-ghost" onclick="closeShareReceive()">취소</button>
         <button class="btn btn-primary" onclick="shareReceiveConnect()">연결</button>
@@ -2504,9 +2502,12 @@ document.addEventListener('drop', e=>{
 /* ══════════════════════════════
    P2P 책 전송/수신 (PeerJS)
 ══════════════════════════════ */
-const CHUNK_SIZE = 512 * 1024; // 512KB 단위 전송
-let sharePeer = null, shareSendBook = null, shareConnections = [];
-let shareReceivePeer = null, shareReceiveMeta = null, shareReceiveChunks = [];
+
+/* ══════════════════════════════
+   P2P → Gofile 방식으로 교체
+   망 무관, 가입 불필요, 다중 다운로드 지원
+══════════════════════════════ */
+let shareSendBook = null;
 
 /* ─── 파일 직접 선택 ─── */
 function onShareFileSelect(input) {
@@ -2516,7 +2517,6 @@ function onShareFileSelect(input) {
   reader.onload = (e) => {
     shareSendBook = { id: Date.now(), title: file.name.replace(/\.pdf$/i, ''), cover: null, pdfData: e.target.result };
     document.getElementById('shareSendFileLabel').textContent = '✅ ' + file.name;
-    // 서재 라디오 선택 해제
     document.querySelectorAll('input[name=shareBook]').forEach(r => r.checked = false);
     document.getElementById('shareSendNextBtn').disabled = false;
   };
@@ -2527,17 +2527,15 @@ function onShareFileSelect(input) {
 async function openShareSend() {
   const all = await dbGetAll();
   const list = document.getElementById('shareSendBookList');
-  if (!all.length) { alert('서재에 책이 없습니다.'); return; }
-  list.innerHTML = all.map(b => `
+  list.innerHTML = all.length ? all.map(b => `
     <label style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;border:1px solid var(--border);cursor:pointer;background:var(--card)">
       <input type="radio" name="shareBook" value="${b.id}" style="width:18px;height:18px">
       ${b.cover ? `<img src="${b.cover}" style="width:36px;height:48px;object-fit:cover;border-radius:4px">` : '<div style="width:36px;height:48px;background:var(--border);border-radius:4px"></div>'}
       <span style="font-size:.88rem">${b.title}</span>
-    </label>`).join('');
+    </label>`).join('') : '<p style="font-size:.85rem;color:var(--sub)">서재에 책이 없습니다. 아래에서 파일을 직접 선택하세요.</p>';
   list.querySelectorAll('input[type=radio]').forEach(r => r.addEventListener('change', () => {
-    document.getElementById('shareSendNextBtn').disabled = false;
     shareSendBook = all.find(b => b.id == r.value);
-    // 파일 직접 선택 초기화
+    document.getElementById('shareSendNextBtn').disabled = false;
     document.getElementById('shareSendFileInput').value = '';
     document.getElementById('shareSendFileLabel').textContent = '컴퓨터에서 PDF 파일 선택...';
   }));
@@ -2550,56 +2548,56 @@ async function shareSendStart() {
   if (!shareSendBook) return;
   document.getElementById('shareSendStep1').style.display = 'none';
   document.getElementById('shareSendStep2').style.display = '';
-  document.getElementById('shareRoomCode').textContent = '...';
-  document.getElementById('shareStudentList').textContent = '학생 연결 대기 중...';
-  shareConnections = [];
-
-  // 학생이 입력하기 쉬운 6자리 영숫자 코드를 peer ID로 사용
-  const roomCode = String(Math.floor(100000 + Math.random() * 900000)); // 6자리 숫자
-  document.getElementById('shareRoomCode').textContent = roomCode;
-  sharePeer = new Peer(roomCode.toLowerCase(), { config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] } });
-  sharePeer.on('open', () => {});
-  sharePeer.on('connection', conn => {
-    conn.on('open', () => {
-      shareConnections.push(conn);
-      updateStudentList();
-      // 책 메타 전송
-      conn.send({ type: 'book-offer', id: shareSendBook.id, title: shareSendBook.title, cover: shareSendBook.cover, totalChunks: Math.ceil(shareSendBook.pdfData.byteLength / CHUNK_SIZE) });
-    });
-    conn.on('data', msg => {
-      if (msg.type === 'ready') shareSendPdf(conn);
-    });
-    conn.on('close', () => {
-      shareConnections = shareConnections.filter(c => c !== conn);
-      updateStudentList();
-    });
-  });
-}
-
-function updateStudentList() {
-  const n = shareConnections.length;
-  document.getElementById('shareStudentList').textContent = n ? `✅ ${n}명 연결됨` : '학생 연결 대기 중...';
-}
-
-async function shareSendPdf(conn) {
-  const buf = shareSendBook.pdfData instanceof ArrayBuffer ? shareSendBook.pdfData : shareSendBook.pdfData.buffer;
-  const total = Math.ceil(buf.byteLength / CHUNK_SIZE);
+  document.getElementById('shareRoomCode').textContent = '업로드 중...';
+  document.getElementById('shareStudentList').textContent = '';
   document.getElementById('shareSendProgress').style.display = '';
-  for (let i = 0; i < total; i++) {
-    const chunk = buf.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
-    conn.send({ type: 'chunk', seq: i, total, data: chunk });
-    const pct = Math.round((i + 1) / total * 100);
-    document.getElementById('shareSendBar').style.width = pct + '%';
-    document.getElementById('shareSendProgressText').textContent = `전송 중... ${pct}%`;
-    await new Promise(r => setTimeout(r, 10));
+  document.getElementById('shareSendBar').style.width = '0%';
+  document.getElementById('shareSendProgressText').textContent = 'Gofile에 업로드 중...';
+
+  try {
+    const buf = shareSendBook.pdfData instanceof ArrayBuffer ? shareSendBook.pdfData : shareSendBook.pdfData.buffer;
+    const blob = new Blob([buf], { type: 'application/pdf' });
+
+    // 1. 업로드 서버 가져오기
+    const srvRes = await fetch('https://api.gofile.io/servers');
+    const srvData = await srvRes.json();
+    const server = srvData.data.servers[0].name;
+
+    // 2. 파일 업로드 (진행률 불가하므로 xhr 사용)
+    const code = await new Promise((resolve, reject) => {
+      const fd = new FormData();
+      fd.append('file', new File([blob], (shareSendBook.title || 'book') + '.pdf', { type: 'application/pdf' }));
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `https://${server}.gofile.io/contents/uploadfile`);
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const pct = Math.round(e.loaded / e.total * 100);
+          document.getElementById('shareSendBar').style.width = pct + '%';
+          document.getElementById('shareSendProgressText').textContent = `업로드 중... ${pct}%`;
+        }
+      };
+      xhr.onload = () => {
+        const data = JSON.parse(xhr.responseText);
+        if (data.status === 'ok') resolve(data.data.code);
+        else reject(new Error(data.status));
+      };
+      xhr.onerror = () => reject(new Error('업로드 실패'));
+      xhr.send(fd);
+    });
+
+    document.getElementById('shareRoomCode').textContent = code.toUpperCase();
+    document.getElementById('shareSendBar').style.width = '100%';
+    document.getElementById('shareSendProgressText').textContent = '업로드 완료! 학생이 코드를 입력하면 받을 수 있어요.';
+    document.getElementById('shareStudentList').textContent = `📁 "${shareSendBook.title}"`;
+  } catch (e) {
+    document.getElementById('shareRoomCode').textContent = '오류';
+    document.getElementById('shareSendProgressText').textContent = '❌ ' + e.message;
   }
-  conn.send({ type: 'done' });
 }
 
 function closeShareSend() {
   document.getElementById('shareSendModal').style.display = 'none';
-  if (sharePeer) { sharePeer.destroy(); sharePeer = null; }
-  shareConnections = []; shareSendBook = null;
+  shareSendBook = null;
 }
 
 /* ─── 학생: 받기 열기 ─── */
@@ -2610,58 +2608,64 @@ function openShareReceive() {
   document.getElementById('shareReceiveModal').style.display = 'flex';
 }
 
-function shareReceiveConnect() {
-  const code = document.getElementById('shareCodeInput').value.trim();
-  if (code.length < 4) { alert('코드를 입력하세요.'); return; }
+async function shareReceiveConnect() {
+  const code = document.getElementById('shareCodeInput').value.trim().toLowerCase();
+  if (!code) { alert('코드를 입력하세요.'); return; }
   document.getElementById('shareReceiveStep1').style.display = 'none';
   document.getElementById('shareReceiveStep2').style.display = '';
-  document.getElementById('shareReceiveStatus').textContent = '연결 중...';
+  document.getElementById('shareReceiveStatus').textContent = '파일 정보 확인 중...';
   document.getElementById('shareReceiveProgress').style.display = 'none';
-  shareReceiveChunks = []; shareReceiveMeta = null;
 
-  shareReceivePeer = new Peer(undefined, { config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] } });
-  shareReceivePeer.on('open', () => {
-    // 선생님의 전체 peer id 중 앞 8자리로 연결 (브로커가 prefix 매칭)
-    // 실제로는 선생님 peer ID 전체가 필요하므로 선생님측에서 전체 ID를 보여주고 학생은 그 앞 부분만 입력
-    // 단순화: 선생님 peer ID = 코드 자체(브로커가 그대로 사용)
-    const conn = shareReceivePeer.connect(code.trim().toLowerCase(), { reliable: true });
-    conn.on('open', () => { document.getElementById('shareReceiveStatus').textContent = '선생님과 연결됨! 책 정보 기다리는 중...'; });
-    conn.on('data', async msg => {
-      if (msg.type === 'book-offer') {
-        shareReceiveMeta = msg;
-        shareReceiveChunks = new Array(msg.totalChunks);
-        document.getElementById('shareReceiveStatus').textContent = `📖 "${msg.title}" 수신 중...`;
-        document.getElementById('shareReceiveProgress').style.display = '';
-        conn.send({ type: 'ready' });
-      } else if (msg.type === 'chunk') {
-        shareReceiveChunks[msg.seq] = msg.data;
-        const received = shareReceiveChunks.filter(Boolean).length;
-        const pct = Math.round(received / msg.total * 100);
-        document.getElementById('shareReceiveBar').style.width = pct + '%';
-        document.getElementById('shareReceiveProgressText').textContent = `받는 중... ${pct}%`;
-      } else if (msg.type === 'done') {
-        // 조각 합치기
-        const totalSize = shareReceiveChunks.reduce((s, c) => s + c.byteLength, 0);
-        const combined = new Uint8Array(totalSize);
-        let offset = 0;
-        for (const c of shareReceiveChunks) { combined.set(new Uint8Array(c), offset); offset += c.byteLength; }
-        const book = { id: Date.now(), title: shareReceiveMeta.title, cover: shareReceiveMeta.cover, pdfData: combined.buffer };
-        await dbPut(book);
-        bookList.push(book);
-        renderBookshelf();
-        document.getElementById('shareReceiveStatus').textContent = `✅ "${shareReceiveMeta.title}" 서재에 추가되었습니다!`;
-        document.getElementById('shareReceiveBar').style.width = '100%';
-        document.getElementById('shareReceiveProgressText').textContent = '전송 완료!';
-      }
+  try {
+    // 1. 게스트 토큰 발급
+    const accRes = await fetch('https://api.gofile.io/accounts', { method: 'POST' });
+    const { data: { token } } = await accRes.json();
+
+    // 2. 파일 목록 조회
+    const contRes = await fetch(`https://api.gofile.io/contents/${code}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
     });
-    conn.on('error', e => { document.getElementById('shareReceiveStatus').textContent = '❌ 오류: ' + e.message; });
-  });
-  shareReceivePeer.on('error', e => { document.getElementById('shareReceiveStatus').textContent = '❌ 연결 실패: 코드를 다시 확인하세요.'; });
+    const { data: content } = await contRes.json();
+    const fileEntry = Object.values(content.children).find(c => c.type === 'file');
+    if (!fileEntry) throw new Error('파일을 찾을 수 없습니다.');
+
+    const title = fileEntry.name.replace(/\.pdf$/i, '');
+    document.getElementById('shareReceiveStatus').textContent = `📖 "${title}" 다운로드 중...`;
+    document.getElementById('shareReceiveProgress').style.display = '';
+
+    // 3. 파일 다운로드 (xhr로 진행률 표시)
+    const pdfBuf = await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('GET', fileEntry.link);
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      xhr.responseType = 'arraybuffer';
+      xhr.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const pct = Math.round(e.loaded / e.total * 100);
+          document.getElementById('shareReceiveBar').style.width = pct + '%';
+          document.getElementById('shareReceiveProgressText').textContent = `받는 중... ${pct}%`;
+        }
+      };
+      xhr.onload = () => resolve(xhr.response);
+      xhr.onerror = () => reject(new Error('다운로드 실패'));
+      xhr.send();
+    });
+
+    // 4. 서재에 저장
+    const book = { id: Date.now(), title, cover: null, pdfData: pdfBuf };
+    await dbPut(book);
+    bookList.push(book);
+    renderBookshelf();
+    document.getElementById('shareReceiveBar').style.width = '100%';
+    document.getElementById('shareReceiveStatus').textContent = `✅ "${title}" 서재에 추가되었습니다!`;
+    document.getElementById('shareReceiveProgressText').textContent = '완료!';
+  } catch (e) {
+    document.getElementById('shareReceiveStatus').textContent = '❌ ' + e.message;
+  }
 }
 
 function closeShareReceive() {
   document.getElementById('shareReceiveModal').style.display = 'none';
-  if (shareReceivePeer) { shareReceivePeer.destroy(); shareReceivePeer = null; }
 }
 </script>
 <script>
