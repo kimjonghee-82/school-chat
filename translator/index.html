@@ -712,30 +712,30 @@ body.live-on .nav-arrow.right { right: 30%; }
      자료 게시판 모달
 ══════════════════════════════ -->
 <div class="modal-overlay" id="downloadBoardModal" onclick="if(event.target===this)closeDownloadBoard()" style="display:none;opacity:1;pointer-events:auto;z-index:1200">
-  <div class="modal" style="max-width:640px;width:96vw;padding:0;overflow:hidden">
+  <div class="modal" style="max-width:640px;width:96vw;padding:0;overflow:hidden;background:#fff;color:#111">
 
     <!-- 헤더 -->
-    <div style="padding:20px 24px 16px;border-bottom:1px solid var(--border)">
+    <div style="padding:20px 24px 16px;border-bottom:1px solid #ddd">
       <div style="display:flex;align-items:center;justify-content:space-between">
-        <h2 style="font-size:1.2rem">📋 자료 게시판</h2>
-        <button onclick="closeDownloadBoard()" style="background:none;border:none;color:var(--sub);font-size:1.3rem;cursor:pointer">✕</button>
+        <h2 style="font-size:1.2rem;color:#111">📋 자료 게시판</h2>
+        <button onclick="closeDownloadBoard()" style="background:none;border:none;color:#888;font-size:1.3rem;cursor:pointer">✕</button>
       </div>
     </div>
 
     <!-- 글쓰기 폼 (비밀번호 확인 후 표시) -->
-    <div id="dbWriteForm" style="display:none;padding:14px 24px;border-bottom:1px solid var(--border);background:var(--bg)">
+    <div id="dbWriteForm" style="display:none;padding:14px 24px;border-bottom:1px solid #ddd;background:#f8f8f8">
       <div style="display:flex;flex-direction:column;gap:8px">
         <input id="dbInputTitle" placeholder="제목 *" maxlength="80"
-          style="width:100%;padding:8px 12px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:.9rem">
+          style="width:100%;padding:8px 12px;border-radius:6px;border:1px solid #ccc;background:#fff;color:#111;font-size:.9rem">
         <input id="dbInputUrl" placeholder="링크 (https://...)" type="text"
-          style="width:100%;padding:8px 12px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:.9rem">
+          style="width:100%;padding:8px 12px;border-radius:6px;border:1px solid #ccc;background:#fff;color:#111;font-size:.9rem">
         <div style="display:flex;gap:8px;align-items:center">
           <input id="dbInputDesc" placeholder="설명 (선택)" maxlength="120"
-            style="flex:1;padding:8px 12px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:.85rem">
+            style="flex:1;padding:8px 12px;border-radius:6px;border:1px solid #ccc;background:#fff;color:#111;font-size:.85rem">
           <button id="dbAddBtn" onclick="dbAddPost()"
-            style="padding:8px 18px;border-radius:6px;background:var(--primary);color:#fff;border:none;cursor:pointer;font-size:.9rem;white-space:nowrap">등록</button>
+            style="padding:8px 18px;border-radius:6px;background:#4a6cf7;color:#fff;border:none;cursor:pointer;font-size:.9rem;white-space:nowrap">등록</button>
         </div>
-        <div id="dbAddMsg" style="font-size:.8rem;min-height:16px"></div>
+        <div id="dbAddMsg" style="font-size:.8rem;min-height:16px;color:#555"></div>
       </div>
     </div>
 
@@ -743,28 +743,28 @@ body.live-on .nav-arrow.right { right: 30%; }
     <div style="overflow-y:auto;max-height:52vh">
       <table style="width:100%;border-collapse:collapse;font-size:.88rem">
         <thead>
-          <tr style="border-bottom:2px solid var(--border);background:var(--bg)">
-            <th style="padding:10px 12px;text-align:center;width:44px;color:var(--sub);font-weight:600">No</th>
-            <th style="padding:10px 12px;text-align:left;color:var(--sub);font-weight:600">제목</th>
-            <th style="padding:10px 12px;text-align:center;width:90px;color:var(--sub);font-weight:600">날짜</th>
+          <tr style="border-bottom:2px solid #ddd;background:#f5f5f5">
+            <th style="padding:10px 12px;text-align:center;width:44px;color:#666;font-weight:600">No</th>
+            <th style="padding:10px 12px;text-align:left;color:#666;font-weight:600">제목</th>
+            <th style="padding:10px 12px;text-align:center;width:90px;color:#666;font-weight:600">날짜</th>
             <th id="dbDelCol" style="display:none;width:36px"></th>
           </tr>
         </thead>
         <tbody id="dbPostList">
-          <tr><td colspan="4" style="text-align:center;padding:30px;color:var(--sub)">불러오는 중...</td></tr>
+          <tr><td colspan="4" style="text-align:center;padding:30px;color:#888">불러오는 중...</td></tr>
         </tbody>
       </table>
     </div>
 
     <!-- 하단 버튼 -->
-    <div style="padding:12px 24px;border-top:1px solid var(--border);display:flex;gap:8px;align-items:center;justify-content:flex-end">
+    <div style="padding:12px 24px;border-top:1px solid #ddd;display:flex;gap:8px;align-items:center;justify-content:flex-end;background:#fff">
       <div id="dbAuthArea" style="display:flex;gap:8px;align-items:center;flex:1">
         <input id="dbPwInput" type="password" placeholder="선생님 비밀번호" maxlength="20"
-          style="flex:1;max-width:200px;padding:7px 12px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:.88rem"
+          style="flex:1;max-width:200px;padding:7px 12px;border-radius:6px;border:1px solid #ccc;background:#fff;color:#111;font-size:.88rem"
           onkeydown="if(event.key==='Enter')dbAuth()">
-        <button onclick="dbAuth()" style="padding:7px 14px;border-radius:6px;background:var(--primary);color:#fff;border:none;cursor:pointer;font-size:.88rem">글쓰기</button>
+        <button onclick="dbAuth()" style="padding:7px 14px;border-radius:6px;background:#4a6cf7;color:#fff;border:none;cursor:pointer;font-size:.88rem">글쓰기</button>
       </div>
-      <button onclick="closeDownloadBoard()" style="padding:7px 16px;border-radius:6px;border:1px solid var(--border);background:none;color:var(--text);cursor:pointer;font-size:.88rem">닫기</button>
+      <button onclick="closeDownloadBoard()" style="padding:7px 16px;border-radius:6px;border:1px solid #ccc;background:#fff;color:#333;cursor:pointer;font-size:.88rem">닫기</button>
     </div>
   </div>
 </div>
@@ -2772,16 +2772,19 @@ function closeShareReceive() {
 ══════════════════════════════ */
 const DB_PW = 'school1234';
 let dbAuthed = false;
-let dbPostCount = 0;
+let dbListener = null;
+let dbEditingId = null;
 
 function openDownloadBoard() {
   document.getElementById('downloadBoardModal').style.display = 'flex';
-  dbRenderPosts();
+  dbStartListener();
 }
 
 function closeDownloadBoard() {
   document.getElementById('downloadBoardModal').style.display = 'none';
+  if (dbListener) { dbListener.off(); dbListener = null; }
   dbAuthed = false;
+  dbEditingId = null;
   document.getElementById('dbAuthArea').style.display = 'flex';
   document.getElementById('dbWriteForm').style.display = 'none';
   document.getElementById('dbDelCol').style.display = 'none';
@@ -2795,45 +2798,56 @@ function dbAuth() {
   document.getElementById('dbAuthArea').style.display = 'none';
   document.getElementById('dbWriteForm').style.display = 'block';
   document.getElementById('dbDelCol').style.display = '';
-  dbRenderPosts();
+  dbStartListener();
 }
 
-async function dbRenderPosts() {
-  const tbody = document.getElementById('dbPostList');
-  tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:30px;color:var(--sub)">불러오는 중...</td></tr>';
-  try {
-    const snap = await fbDb.ref('download_board').get();
+function dbStartListener() {
+  if (dbListener) { dbListener.off(); }
+  dbListener = fbDb.ref('download_board');
+  dbListener.on('value', snap => {
     const posts = [];
     snap.forEach(c => posts.push({ id: c.key, ...c.val() }));
     posts.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
-    dbPostCount = posts.length;
+    const tbody = document.getElementById('dbPostList');
     if (!posts.length) {
-      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:30px;color:var(--sub)">등록된 자료가 없습니다.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:30px;color:#888">등록된 자료가 없습니다.</td></tr>';
       return;
     }
     tbody.innerHTML = '';
     posts.forEach((p, i) => {
       const tr = document.createElement('tr');
-      tr.style.cssText = 'border-bottom:1px solid var(--border);cursor:pointer';
-      tr.onmouseenter = () => tr.style.background = 'rgba(255,255,255,.04)';
+      tr.style.cssText = 'border-bottom:1px solid #eee';
+      tr.onmouseenter = () => tr.style.background = '#f9f9f9';
       tr.onmouseleave = () => tr.style.background = '';
-      const date = new Date(p.createdAt).toLocaleDateString('ko-KR', {month:'2-digit',day:'2-digit'});
+      const date = new Date(p.createdAt).toLocaleDateString('ko-KR', {month:'2-digit', day:'2-digit'});
       tr.innerHTML = `
-        <td style="padding:11px 12px;text-align:center;color:var(--sub);font-size:.82rem">${i + 1}</td>
+        <td style="padding:11px 12px;text-align:center;color:#999;font-size:.82rem">${i + 1}</td>
         <td style="padding:11px 12px">
-          <a href="${p.url}" target="_blank" rel="noopener" style="color:var(--text);text-decoration:none;font-size:.9rem" onclick="event.stopPropagation()">${p.title}</a>
-          ${p.desc ? `<div style="font-size:.78rem;color:var(--sub);margin-top:2px">${p.desc}</div>` : ''}
+          <a href="${p.url}" target="_blank" rel="noopener" style="color:#1a1a1a;text-decoration:none;font-size:.9rem">${p.title}</a>
+          ${p.desc ? `<div style="font-size:.78rem;color:#777;margin-top:2px">${p.desc}</div>` : ''}
         </td>
-        <td style="padding:11px 12px;text-align:center;color:var(--sub);font-size:.8rem;white-space:nowrap">${date}</td>
+        <td style="padding:11px 12px;text-align:center;color:#999;font-size:.8rem;white-space:nowrap">${date}</td>
         <td style="padding:11px 8px;text-align:center;display:${dbAuthed ? 'table-cell' : 'none'}">
-          <button onclick="dbDeletePost('${p.id}',this)" style="background:none;border:none;cursor:pointer;color:var(--sub);font-size:.95rem;padding:2px 4px">🗑</button>
+          <button onclick="dbEditPost('${p.id}','${p.title.replace(/'/g,"\\'")}','${p.url.replace(/'/g,"\\'")}','${(p.desc||'').replace(/'/g,"\\'")}',this)"
+            style="background:none;border:none;cursor:pointer;color:#888;font-size:.8rem;padding:2px 5px">수정</button>
+          <button onclick="dbDeletePost('${p.id}',this)"
+            style="background:none;border:none;cursor:pointer;color:#e57373;font-size:.8rem;padding:2px 5px">삭제</button>
         </td>
       `;
       tbody.appendChild(tr);
     });
-  } catch(e) {
-    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:20px;color:#e57373">오류: ${e.message}</td></tr>`;
-  }
+  });
+}
+
+function dbEditPost(id, title, url, desc) {
+  dbEditingId = id;
+  document.getElementById('dbInputTitle').value = title;
+  document.getElementById('dbInputUrl').value = url;
+  document.getElementById('dbInputDesc').value = desc;
+  document.getElementById('dbAddBtn').textContent = '수정 완료';
+  document.getElementById('dbAddMsg').style.color = '#888';
+  document.getElementById('dbAddMsg').textContent = '내용을 수정 후 "수정 완료"를 누르세요.';
+  document.getElementById('dbInputTitle').focus();
 }
 
 async function dbAddPost() {
@@ -2844,53 +2858,31 @@ async function dbAddPost() {
   const btn   = document.getElementById('dbAddBtn');
   if (!title) { msg.style.color='#e57373'; msg.textContent='제목을 입력하세요.'; return; }
   if (!url)   { msg.style.color='#e57373'; msg.textContent='링크를 입력하세요.'; return; }
-  btn.disabled = true; btn.textContent = '등록 중...';
+  btn.disabled = true;
   try {
-    const now = Date.now();
-    const ref = await fbDb.ref('download_board').push({ title, url, desc, createdAt: now });
+    if (dbEditingId) {
+      await fbDb.ref(`download_board/${dbEditingId}`).update({ title, url, desc });
+      dbEditingId = null;
+      btn.textContent = '등록';
+    } else {
+      await fbDb.ref('download_board').push({ title, url, desc, createdAt: Date.now() });
+    }
     document.getElementById('dbInputTitle').value = '';
     document.getElementById('dbInputUrl').value = '';
     document.getElementById('dbInputDesc').value = '';
-    msg.style.color = '#66bb6a'; msg.textContent = '등록되었습니다!';
+    msg.style.color = '#4caf50'; msg.textContent = '완료!';
     setTimeout(() => { msg.textContent = ''; }, 2000);
-    // 테이블에 행 추가
-    const tbody = document.getElementById('dbPostList');
-    if (tbody.querySelector('td[colspan]')) tbody.innerHTML = '';
-    dbPostCount++;
-    const tr = document.createElement('tr');
-    tr.style.cssText = 'border-bottom:1px solid var(--border);cursor:pointer';
-    tr.onmouseenter = () => tr.style.background = 'rgba(255,255,255,.04)';
-    tr.onmouseleave = () => tr.style.background = '';
-    const date = new Date(now).toLocaleDateString('ko-KR', {month:'2-digit',day:'2-digit'});
-    tr.innerHTML = `
-      <td style="padding:11px 12px;text-align:center;color:var(--sub);font-size:.82rem">${dbPostCount}</td>
-      <td style="padding:11px 12px">
-        <a href="${url}" target="_blank" rel="noopener" style="color:var(--text);text-decoration:none;font-size:.9rem" onclick="event.stopPropagation()">${title}</a>
-        ${desc ? `<div style="font-size:.78rem;color:var(--sub);margin-top:2px">${desc}</div>` : ''}
-      </td>
-      <td style="padding:11px 12px;text-align:center;color:var(--sub);font-size:.8rem;white-space:nowrap">${date}</td>
-      <td style="padding:11px 8px;text-align:center">
-        <button onclick="dbDeletePost('${ref.key}',this)" style="background:none;border:none;cursor:pointer;color:var(--sub);font-size:.95rem;padding:2px 4px">🗑</button>
-      </td>
-    `;
-    tbody.appendChild(tr);
   } catch(e) {
     msg.style.color = '#e57373'; msg.textContent = '실패: ' + e.message;
   } finally {
-    btn.disabled = false; btn.textContent = '등록';
+    btn.disabled = false;
   }
 }
 
-async function dbDeletePost(id, btnEl) {
+async function dbDeletePost(id) {
   if (!confirm('삭제할까요?')) return;
   try {
     await fbDb.ref(`download_board/${id}`).remove();
-    btnEl.closest('tr').remove();
-    dbPostCount--;
-    const tbody = document.getElementById('dbPostList');
-    if (!tbody.children.length) {
-      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:30px;color:var(--sub)">등록된 자료가 없습니다.</td></tr>';
-    }
   } catch(e) { alert('삭제 실패: ' + e.message); }
 }
 </script>
