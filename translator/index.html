@@ -680,7 +680,7 @@ body.live-on .nav-arrow.right { right: 30%; }
     <h2>📥 책 받기</h2>
     <div id="shareReceiveStep1">
       <p style="font-size:.9rem;color:var(--sub);margin-bottom:16px">선생님께 받은 코드를 입력하세요</p>
-      <input id="shareCodeInput" maxlength="8" placeholder="코드 입력" style="width:100%;text-align:center;font-size:1.8rem;font-weight:700;letter-spacing:.15em;font-family:monospace;padding:12px;border-radius:10px;border:2px solid var(--border);background:var(--card);color:var(--text);margin-bottom:16px" oninput="this.value=this.value.toUpperCase()">
+      <input id="shareCodeInput" maxlength="6" placeholder="000000" inputmode="numeric" pattern="[0-9]*" style="width:100%;text-align:center;font-size:2rem;font-weight:700;letter-spacing:.2em;font-family:monospace;padding:12px;border-radius:10px;border:2px solid var(--border);background:var(--card);color:var(--text);margin-bottom:16px" oninput="this.value=this.value.replace(/\D/g,'')">
       <div class="modal-actions">
         <button class="btn btn-ghost" onclick="closeShareReceive()">취소</button>
         <button class="btn btn-primary" onclick="shareReceiveConnect()">연결</button>
@@ -2555,7 +2555,7 @@ async function shareSendStart() {
   shareConnections = [];
 
   // 학생이 입력하기 쉬운 6자리 영숫자 코드를 peer ID로 사용
-  const roomCode = Math.random().toString(36).slice(2, 8).toUpperCase();
+  const roomCode = String(Math.floor(100000 + Math.random() * 900000)); // 6자리 숫자
   document.getElementById('shareRoomCode').textContent = roomCode;
   sharePeer = new Peer(roomCode.toLowerCase(), { config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] } });
   sharePeer.on('open', () => {});
