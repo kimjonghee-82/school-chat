@@ -2666,7 +2666,20 @@ async function shareReceiveConnect() {
       document.getElementById('shareReceiveProgressText').textContent = `받는 중... ${pct}%`;
     }
 
-    const book = { id: Date.now(), title, cover: null, pdfData: full.buffer };
+    // 첫 페이지로 썸네일 생성
+    let thumbnail = null;
+    try {
+      const pdfDoc = await pdfjsLib.getDocument({ data: full.buffer.slice(0) }).promise;
+      const page = await pdfDoc.getPage(1);
+      const vp = page.getViewport({ scale: 0.5 });
+      const thumbCanvas = document.createElement('canvas');
+      thumbCanvas.width = vp.width;
+      thumbCanvas.height = vp.height;
+      await page.render({ canvasContext: thumbCanvas.getContext('2d'), viewport: vp }).promise;
+      thumbnail = thumbCanvas.toDataURL('image/jpeg', 0.7);
+    } catch (_) {}
+
+    const book = { id: Date.now(), title, thumbnail, pdfData: full.buffer };
     await dbPut(book);
     bookList.push(book);
     renderBookshelf();
