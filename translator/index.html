@@ -2076,22 +2076,22 @@ async function translateSel(rect, popClientX, popClientY) {
       body:JSON.stringify({model:'meta-llama/llama-4-scout-17b-16e-instruct',max_tokens:2048,temperature:0,
         messages:[
           {role:'system',content:`You are a professional Korean → ${LANG_FULL[targetLang]} translator.
-CRITICAL RULE: The [TRANSLATED] tag MUST contain ONLY ${LANG_FULL[targetLang]} text. NEVER use English in [TRANSLATED]. If you write English there, you have failed the task.
+CRITICAL RULE: The [TRANSLATED] tag MUST contain ONLY ${LANG_FULL[targetLang]} text. Do NOT use any other language. If the output is not in ${LANG_FULL[targetLang]}, you have failed.
 
 [Short word/phrase — 3 words or fewer]
 - List the main meanings as a numbered list (max 5).
 - Each meaning: include part of speech and usage context.
-- Write ALL meanings in ${LANG_FULL[targetLang]} only. No English.
+- Write ALL meanings in ${LANG_FULL[targetLang]} only.
 
 [Sentence/paragraph — 4 words or more]
-- Translate naturally in ${LANG_FULL[targetLang]}.
+- Translate naturally into ${LANG_FULL[targetLang]}.
 - Use formal/textbook register.
 - Do NOT translate proper nouns, formulas, symbols, or units.
 
 [Common rules]
 - Output ONLY the two tags below. No greetings, explanations, or extra text.
 - [KOREAN] tag: recognized Korean source text only.
-- [TRANSLATED] tag: ${LANG_FULL[targetLang]} translation only — absolutely no English.`},
+- [TRANSLATED] tag: ${LANG_FULL[targetLang]} translation only. No other language allowed.`},
           {role:'user',content:[
             {type:'text',text:`이미지의 한국어 텍스트를 인식하고 ${LANG_FULL[targetLang]}로 번역하세요.\n\n형식:\n[KOREAN]인식한 한국어 원문[/KOREAN]\n[TRANSLATED]번역 결과[/TRANSLATED]`},
             {type:'image_url',image_url:{url:`data:image/jpeg;base64,${b64}`}}
