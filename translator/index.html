@@ -11,7 +11,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="번역기">
 <link rel="apple-touch-icon" href="icon192.png">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script><style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script><style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
   --primary: #5c6bc0;
@@ -678,7 +679,7 @@ body.live-on .nav-arrow.right { right: 30%; }
     <h2>📥 책 받기</h2>
     <div id="shareReceiveStep1">
       <p style="font-size:.9rem;color:var(--sub);margin-bottom:16px">선생님께 받은 코드를 입력하세요</p>
-      <input id="shareCodeInput" maxlength="12" placeholder="코드 입력" autocomplete="off" autocapitalize="none" style="width:100%;text-align:center;font-size:1.8rem;font-weight:700;letter-spacing:.15em;font-family:monospace;padding:12px;border-radius:10px;border:2px solid var(--border);background:var(--card);color:var(--text);margin-bottom:16px" oninput="this.value=this.value.toUpperCase()">
+      <input id="shareCodeInput" maxlength="6" placeholder="000000" type="tel" autocomplete="off" style="width:100%;text-align:center;font-size:2.2rem;font-weight:700;letter-spacing:.2em;font-family:monospace;padding:12px;border-radius:10px;border:2px solid var(--border);background:var(--card);color:var(--text);margin-bottom:16px" oninput="this.value=this.value.replace(/\D/g,'')">
       <div class="modal-actions">
         <button class="btn btn-ghost" onclick="closeShareReceive()">취소</button>
         <button class="btn btn-primary" onclick="shareReceiveConnect()">연결</button>
@@ -2504,10 +2505,19 @@ document.addEventListener('drop', e=>{
 ══════════════════════════════ */
 
 /* ══════════════════════════════
-   P2P → Gofile 방식으로 교체
-   망 무관, 가입 불필요, 다중 다운로드 지원
+   P2P 책 전송 (PeerJS + TURN)
+   TURN 서버로 망 달라도 연결 가능
 ══════════════════════════════ */
-let shareSendBook = null;
+const SHARE_ICE = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'turn:openrelay.metered.ca:80',            username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turn:openrelay.metered.ca:443',           username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+  ]
+};
+const SHARE_CHUNK = 512 * 1024;
+let shareSendBook = null, sharePeer = null, shareConns = [];
 
 /* ─── 파일 직접 선택 ─── */
 function onShareFileSelect(input) {
@@ -2544,57 +2554,66 @@ async function openShareSend() {
   document.getElementById('shareSendModal').style.display = 'flex';
 }
 
-async function shareSendStart() {
+function shareSendStart() {
   if (!shareSendBook) return;
   document.getElementById('shareSendStep1').style.display = 'none';
   document.getElementById('shareSendStep2').style.display = '';
-  document.getElementById('shareRoomCode').textContent = '업로드 중...';
   document.getElementById('shareStudentList').textContent = '';
-  document.getElementById('shareSendProgress').style.display = '';
-  document.getElementById('shareSendBar').style.width = '0%';
-  document.getElementById('shareSendProgressText').textContent = '파일 업로드 중...';
+  document.getElementById('shareSendProgress').style.display = 'none';
 
-  try {
-    const buf = shareSendBook.pdfData instanceof ArrayBuffer ? shareSendBook.pdfData : shareSendBook.pdfData.buffer;
-    const blob = new Blob([buf], { type: 'application/pdf' });
-    const fileName = (shareSendBook.title || 'book').replace(/[^a-zA-Z0-9가-힣_\-]/g, '_') + '.pdf';
+  // 6자리 숫자 코드 생성
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  const peerId = 'schoolbook-' + code;
+  document.getElementById('shareRoomCode').textContent = code;
 
-    // catbox.moe 업로드 (CORS 지원, 무료, 가입불필요, 1GB)
-    const fileUrl = await new Promise((resolve, reject) => {
-      const fd = new FormData();
-      fd.append('reqtype', 'fileupload');
-      fd.append('fileToUpload', new File([blob], fileName, { type: 'application/pdf' }));
-      const xhr = new XMLHttpRequest();
-      xhr.open('POST', 'https://catbox.moe/user/api.php');
-      xhr.upload.onprogress = (e) => {
-        if (e.lengthComputable) {
-          const pct = Math.round(e.loaded / e.total * 100);
-          document.getElementById('shareSendBar').style.width = pct + '%';
-          document.getElementById('shareSendProgressText').textContent = `업로드 중... ${pct}%`;
-        }
-      };
-      xhr.onload = () => {
-        const url = xhr.responseText.trim();
-        if (url.startsWith('https://')) resolve(url);
-        else reject(new Error('업로드 실패: ' + url));
-      };
-      xhr.onerror = () => reject(new Error('업로드 실패 (네트워크 오류)'));
-      xhr.send(fd);
-    });
+  if (sharePeer) { try { sharePeer.destroy(); } catch {} }
+  sharePeer = new Peer(peerId, { config: SHARE_ICE });
 
-    // URL에서 파일 ID 추출 (예: https://files.catbox.moe/abc123.pdf → abc123)
-    const fileId = fileUrl.split('/').pop().replace(/\.[^.]+$/, '');
-    // 전체 URL도 저장 (학생이 다운로드에 사용)
-    shareSendBook._catboxUrl = fileUrl;
-
-    document.getElementById('shareRoomCode').textContent = fileId.toUpperCase();
-    document.getElementById('shareSendBar').style.width = '100%';
-    document.getElementById('shareSendProgressText').textContent = '업로드 완료! 학생이 코드를 입력하면 받을 수 있어요.';
-    document.getElementById('shareStudentList').textContent = `📁 "${shareSendBook.title}"`;
-  } catch (e) {
-    document.getElementById('shareRoomCode').textContent = '오류';
+  sharePeer.on('error', (e) => {
     document.getElementById('shareSendProgressText').textContent = '❌ ' + e.message;
-  }
+    document.getElementById('shareSendProgress').style.display = '';
+  });
+
+  sharePeer.on('connection', (conn) => {
+    shareConns.push(conn);
+    conn.on('open', () => {
+      const buf = shareSendBook.pdfData instanceof ArrayBuffer ? shareSendBook.pdfData : shareSendBook.pdfData.buffer;
+      document.getElementById('shareStudentList').textContent = `📡 학생 연결됨 — 전송 중...`;
+      document.getElementById('shareSendProgress').style.display = '';
+      document.getElementById('shareSendBar').style.width = '0%';
+      document.getElementById('shareSendProgressText').textContent = '전송 준비 중...';
+
+      // 메타데이터 전송
+      conn.send({ type: 'offer', name: shareSendBook.title || '교과서', size: buf.byteLength });
+
+      conn.on('data', (msg) => {
+        if (msg.type !== 'ready') return;
+        // 청크 전송
+        let offset = 0, seq = 0;
+        const total = buf.byteLength;
+        function sendNext() {
+          if (offset >= total) {
+            conn.send({ type: 'done' });
+            document.getElementById('shareSendBar').style.width = '100%';
+            document.getElementById('shareSendProgressText').textContent = '✅ 전송 완료!';
+            document.getElementById('shareStudentList').textContent = `✅ 학생 전송 완료`;
+            return;
+          }
+          const slice = buf.slice(offset, offset + SHARE_CHUNK);
+          conn.send({ type: 'chunk', seq: seq++, data: slice });
+          offset += SHARE_CHUNK;
+          const pct = Math.min(100, Math.round(offset / total * 100));
+          document.getElementById('shareSendBar').style.width = pct + '%';
+          document.getElementById('shareSendProgressText').textContent = `전송 중... ${pct}%`;
+          setTimeout(sendNext, 30);
+        }
+        sendNext();
+      });
+    });
+    conn.on('error', (e) => {
+      document.getElementById('shareSendProgressText').textContent = '❌ 연결 오류: ' + e.message;
+    });
+  });
 }
 
 function closeShareSend() {
@@ -2610,48 +2629,57 @@ function openShareReceive() {
   document.getElementById('shareReceiveModal').style.display = 'flex';
 }
 
-async function shareReceiveConnect() {
-  const code = document.getElementById('shareCodeInput').value.trim().toLowerCase();
+function shareReceiveConnect() {
+  const code = document.getElementById('shareCodeInput').value.trim().replace(/\D/g, '');
   if (!code) { alert('코드를 입력하세요.'); return; }
   document.getElementById('shareReceiveStep1').style.display = 'none';
   document.getElementById('shareReceiveStep2').style.display = '';
-  document.getElementById('shareReceiveStatus').textContent = '파일 정보 확인 중...';
+  document.getElementById('shareReceiveStatus').textContent = '선생님께 연결 중...';
   document.getElementById('shareReceiveProgress').style.display = 'none';
 
-  try {
-    // catbox.moe: 코드로 URL 복원 (예: ABC123 → https://files.catbox.moe/abc123.pdf)
-    const fileUrl = `https://files.catbox.moe/${code.toLowerCase()}.pdf`;
-    const title = code.toUpperCase();
-    document.getElementById('shareReceiveStatus').textContent = `📖 다운로드 중...`;
-    document.getElementById('shareReceiveProgress').style.display = '';
-
-    const pdfBuf = await new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open('GET', fileUrl);
-      xhr.responseType = 'arraybuffer';
-      xhr.onprogress = (e) => {
-        if (e.lengthComputable) {
-          const pct = Math.round(e.loaded / e.total * 100);
-          document.getElementById('shareReceiveBar').style.width = pct + '%';
-          document.getElementById('shareReceiveProgressText').textContent = `받는 중... ${pct}%`;
-        }
-      };
-      xhr.onload = () => resolve(xhr.response);
-      xhr.onerror = () => reject(new Error('다운로드 실패'));
-      xhr.send();
+  const studentPeer = new Peer({ config: SHARE_ICE });
+  studentPeer.on('error', (e) => {
+    document.getElementById('shareReceiveStatus').textContent = '❌ ' + e.message;
+  });
+  studentPeer.on('open', () => {
+    const conn = studentPeer.connect('schoolbook-' + code, { reliable: true });
+    conn.on('error', (e) => {
+      document.getElementById('shareReceiveStatus').textContent = '❌ 연결 실패: ' + e.message;
     });
 
-    // 4. 서재에 저장
-    const book = { id: Date.now(), title, cover: null, pdfData: pdfBuf };
-    await dbPut(book);
-    bookList.push(book);
-    renderBookshelf();
-    document.getElementById('shareReceiveBar').style.width = '100%';
-    document.getElementById('shareReceiveStatus').textContent = `✅ "${title}" 서재에 추가되었습니다!`;
-    document.getElementById('shareReceiveProgressText').textContent = '완료!';
-  } catch (e) {
-    document.getElementById('shareReceiveStatus').textContent = '❌ ' + e.message;
-  }
+    let bookName = '교과서';
+    let totalSize = 0, receivedSize = 0;
+    const chunks = [];
+
+    conn.on('data', (msg) => {
+      if (msg.type === 'offer') {
+        bookName = msg.name || '교과서';
+        totalSize = msg.size || 0;
+        document.getElementById('shareReceiveStatus').textContent = `📖 "${bookName}" 받는 중...`;
+        document.getElementById('shareReceiveProgress').style.display = '';
+        conn.send({ type: 'ready' });
+      } else if (msg.type === 'chunk') {
+        chunks.push(msg.data);
+        receivedSize += msg.data.byteLength;
+        const pct = totalSize ? Math.min(100, Math.round(receivedSize / totalSize * 100)) : 0;
+        document.getElementById('shareReceiveBar').style.width = pct + '%';
+        document.getElementById('shareReceiveProgressText').textContent = `받는 중... ${pct}%`;
+      } else if (msg.type === 'done') {
+        const pdfBuf = new Uint8Array(receivedSize);
+        let off = 0;
+        for (const c of chunks) { pdfBuf.set(new Uint8Array(c), off); off += c.byteLength; }
+        const book = { id: Date.now(), title: bookName, cover: null, pdfData: pdfBuf.buffer };
+        dbPut(book).then(() => {
+          bookList.push(book);
+          renderBookshelf();
+          document.getElementById('shareReceiveBar').style.width = '100%';
+          document.getElementById('shareReceiveStatus').textContent = `✅ "${bookName}" 서재에 추가되었습니다!`;
+          document.getElementById('shareReceiveProgressText').textContent = '완료!';
+        });
+        studentPeer.destroy();
+      }
+    });
+  });
 }
 
 function closeShareReceive() {
