@@ -2273,7 +2273,6 @@ function undoApply() {
 const liveCache = new Map();
 let liveRecog = null, liveActive = false, livePendingInterim = null;
 let liveParas = [], liveCurKo = '';
-const GTRANSLATE_CODES = { ru:'ru', mn:'mn', kk:'kk', en:'en', vi:'vi' };
 
 function liveSetDot(s) {
   document.getElementById('liveDot').className = 'live-dot' + (s ? ' ' + s : '');
@@ -2297,38 +2296,45 @@ function liveRenderTr(interimTr) {
 }
 function liveClear() { liveParas = []; liveCurKo = ''; liveRenderKo(''); liveRenderTr(''); }
 
-async function liveGoogleTranslate(text, lc) {
-  const key = lc + '|' + text;
+async function liveGroqTranslate(koText) {
+  const key = targetLang + '|' + koText;
   if (liveCache.has(key)) return liveCache.get(key);
-  const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=ko&tl=${lc}&dt=t&q=${encodeURIComponent(text)}`;
-  const r = await fetch(url);
-  const d = await r.json();
-  const result = d[0].map(s => s[0]).join('');
+  const apiKey = localStorage.getItem('gemini_api_key');
+  if (!apiKey) throw new Error('Groq API 키가 설정되지 않았습니다. 설정창에서 입력해주세요.');
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+      max_tokens: 512, temperature: 0,
+      messages: [
+        { role: 'system', content: `You are a Korean → ${LANG_FULL[targetLang]} translator. Translate the given Korean sentence naturally and accurately into ${LANG_FULL[targetLang]}. Output ONLY the translated text, nothing else.` },
+        { role: 'user', content: koText }
+      ]
+    })
+  });
+  if (!res.ok) throw new Error(`Groq 오류 ${res.status}`);
+  const data = await res.json();
+  const result = (data.choices?.[0]?.message?.content || '').trim();
   liveCache.set(key, result);
   return result;
 }
 
 async function liveTranslateInterim(text) {
-  if (!text.trim()) return;
-  const lc = GTRANSLATE_CODES[targetLang] || 'en';
-  const token = {};
-  livePendingInterim = token;
-  try {
-    const result = await liveGoogleTranslate(text, lc);
-    if (livePendingInterim !== token) return;
-    liveRenderTr(result);
-  } catch {}
+  // interim은 아직 확정되지 않은 텍스트라 그록 API 호출 없이 한국어만 표시
+  liveRenderTr('');
 }
 
 async function liveTranslateFinal(koText) {
   if (!koText.trim()) return;
   livePendingInterim = null;
-  const lc = GTRANSLATE_CODES[targetLang] || 'en';
   try {
-    const result = await liveGoogleTranslate(koText, lc);
+    const result = await liveGroqTranslate(koText);
     liveParas.push({ ko: koText, tr: result });
     liveRenderKo(''); liveRenderTr('');
-  } catch {}
+  } catch (e) {
+    console.error('liveTranslateFinal 오류:', e);
+  }
 }
 
 function liveBuildRecog() {
