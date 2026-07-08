@@ -2552,23 +2552,20 @@ async function shareSendStart() {
   document.getElementById('shareStudentList').textContent = '';
   document.getElementById('shareSendProgress').style.display = '';
   document.getElementById('shareSendBar').style.width = '0%';
-  document.getElementById('shareSendProgressText').textContent = 'Gofile에 업로드 중...';
+  document.getElementById('shareSendProgressText').textContent = '파일 업로드 중...';
 
   try {
     const buf = shareSendBook.pdfData instanceof ArrayBuffer ? shareSendBook.pdfData : shareSendBook.pdfData.buffer;
     const blob = new Blob([buf], { type: 'application/pdf' });
+    const fileName = (shareSendBook.title || 'book').replace(/[^a-zA-Z0-9가-힣_\-]/g, '_') + '.pdf';
 
-    // 1. 업로드 서버 가져오기
-    const srvRes = await fetch('https://api.gofile.io/servers');
-    const srvData = await srvRes.json();
-    const server = srvData.data.servers[0].name;
-
-    // 2. 파일 업로드 (진행률 불가하므로 xhr 사용)
-    const code = await new Promise((resolve, reject) => {
+    // catbox.moe 업로드 (CORS 지원, 무료, 가입불필요, 1GB)
+    const fileUrl = await new Promise((resolve, reject) => {
       const fd = new FormData();
-      fd.append('file', new File([blob], (shareSendBook.title || 'book') + '.pdf', { type: 'application/pdf' }));
+      fd.append('reqtype', 'fileupload');
+      fd.append('fileToUpload', new File([blob], fileName, { type: 'application/pdf' }));
       const xhr = new XMLHttpRequest();
-      xhr.open('POST', `https://${server}.gofile.io/contents/uploadfile`);
+      xhr.open('POST', 'https://catbox.moe/user/api.php');
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable) {
           const pct = Math.round(e.loaded / e.total * 100);
@@ -2577,15 +2574,20 @@ async function shareSendStart() {
         }
       };
       xhr.onload = () => {
-        const data = JSON.parse(xhr.responseText);
-        if (data.status === 'ok') resolve(data.data.code);
-        else reject(new Error(data.status));
+        const url = xhr.responseText.trim();
+        if (url.startsWith('https://')) resolve(url);
+        else reject(new Error('업로드 실패: ' + url));
       };
-      xhr.onerror = () => reject(new Error('업로드 실패'));
+      xhr.onerror = () => reject(new Error('업로드 실패 (네트워크 오류)'));
       xhr.send(fd);
     });
 
-    document.getElementById('shareRoomCode').textContent = code.toUpperCase();
+    // URL에서 파일 ID 추출 (예: https://files.catbox.moe/abc123.pdf → abc123)
+    const fileId = fileUrl.split('/').pop().replace(/\.[^.]+$/, '');
+    // 전체 URL도 저장 (학생이 다운로드에 사용)
+    shareSendBook._catboxUrl = fileUrl;
+
+    document.getElementById('shareRoomCode').textContent = fileId.toUpperCase();
     document.getElementById('shareSendBar').style.width = '100%';
     document.getElementById('shareSendProgressText').textContent = '업로드 완료! 학생이 코드를 입력하면 받을 수 있어요.';
     document.getElementById('shareStudentList').textContent = `📁 "${shareSendBook.title}"`;
@@ -2617,27 +2619,15 @@ async function shareReceiveConnect() {
   document.getElementById('shareReceiveProgress').style.display = 'none';
 
   try {
-    // 1. 게스트 토큰 발급
-    const accRes = await fetch('https://api.gofile.io/accounts', { method: 'POST' });
-    const { data: { token } } = await accRes.json();
-
-    // 2. 파일 목록 조회
-    const contRes = await fetch(`https://api.gofile.io/contents/${code}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    const { data: content } = await contRes.json();
-    const fileEntry = Object.values(content.children).find(c => c.type === 'file');
-    if (!fileEntry) throw new Error('파일을 찾을 수 없습니다.');
-
-    const title = fileEntry.name.replace(/\.pdf$/i, '');
-    document.getElementById('shareReceiveStatus').textContent = `📖 "${title}" 다운로드 중...`;
+    // catbox.moe: 코드로 URL 복원 (예: ABC123 → https://files.catbox.moe/abc123.pdf)
+    const fileUrl = `https://files.catbox.moe/${code.toLowerCase()}.pdf`;
+    const title = code.toUpperCase();
+    document.getElementById('shareReceiveStatus').textContent = `📖 다운로드 중...`;
     document.getElementById('shareReceiveProgress').style.display = '';
 
-    // 3. 파일 다운로드 (xhr로 진행률 표시)
     const pdfBuf = await new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      xhr.open('GET', fileEntry.link);
-      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      xhr.open('GET', fileUrl);
       xhr.responseType = 'arraybuffer';
       xhr.onprogress = (e) => {
         if (e.lengthComputable) {
