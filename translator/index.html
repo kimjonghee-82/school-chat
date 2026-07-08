@@ -644,8 +644,13 @@ body.live-on .nav-arrow.right { right: 30%; }
   <div class="modal" style="max-width:380px">
     <h2>📤 책 전송</h2>
     <div id="shareSendStep1">
-      <p style="font-size:.9rem;color:var(--sub);margin-bottom:16px">전송할 책을 선택하세요.</p>
-      <div id="shareSendBookList" style="display:flex;flex-direction:column;gap:8px;max-height:220px;overflow-y:auto;margin-bottom:16px"></div>
+      <p style="font-size:.9rem;color:var(--sub);margin-bottom:12px">전송할 책을 선택하거나 파일을 직접 고르세요.</p>
+      <div id="shareSendBookList" style="display:flex;flex-direction:column;gap:8px;max-height:180px;overflow-y:auto;margin-bottom:12px"></div>
+      <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;border:2px dashed var(--border);cursor:pointer;color:var(--sub);font-size:.88rem;margin-bottom:16px">
+        <span style="font-size:1.3rem">📂</span>
+        <span id="shareSendFileLabel">컴퓨터에서 PDF 파일 선택...</span>
+        <input type="file" accept=".pdf,application/pdf" id="shareSendFileInput" style="display:none" onchange="onShareFileSelect(this)">
+      </label>
       <div class="modal-actions">
         <button class="btn btn-ghost" onclick="closeShareSend()">취소</button>
         <button class="btn btn-primary" id="shareSendNextBtn" onclick="shareSendStart()" disabled>다음 →</button>
@@ -2503,6 +2508,21 @@ const CHUNK_SIZE = 512 * 1024; // 512KB 단위 전송
 let sharePeer = null, shareSendBook = null, shareConnections = [];
 let shareReceivePeer = null, shareReceiveMeta = null, shareReceiveChunks = [];
 
+/* ─── 파일 직접 선택 ─── */
+function onShareFileSelect(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    shareSendBook = { id: Date.now(), title: file.name.replace(/\.pdf$/i, ''), cover: null, pdfData: e.target.result };
+    document.getElementById('shareSendFileLabel').textContent = '✅ ' + file.name;
+    // 서재 라디오 선택 해제
+    document.querySelectorAll('input[name=shareBook]').forEach(r => r.checked = false);
+    document.getElementById('shareSendNextBtn').disabled = false;
+  };
+  reader.readAsArrayBuffer(file);
+}
+
 /* ─── 선생님: 전송 열기 ─── */
 async function openShareSend() {
   const all = await dbGetAll();
@@ -2517,6 +2537,9 @@ async function openShareSend() {
   list.querySelectorAll('input[type=radio]').forEach(r => r.addEventListener('change', () => {
     document.getElementById('shareSendNextBtn').disabled = false;
     shareSendBook = all.find(b => b.id == r.value);
+    // 파일 직접 선택 초기화
+    document.getElementById('shareSendFileInput').value = '';
+    document.getElementById('shareSendFileLabel').textContent = '컴퓨터에서 PDF 파일 선택...';
   }));
   document.getElementById('shareSendStep1').style.display = '';
   document.getElementById('shareSendStep2').style.display = 'none';
