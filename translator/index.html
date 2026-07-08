@@ -12,8 +12,8 @@
 <meta name="apple-mobile-web-app-title" content="번역기">
 <link rel="apple-touch-icon" href="icon192.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/webtorrent@2.5.1/webtorrent.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script><style>
+<script src="https://cdn.jsdelivr.net/npm/simple-peer@9.11.1/simplepeer.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mqtt@5.3.4/dist/mqtt.min.js"></script><style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
   --primary: #5c6bc0;
@@ -657,18 +657,16 @@ body.live-on .nav-arrow.right { right: 30%; }
       </div>
     </div>
     <div id="shareSendStep2" style="display:none;text-align:center">
-      <p style="font-size:.85rem;color:var(--sub);margin-bottom:10px">학생에게 QR 코드를 보여주거나 링크를 공유하세요</p>
-      <div id="shareQrDiv" style="display:flex;justify-content:center;margin-bottom:10px"></div>
-      <div id="shareStudentList" style="font-size:.82rem;color:var(--sub);margin-bottom:8px;min-height:20px"></div>
-      <input id="shareUrlInput" readonly style="width:100%;font-size:.75rem;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--sub);margin-bottom:6px;text-overflow:ellipsis">
-      <button class="btn btn-primary" style="width:100%;margin-bottom:8px" onclick="shareCopyUrl()">🔗 링크 복사 (카카오톡 등으로 공유)</button>
+      <p style="font-size:.85rem;color:var(--sub);margin-bottom:8px">학생에게 아래 코드를 알려주세요</p>
+      <div id="shareRoomCode" style="font-size:3rem;font-weight:900;letter-spacing:.25em;color:var(--accent);margin:12px 0;font-family:monospace"></div>
+      <div id="shareStudentList" style="font-size:.82rem;color:var(--sub);margin-bottom:12px;min-height:20px"></div>
       <div id="shareSendProgress" style="display:none">
-        <div style="background:var(--border);border-radius:8px;height:8px;overflow:hidden;margin-bottom:4px">
+        <div style="background:var(--border);border-radius:8px;height:8px;overflow:hidden;margin-bottom:6px">
           <div id="shareSendBar" style="height:100%;background:var(--accent);width:0%;transition:width .3s"></div>
         </div>
-        <div id="shareSendProgressText" style="font-size:.78rem;color:var(--sub)"></div>
+        <div id="shareSendProgressText" style="font-size:.8rem;color:var(--sub)"></div>
       </div>
-      <p style="font-size:.72rem;color:#888;margin-top:6px">이 창을 닫으면 전송이 중단됩니다</p>
+      <p style="font-size:.72rem;color:#888;margin-top:10px">이 창을 닫으면 전송이 중단됩니다</p>
       <button class="btn btn-ghost" style="margin-top:6px" onclick="closeShareSend()">닫기</button>
     </div>
   </div>
@@ -681,8 +679,8 @@ body.live-on .nav-arrow.right { right: 30%; }
   <div class="modal" style="max-width:340px;text-align:center">
     <h2>📥 책 받기</h2>
     <div id="shareReceiveStep1">
-      <p style="font-size:.9rem;color:var(--sub);margin-bottom:12px">선생님이 보낸 링크를 붙여넣거나<br>직접 앱을 열면 자동으로 연결됩니다</p>
-      <textarea id="shareCodeInput" placeholder="선생님 링크 붙여넣기&#10;(https://... 또는 해시값)" autocomplete="off" style="width:100%;font-size:.82rem;padding:10px;border-radius:10px;border:2px solid var(--border);background:var(--card);color:var(--text);margin-bottom:12px;resize:none;height:80px;font-family:monospace"></textarea>
+      <p style="font-size:.9rem;color:var(--sub);margin-bottom:16px">선생님께 받은 6자리 코드를 입력하세요</p>
+      <input id="shareCodeInput" maxlength="6" placeholder="000000" type="tel" autocomplete="off" style="width:100%;text-align:center;font-size:2.4rem;font-weight:700;letter-spacing:.3em;font-family:monospace;padding:12px;border-radius:10px;border:2px solid var(--border);background:var(--card);color:var(--text);margin-bottom:16px" oninput="this.value=this.value.replace(/\D/g,'')">
       <div class="modal-actions">
         <button class="btn btn-ghost" onclick="closeShareReceive()">취소</button>
         <button class="btn btn-primary" onclick="shareReceiveConnect()">연결</button>
@@ -2508,9 +2506,10 @@ document.addEventListener('drop', e=>{
 ══════════════════════════════ */
 
 /* ══════════════════════════════
-   P2P 책 전송 (WebTorrent)
-   공개 WebRTC 트래커로 망 달라도 연결
+   P2P 책 전송 (SimplePeer + MQTT 신호)
+   MQTT 공개 브로커로 신호교환, TURN으로 망달라도 연결
 ══════════════════════════════ */
+const SHARE_MQTT = 'wss://broker.hivemq.com:8884/mqtt';
 const SHARE_ICE = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
@@ -2521,7 +2520,29 @@ const SHARE_ICE = {
     { urls: 'turns:freestun.net:5350',                 username: 'free', credential: 'free' }
   ]
 };
-let shareSendBook = null, shareTorrentSeed = null, shareTorrentRecv = null;
+const SHARE_CHUNK = 32 * 1024; // 32KB — WebRTC DataChannel 안전 크기
+let shareSendBook = null, shareMqttSend = null, sharePeerSend = null;
+let shareMqttRecv = null, sharePeerRecv = null;
+
+/* 1바이트 타입 프리픽스로 JSON/바이너리 구분 */
+function spSendJson(peer, obj) {
+  const enc = new TextEncoder().encode(JSON.stringify(obj));
+  const buf = new Uint8Array(1 + enc.length);
+  buf[0] = 0x01; buf.set(enc, 1);
+  peer.send(buf.buffer);
+}
+function spSendChunk(peer, ab) {
+  const src = new Uint8Array(ab);
+  const buf = new Uint8Array(1 + src.length);
+  buf[0] = 0x02; buf.set(src, 1);
+  peer.send(buf.buffer);
+}
+function spParse(data) {
+  const view = data instanceof Uint8Array ? data : new Uint8Array(data);
+  if (view[0] === 0x01) return { json: JSON.parse(new TextDecoder().decode(view.slice(1))) };
+  if (view[0] === 0x02) return { chunk: view.slice(1) };
+  return {};
+}
 
 /* ─── 파일 직접 선택 ─── */
 function onShareFileSelect(input) {
@@ -2562,59 +2583,84 @@ function shareSendStart() {
   if (!shareSendBook) return;
   document.getElementById('shareSendStep1').style.display = 'none';
   document.getElementById('shareSendStep2').style.display = '';
-  document.getElementById('shareStudentList').textContent = '준비 중...';
-  document.getElementById('shareSendProgress').style.display = '';
-  document.getElementById('shareSendBar').style.width = '0%';
-  document.getElementById('shareSendProgressText').textContent = '파일 준비 중...';
-  document.getElementById('shareQrDiv').innerHTML = '';
-  document.getElementById('shareUrlInput').value = '';
+  document.getElementById('shareRoomCode').textContent = '...';
+  document.getElementById('shareStudentList').textContent = '서버 연결 중...';
+  document.getElementById('shareSendProgress').style.display = 'none';
 
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  const topicOffer  = `schoolbook-kr/${code}/offer`;
+  const topicAnswer = `schoolbook-kr/${code}/answer`;
   const buf = shareSendBook.pdfData instanceof ArrayBuffer ? shareSendBook.pdfData : shareSendBook.pdfData.buffer;
-  const fileName = (shareSendBook.title || 'book') + '.pdf';
-  const file = new File([buf], fileName, { type: 'application/pdf' });
 
-  if (shareTorrentSeed) { try { shareTorrentSeed.destroy(); } catch {} }
-  shareTorrentSeed = new WebTorrent({ tracker: { rtcConfig: SHARE_ICE } });
+  if (shareMqttSend) { try { shareMqttSend.end(true); } catch {} }
+  if (sharePeerSend) { try { sharePeerSend.destroy(); } catch {} }
 
-  shareTorrentSeed.seed(file, (torrent) => {
-    const receiveUrl = location.origin + location.pathname + '?receive=' + torrent.infoHash;
-    document.getElementById('shareUrlInput').value = receiveUrl;
+  shareMqttSend = mqtt.connect(SHARE_MQTT, { clean: true, connectTimeout: 8000, reconnectPeriod: 0 });
 
-    QRCode.toCanvas(document.createElement('canvas'), receiveUrl, { width: 200, margin: 1 }, (err, canvas) => {
-      if (!err) document.getElementById('shareQrDiv').appendChild(canvas);
-    });
-
-    document.getElementById('shareStudentList').textContent = '대기 중 (학생 0명 연결)';
-    document.getElementById('shareSendBar').style.width = '0%';
-    document.getElementById('shareSendProgressText').textContent = '학생이 링크를 클릭하거나 QR을 스캔하면 자동으로 전송됩니다';
-
-    torrent.on('upload', () => {
-      const pct = Math.round(torrent.uploaded / buf.byteLength * 100);
-      document.getElementById('shareSendBar').style.width = Math.min(pct, 100) + '%';
-      document.getElementById('shareSendProgressText').textContent = `전송 중... (${torrent.numPeers}명 연결)`;
-      document.getElementById('shareStudentList').textContent = `📡 학생 ${torrent.numPeers}명 연결됨`;
-    });
+  shareMqttSend.on('error', () => {
+    document.getElementById('shareStudentList').textContent = '❌ 서버 연결 실패. 인터넷을 확인하세요.';
   });
 
-  shareTorrentSeed.on('error', (e) => {
-    document.getElementById('shareSendProgressText').textContent = '❌ ' + e.message;
-  });
-}
+  shareMqttSend.on('connect', () => {
+    document.getElementById('shareRoomCode').textContent = code;
+    document.getElementById('shareStudentList').textContent = '학생 연결 대기 중...';
 
-function shareCopyUrl() {
-  const url = document.getElementById('shareUrlInput').value;
-  if (!url) return;
-  navigator.clipboard.writeText(url).then(() => {
-    const btn = event.target;
-    btn.textContent = '✅ 복사됨!';
-    setTimeout(() => { btn.textContent = '🔗 링크 복사 (카카오톡 등으로 공유)'; }, 2000);
+    sharePeerSend = new SimplePeer({ initiator: true, trickle: false, config: SHARE_ICE });
+
+    sharePeerSend.on('signal', (sdp) => {
+      // retain=true: 학생이 나중에 구독해도 즉시 받음
+      shareMqttSend.publish(topicOffer, JSON.stringify(sdp), { retain: true, qos: 1 });
+    });
+
+    shareMqttSend.subscribe(topicAnswer, { qos: 1 }, () => {});
+    shareMqttSend.on('message', (topic, msg) => {
+      if (topic === topicAnswer && sharePeerSend) {
+        try { sharePeerSend.signal(JSON.parse(msg.toString())); } catch {}
+      }
+    });
+
+    sharePeerSend.on('connect', () => {
+      document.getElementById('shareStudentList').textContent = '📡 학생 연결됨 — 전송 중...';
+      document.getElementById('shareSendProgress').style.display = '';
+      document.getElementById('shareSendBar').style.width = '0%';
+
+      spSendJson(sharePeerSend, { type: 'meta', name: shareSendBook.title || '교과서', size: buf.byteLength });
+
+      let offset = 0;
+      const total = buf.byteLength;
+      function sendNext() {
+        if (offset >= total) {
+          spSendJson(sharePeerSend, { type: 'done' });
+          document.getElementById('shareSendBar').style.width = '100%';
+          document.getElementById('shareSendProgressText').textContent = '✅ 전송 완료!';
+          document.getElementById('shareStudentList').textContent = '✅ 전송 완료';
+          // retained 메시지 삭제
+          shareMqttSend.publish(topicOffer, '', { retain: true, qos: 1 });
+          return;
+        }
+        const ch = sharePeerSend._channel;
+        if (ch && ch.bufferedAmount > 512 * 1024) { setTimeout(sendNext, 50); return; }
+        spSendChunk(sharePeerSend, buf.slice(offset, Math.min(offset + SHARE_CHUNK, total)));
+        offset = Math.min(offset + SHARE_CHUNK, total);
+        const pct = Math.round(offset / total * 100);
+        document.getElementById('shareSendBar').style.width = pct + '%';
+        document.getElementById('shareSendProgressText').textContent = `전송 중... ${pct}%`;
+        setTimeout(sendNext, 2);
+      }
+      sendNext();
+    });
+
+    sharePeerSend.on('error', (e) => {
+      document.getElementById('shareStudentList').textContent = '❌ ' + e.message;
+    });
   });
 }
 
 function closeShareSend() {
   document.getElementById('shareSendModal').style.display = 'none';
   shareSendBook = null;
-  if (shareTorrentSeed) { try { shareTorrentSeed.destroy(); } catch {} shareTorrentSeed = null; }
+  if (sharePeerSend) { try { sharePeerSend.destroy(); } catch {} sharePeerSend = null; }
+  if (shareMqttSend) { try { shareMqttSend.end(true); } catch {} shareMqttSend = null; }
 }
 
 /* ─── 학생: 받기 열기 ─── */
@@ -2625,81 +2671,97 @@ function openShareReceive() {
   document.getElementById('shareReceiveModal').style.display = 'flex';
 }
 
-function shareReceiveStart(infoHash) {
+function shareReceiveConnect() {
+  const code = document.getElementById('shareCodeInput').value.trim().replace(/\D/g, '');
+  if (code.length !== 6) { alert('6자리 숫자 코드를 입력하세요.'); return; }
   document.getElementById('shareReceiveStep1').style.display = 'none';
   document.getElementById('shareReceiveStep2').style.display = '';
-  document.getElementById('shareReceiveStatus').textContent = '연결 중... (선생님 기기에서 공유 중이어야 합니다)';
-  document.getElementById('shareReceiveProgress').style.display = '';
-  document.getElementById('shareReceiveBar').style.width = '0%';
-  document.getElementById('shareReceiveProgressText').textContent = '피어 탐색 중...';
+  document.getElementById('shareReceiveStatus').textContent = '서버 연결 중...';
+  document.getElementById('shareReceiveProgress').style.display = 'none';
 
-  const magnetURI = infoHash.startsWith('magnet:') ? infoHash : `magnet:?xt=urn:btih:${infoHash}`;
+  const topicOffer  = `schoolbook-kr/${code}/offer`;
+  const topicAnswer = `schoolbook-kr/${code}/answer`;
+  let recvPeer = null;
+  const chunks = [];
+  let totalSize = 0, receivedSize = 0, bookName = '교과서';
 
-  if (shareTorrentRecv) { try { shareTorrentRecv.destroy(); } catch {} }
-  shareTorrentRecv = new WebTorrent({ tracker: { rtcConfig: SHARE_ICE } });
+  if (shareMqttRecv) { try { shareMqttRecv.end(true); } catch {} }
+  if (sharePeerRecv) { try { sharePeerRecv.destroy(); } catch {} }
 
-  shareTorrentRecv.add(magnetURI, (torrent) => {
-    const title = torrent.name.replace(/\.pdf$/i, '') || '교과서';
-    document.getElementById('shareReceiveStatus').textContent = `📖 "${title}" 받는 중...`;
+  shareMqttRecv = mqtt.connect(SHARE_MQTT, { clean: true, connectTimeout: 8000, reconnectPeriod: 0 });
 
-    torrent.on('download', () => {
-      const pct = Math.round(torrent.progress * 100);
-      document.getElementById('shareReceiveBar').style.width = pct + '%';
-      document.getElementById('shareReceiveProgressText').textContent = `받는 중... ${pct}% (${torrent.numPeers}명 연결)`;
-    });
-
-    torrent.on('done', () => {
-      torrent.files[0].arrayBuffer().then((buf) => {
-        const book = { id: Date.now(), title, cover: null, pdfData: buf };
-        return dbPut(book).then(() => {
-          bookList.push(book);
-          renderBookshelf();
-          document.getElementById('shareReceiveBar').style.width = '100%';
-          document.getElementById('shareReceiveStatus').textContent = `✅ "${title}" 서재에 추가되었습니다!`;
-          document.getElementById('shareReceiveProgressText').textContent = '완료!';
-          if (shareTorrentRecv) { try { shareTorrentRecv.destroy(); } catch {} shareTorrentRecv = null; }
-        });
-      });
-    });
+  shareMqttRecv.on('error', () => {
+    document.getElementById('shareReceiveStatus').textContent = '❌ 서버 연결 실패. 인터넷을 확인하세요.';
   });
 
-  shareTorrentRecv.on('error', (e) => {
-    document.getElementById('shareReceiveStatus').textContent = '❌ ' + e.message;
+  shareMqttRecv.on('connect', () => {
+    document.getElementById('shareReceiveStatus').textContent = '선생님 연결 대기 중... (코드가 맞으면 자동 연결)';
+    shareMqttRecv.subscribe(topicOffer, { qos: 1 });
   });
-}
 
-function shareReceiveConnect() {
-  const raw = document.getElementById('shareCodeInput').value.trim();
-  if (!raw) { alert('링크 또는 해시를 입력하세요.'); return; }
-  // URL에서 해시 추출 (예: ?receive=abc123...)
-  let hash = raw;
-  try {
-    const u = new URL(raw);
-    hash = u.searchParams.get('receive') || raw;
-  } catch {}
-  shareReceiveStart(hash);
+  shareMqttRecv.on('message', (topic, msg) => {
+    if (topic !== topicOffer || recvPeer) return;
+    let sdp;
+    try { sdp = JSON.parse(msg.toString()); } catch { return; }
+
+    recvPeer = new SimplePeer({ initiator: false, trickle: false, config: SHARE_ICE });
+    sharePeerRecv = recvPeer;
+
+    recvPeer.on('signal', (answer) => {
+      shareMqttRecv.publish(topicAnswer, JSON.stringify(answer), { qos: 1 });
+    });
+
+    recvPeer.on('connect', () => {
+      document.getElementById('shareReceiveStatus').textContent = '📡 선생님 연결됨 — 대기 중...';
+    });
+
+    recvPeer.on('data', (raw) => {
+      const parsed = spParse(raw);
+      if (parsed.json) {
+        const m = parsed.json;
+        if (m.type === 'meta') {
+          bookName = m.name || '교과서';
+          totalSize = m.size || 0;
+          document.getElementById('shareReceiveStatus').textContent = `📖 "${bookName}" 받는 중...`;
+          document.getElementById('shareReceiveProgress').style.display = '';
+        } else if (m.type === 'done') {
+          const full = new Uint8Array(totalSize);
+          let off = 0;
+          for (const c of chunks) { full.set(c, off); off += c.length; }
+          const book = { id: Date.now(), title: bookName, cover: null, pdfData: full.buffer };
+          dbPut(book).then(() => {
+            bookList.push(book);
+            renderBookshelf();
+            document.getElementById('shareReceiveBar').style.width = '100%';
+            document.getElementById('shareReceiveStatus').textContent = `✅ "${bookName}" 서재에 추가되었습니다!`;
+            document.getElementById('shareReceiveProgressText').textContent = '완료!';
+          });
+          shareMqttRecv.end(true); sharePeerRecv = recvPeer = null;
+        }
+      } else if (parsed.chunk) {
+        chunks.push(parsed.chunk);
+        receivedSize += parsed.chunk.length;
+        const pct = totalSize ? Math.min(100, Math.round(receivedSize / totalSize * 100)) : 0;
+        document.getElementById('shareReceiveBar').style.width = pct + '%';
+        document.getElementById('shareReceiveProgressText').textContent = `받는 중... ${pct}%`;
+      }
+    });
+
+    recvPeer.on('error', (e) => {
+      document.getElementById('shareReceiveStatus').textContent = '❌ ' + e.message;
+    });
+
+    recvPeer.signal(sdp);
+  });
 }
 
 function closeShareReceive() {
   document.getElementById('shareReceiveModal').style.display = 'none';
-  if (shareTorrentRecv) { try { shareTorrentRecv.destroy(); } catch {} shareTorrentRecv = null; }
+  if (sharePeerRecv) { try { sharePeerRecv.destroy(); } catch {} sharePeerRecv = null; }
+  if (shareMqttRecv) { try { shareMqttRecv.end(true); } catch {} shareMqttRecv = null; }
 }
 </script>
 <script>
-// ?receive=HASH URL 파라미터 자동 감지 (학생이 링크 클릭 시)
-(function() {
-  const params = new URLSearchParams(location.search);
-  const hash = params.get('receive');
-  if (hash) {
-    window.addEventListener('load', () => {
-      setTimeout(() => {
-        openShareReceive();
-        shareReceiveStart(hash);
-      }, 800);
-    });
-  }
-})();
-
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/school-chat/translator/sw.js')
