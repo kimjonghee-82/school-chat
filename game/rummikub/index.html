@@ -170,24 +170,11 @@
 
 <div id="setup">
   <div class="modeTabs">
-    <button id="tabLocal" class="active">한 화면(같이)</button>
-    <button id="tabAI">PC 인공지능</button>
+    <button id="tabAI" class="active">PC 인공지능</button>
     <button id="tabOnline">온라인(각자 PC)</button>
   </div>
 
-  <div id="paneLocal" class="modePane active">
-    <h2>같은 화면에서 순서대로</h2>
-    <label for="numPlayersLocal">플레이어 수</label>
-    <select id="numPlayersLocal">
-      <option value="2">2명</option>
-      <option value="3" selected>3명</option>
-      <option value="4">4명</option>
-    </select>
-    <div id="playerNamesLocal"></div>
-    <button id="btnStartLocal">게임 시작</button>
-  </div>
-
-  <div id="paneAI" class="modePane">
+  <div id="paneAI" class="modePane active">
     <h2>PC(인공지능)와 대결</h2>
     <label for="myNameAI">내 이름</label>
     <input id="myNameAI" value="나">
@@ -283,7 +270,7 @@ try {
 } catch(e){ console.error('Firebase init error', e); }
 
 // ---- global state ----
-let mode = 'local';       // 'local' | 'ai' | 'online'
+let mode = 'ai';          // 'ai' | 'online'
 let mySeat = null;        // for ai/online: which seat index is "me"
 let roomCode = null, roomRef = null, isHost = false, lobbyData = null;
 let gameStarted = false, gameOverShown = false;
@@ -343,17 +330,13 @@ function showPane(tabId, paneMap){
     document.getElementById(id).classList.toggle('active', id === tabId);
   });
 }
-document.getElementById('tabLocal').addEventListener('click', () => {
-  ['tabLocal','tabAI','tabOnline'].forEach(id => document.getElementById(id).classList.toggle('active', id==='tabLocal'));
-  ['paneLocal','paneAI','paneOnline'].forEach(id => document.getElementById(id).classList.toggle('active', id==='paneLocal'));
-});
 document.getElementById('tabAI').addEventListener('click', () => {
-  ['tabLocal','tabAI','tabOnline'].forEach(id => document.getElementById(id).classList.toggle('active', id==='tabAI'));
-  ['paneLocal','paneAI','paneOnline'].forEach(id => document.getElementById(id).classList.toggle('active', id==='paneAI'));
+  ['tabAI','tabOnline'].forEach(id => document.getElementById(id).classList.toggle('active', id==='tabAI'));
+  ['paneAI','paneOnline'].forEach(id => document.getElementById(id).classList.toggle('active', id==='paneAI'));
 });
 document.getElementById('tabOnline').addEventListener('click', () => {
-  ['tabLocal','tabAI','tabOnline'].forEach(id => document.getElementById(id).classList.toggle('active', id==='tabOnline'));
-  ['paneLocal','paneAI','paneOnline'].forEach(id => document.getElementById(id).classList.toggle('active', id==='paneOnline'));
+  ['tabAI','tabOnline'].forEach(id => document.getElementById(id).classList.toggle('active', id==='tabOnline'));
+  ['paneAI','paneOnline'].forEach(id => document.getElementById(id).classList.toggle('active', id==='paneOnline'));
 });
 document.getElementById('subCreate').addEventListener('click', () => {
   ['subCreate','subJoin'].forEach(id => document.getElementById(id).classList.toggle('active', id==='subCreate'));
@@ -364,39 +347,6 @@ document.getElementById('subJoin').addEventListener('click', () => {
   ['paneCreate','paneJoin'].forEach(id => document.getElementById(id).classList.toggle('active', id==='paneJoin'));
 });
 
-// local mode name inputs
-const numPlayersLocalSel = document.getElementById('numPlayersLocal');
-const playerNamesLocalDiv = document.getElementById('playerNamesLocal');
-function renderLocalNameInputs(){
-  const n = parseInt(numPlayersLocalSel.value,10);
-  playerNamesLocalDiv.innerHTML = '';
-  for (let i=0;i<n;i++){
-    const label = document.createElement('label');
-    label.textContent = `플레이어 ${i+1} 이름`;
-    const input = document.createElement('input');
-    input.id = 'pnameLocal'+i;
-    input.value = `플레이어 ${i+1}`;
-    playerNamesLocalDiv.appendChild(label);
-    playerNamesLocalDiv.appendChild(input);
-  }
-}
-numPlayersLocalSel.addEventListener('change', renderLocalNameInputs);
-renderLocalNameInputs();
-
-document.getElementById('btnStartLocal').addEventListener('click', () => {
-  const n = parseInt(numPlayersLocalSel.value,10);
-  const playersArr = [];
-  for (let i=0;i<n;i++){
-    const name = document.getElementById('pnameLocal'+i).value.trim() || `플레이어 ${i+1}`;
-    playersArr.push({name, rack:[], melded:false, isAI:false});
-  }
-  const deck = buildDeck();
-  for (let i=0;i<n;i++){ playersArr[i].rack = deck.splice(0,14); }
-  mode = 'local';
-  mySeat = null;
-  G = {players:playersArr, table:[], pool:deck, current:0, winner:null};
-  enterGameScreen();
-});
 
 document.getElementById('btnStartAI').addEventListener('click', () => {
   const myName = document.getElementById('myNameAI').value.trim() || '나';
@@ -569,12 +519,11 @@ function deepCloneTable(t){ return t.map(set => set.map(tile => ({...tile}))); }
 function tileValue(t){ return t.joker ? 30 : t.num; }
 
 function rackOwnerIndex(){
-  return mode === 'local' ? G.current : mySeat;
+  return mySeat;
 }
 
 function canAct(){
   if (!G || G.winner !== null) return false;
-  if (mode === 'local') return true;
   if (mode === 'ai') return G.current === 0;
   if (mode === 'online') return G.current === mySeat;
   return false;
