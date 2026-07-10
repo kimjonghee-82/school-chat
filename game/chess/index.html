@@ -455,6 +455,7 @@ function cInCheck(board, color) {
 function applyChessMove(state, fr, fc, tr, tc, sp, promo) {
   const board=cloneB(state.board), p=board[fr][fc], pc=cCol(p);
   const cas={...state.castling};
+  const isCapture=!!board[tr][tc]||sp==='ep'; // check BEFORE moving
   board[tr][tc]=p; board[fr][fc]=null;
   if(sp==='ep') board[pc==='w'?tr+1:tr-1][tc]=null;
   if(sp==='castle'){
@@ -469,7 +470,7 @@ function applyChessMove(state, fr, fc, tr, tc, sp, promo) {
   if(p==='k'){cas.bK=false;cas.bQ=false;}
   if(fr===7&&fc===0)cas.wQ=false; if(fr===7&&fc===7)cas.wK=false;
   if(fr===0&&fc===0)cas.bQ=false; if(fr===0&&fc===7)cas.bK=false;
-  const half=(p.toLowerCase()==='p'||board[tr][tc])?0:(state.halfmove||0)+1;
+  const half=(p.toLowerCase()==='p'||isCapture)?0:(state.halfmove||0)+1;
   return {...state,board,turn:cOpp(pc),enPassant:ep,castling:cas,winner:null,halfmove:half};
 }
 
@@ -479,10 +480,15 @@ function cLegalOf(state, r, c) {
   return pseudoMoves(state.board,r,c,state.enPassant,state.castling).filter(([tr,tc,sp])=>{
     if(sp==='castle'){
       const pc=cCol(p);
+      // King must not be in check before castling
       if(cInCheck(state.board,pc))return false;
-      const passC=tc===6?5:3, tmp=cloneB(state.board);
-      tmp[r][passC]=p;tmp[r][c]=null;
-      if(cInCheck(tmp,pc))return false;
+      // King must not pass through check (check every square king crosses)
+      const dir=tc>c?1:-1;
+      for(let nc=c+dir;nc!==tc;nc+=dir){
+        const tmp=cloneB(state.board);
+        tmp[r][nc]=p;tmp[r][c]=null;
+        if(cInCheck(tmp,pc))return false;
+      }
     }
     const ns=applyChessMove(state,r,c,tr,tc,sp,cCol(p)==='w'?'Q':'q');
     return!cInCheck(ns.board,cCol(p));
@@ -568,21 +574,21 @@ function cNotation(board,fr,fc,tr,tc,sp){
   return s;
 }
 
-function normalRow(row) {
-  const r=[];
-  for(let i=0;i<8;i++)r.push((row&&row[i]!==undefined)?row[i]:null);
+function normalRow(row, len) {
+  const n = len||8, r=[];
+  for(let i=0;i<n;i++) r.push((row!=null&&row[i]!==undefined&&row[i]!==null)?row[i]:null);
   return r;
 }
 function normalChessState(s) {
   if(!s)return s;
   if(s.winner===undefined)s.winner=null;
-  if(s.enPassant===undefined||s.enPassant===false)s.enPassant=null;
-  else if(s.enPassant&&!Array.isArray(s.enPassant))s.enPassant=Object.values(s.enPassant).map(Number);
+  if(s.enPassant===undefined||s.enPassant===false||s.enPassant===null)s.enPassant=null;
+  else if(s.enPassant&&!Array.isArray(s.enPassant))s.enPassant=[0,1].map(i=>Number(s.enPassant[i]));
   s.castling=s.castling||{wK:false,wQ:false,bK:false,bQ:false};
   s.halfmove=s.halfmove||0;
   if(!s.board)return s;
-  const rawBoard=Array.isArray(s.board)?s.board:Object.values(s.board);
-  s.board=Array.from({length:8},(_,i)=>normalRow(rawBoard[i]));
+  // Firebase drops null values from arrays/objects, so we must index by key, NOT Object.values()
+  s.board=Array.from({length:8},(_,i)=>normalRow(s.board[i],8));
   return s;
 }
 
@@ -1259,12 +1265,12 @@ function enterJanggiGame(){
 
 function normalJanggiBoard(raw){
   if(!raw)return JINIT.map(r=>[...r]);
-  const arr=Array.isArray(raw)?raw:Object.values(raw);
+  // Firebase drops null values, so index by key directly (not Object.values)
   return Array.from({length:10},(_,i)=>{
-    const row=arr[i];
-    const r=Array.isArray(row)?row:Object.values(row);
+    const row=raw[i];
     return Array.from({length:9},(_,j)=>{
-      const v=r[j];return(v===undefined||v===null||v==='_')?null:v;
+      if(!row)return null;
+      const v=row[j];return(v===undefined||v===null||v==='_')?null:v;
     });
   });
 }
@@ -1383,8 +1389,7 @@ function listenRoom(){
         roomRef.child('liveBoard').on('value',livSnap=>{
           if(!gameStarted||!CG||CG.turn===cMyColor)return;
           const live=livSnap.val();if(!live)return;
-          const rawBoard=Array.isArray(live)?live:Object.values(live);
-          const lb=Array.from({length:8},(_,i)=>normalRow(Array.isArray(rawBoard[i])?rawBoard[i]:Object.values(rawBoard[i]||{})));
+          const lb=Array.from({length:8},(_,i)=>normalRow(live[i],8));
           CG={...CG,board:lb};cRenderBoard();
         });
       } else {
