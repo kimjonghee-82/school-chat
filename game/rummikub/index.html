@@ -632,19 +632,17 @@ function onTimerExpired(){
   clearTurnTimer();
   if (!G || G.winner !== null || !canAct()) return;
   const player = G.players[G.current];
-  // 무효 조합이면 턴 시작 상태로 되돌리기 (순서 보존)
-  if (!tableValid()){
-    G.table = deepCloneTable(turnTableSnapshot);
-    player.rack = turnRackSnapshot.map(t => ({...t}));
-  }
-  const placed = player.rack.length < turnRackSnapshot.length;
+  // 시간 초과 시 항상 이번 턴 변경 전체를 되돌림 (유효 여부 무관)
+  G.table = deepCloneTable(turnTableSnapshot);
+  player.rack = turnRackSnapshot.map(t => ({...t}));
+  // 되돌렸으므로 타일을 낸 것이 없음 → 풀에서 강제 뽑기
   let drew = false;
-  if (!placed && G.pool.length > 0){
-    player.rack.push(G.pool.pop()); // 맨 뒤로
+  if (G.pool.length > 0){
+    player.rack.push(G.pool.pop());
     drew = true;
   }
-  setMsg('⏰ 시간 초과! 턴이 자동으로 넘어갑니다.');
-  setTimeout(() => advanceTurn(placed || drew), 1200);
+  setMsg('⏰ 시간 초과! 이번 턴 변경이 취소되고 타일을 뽑았습니다.');
+  setTimeout(() => advanceTurn(drew), 1200);
 }
 
 function snapshotForUndo(){
