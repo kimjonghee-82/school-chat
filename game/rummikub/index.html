@@ -1088,12 +1088,15 @@ document.getElementById('btnEnd').addEventListener('click', () => {
 document.getElementById('btnDraw').addEventListener('click', () => {
   if (!canAct()) return;
   const player = G.players[G.current];
-  // 테이블을 턴 시작 상태로 되돌리고, rack도 턴 시작 순서 그대로 복원
+  // 테이블만 턴 시작 상태로 되돌림
   G.table = deepCloneTable(turnTableSnapshot);
-  player.rack = turnRackSnapshot.map(t => ({...t}));
+  // 현재 rack 순서를 유지하면서, 이번 턴에 테이블로 옮긴 타일만 돌려받기
+  const currentRackIds = new Set(player.rack.map(t => t.id));
+  const returningTiles = turnRackSnapshot.filter(t => !currentRackIds.has(t.id));
+  player.rack = [...player.rack, ...returningTiles.map(t => ({...t}))];
   const drew = G.pool.length > 0;
   if (drew){
-    // 새 타일은 기존 순서 뒤에 그대로 추가
+    // 새 타일은 맨 뒤에 추가
     player.rack.push(G.pool.pop());
   } else {
     setMsg('풀에 타일이 없습니다. 되돌리기만 실행했습니다.');
