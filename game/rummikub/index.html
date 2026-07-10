@@ -350,6 +350,7 @@ function render(){
     const row = document.createElement('div');
     row.className = 'setRow';
     if (set.length > 0 && !checkSet(set).valid) row.classList.add('invalid');
+    const rowLocked = !player.melded && set.some(t => lockedIds.has(t.id));
     set.forEach((tile) => {
       const locked = !player.melded && lockedIds.has(tile.id);
       const t = tileEl(tile, locked);
@@ -360,7 +361,11 @@ function render(){
       });
       row.appendChild(t);
     });
-    row.addEventListener('click', () => onRowClick(sIdx));
+    if (!rowLocked){
+      row.addEventListener('click', () => onRowClick(sIdx));
+    } else {
+      row.style.cursor = 'not-allowed';
+    }
     tableDiv.appendChild(row);
   });
 
@@ -382,11 +387,13 @@ function render(){
 function onTileClick(from, setIndex, tile){
   if (!selected){
     selected = {from, setIndex, tile};
+    setMsg('타일을 선택했습니다. 합치고 싶은 조합 줄을 클릭하거나, "새 조합 만들기"를 눌러 새 줄을 만드세요.');
     render();
     return;
   }
   if (selected.tile.id === tile.id){
     selected = null;
+    setMsg('');
     render();
     return;
   }
@@ -433,6 +440,7 @@ function moveSelectedTo(setIndex, beforeTileId){
   }
   table = table.filter(s => s.length>0);
   selected = null;
+  setMsg('');
   render();
 }
 
@@ -443,6 +451,7 @@ function moveSelectedToRack(){
   players[current].rack.push(tile);
   table = table.filter(s => s.length>0);
   selected = null;
+  setMsg('');
   render();
 }
 
@@ -453,6 +462,7 @@ document.getElementById('newSetZone').addEventListener('click', () => {
   table.push([tile]);
   table = table.filter(s => s.length>0);
   selected = null;
+  setMsg('');
   render();
 });
 
@@ -515,11 +525,18 @@ document.getElementById('btnEnd').addEventListener('click', () => {
 });
 
 document.getElementById('btnDraw').addEventListener('click', () => {
-  // revert table & rack to snapshot
+  // Revert the table to how it looked at the start of this turn, but keep the
+  // player's current rack arrangement (e.g. sorting) intact, only adding back
+  // whichever tiles were moved out of the rack onto the table this turn.
+  const player = players[current];
+  const startTableIds = new Set(turnTableSnapshot.flat().map(t=>t.id));
+  const keepRack = player.rack.filter(t => !startTableIds.has(t.id));
+  const keepRackIds = new Set(keepRack.map(t=>t.id));
+  const returningTiles = turnRackSnapshot.filter(t => !keepRackIds.has(t.id));
   table = deepCloneTable(turnTableSnapshot);
-  players[current].rack = turnRackSnapshot.map(t=>({...t}));
+  player.rack = keepRack.concat(returningTiles);
   if (pool.length > 0){
-    players[current].rack.push(pool.pop());
+    player.rack.push(pool.pop());
   } else {
     setMsg('풀에 더 이상 타일이 없습니다.');
   }
