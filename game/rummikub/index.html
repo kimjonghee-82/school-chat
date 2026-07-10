@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>루미큐브</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; }
+  body {
+    min-height:100vh;
+    background:#0d1117;
+    font-family:'Segoe UI', sans-serif;
+    color:#fff;
+    padding:16px;
+  }
+  a.back { color:#888; font-size:0.85rem; text-decoration:none; display:inline-block; margin-bottom:10px; }
+  a.back:hover { color:#ccc; }
+  h1 { text-align:center; font-size:1.4rem; margin-bottom:16px; }
+
+  /* setup screen */
+  #setup { max-width:420px; margin:40px auto; background:#161b22; border-radius:16px; padding:28px; }
+  #setup h2 { margin-bottom:16px; font-size:1.1rem; }
+  #setup label { display:block; margin:10px 0 4px; font-size:0.85rem; color:#8b949e; }
+  #setup input, #setup select { width:100%; padding:8px 10px; border-radius:8px; border:1px solid #30363d; background:#0d1117; color:#fff; font-size:0.95rem; }
+  #playerNames { display:flex; flex-direction:column; gap:8px; margin-top:8px; }
+  #setup button { margin-top:20px; width:100%; padding:12px; border:none; border-radius:10px; background:#4caf50; color:#fff; font-size:1rem; font-weight:600; cursor:pointer; }
+  #setup button:hover { background:#43a047; }
+
+  /* game screen */
+  #game { display:none; max-width:980px; margin:0 auto; }
+  .topbar { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px; background:#161b22; padding:10px 14px; border-radius:12px; }
+  .topbar .turn { font-weight:700; color:#ffd54f; }
+  .topbar .pool { font-size:0.85rem; color:#8b949e; }
+  .scores { font-size:0.78rem; color:#8b949e; }
+
+  #table {
+    background:#10331f;
+    border:2px solid #1d5c34;
+    border-radius:14px;
+    min-height:220px;
+    padding:10px;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    margin-bottom:14px;
+  }
+  .setRow {
+    display:flex;
+    flex-wrap:wrap;
+    gap:4px;
+    background:rgba(255,255,255,0.04);
+    border-radius:8px;
+    padding:6px;
+    min-height:48px;
+    cursor:pointer;
+  }
+  .setRow.invalid { outline:2px solid #e53935; }
+  #newSetZone {
+    border:2px dashed #2e7d32;
+    border-radius:8px;
+    min-height:40px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:#6fbf73;
+    font-size:0.8rem;
+    cursor:pointer;
+  }
+
+  .tile {
+    width:38px; height:48px;
+    background:#fdf6e3;
+    border-radius:6px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-weight:800;
+    font-size:1.1rem;
+    box-shadow:0 2px 3px rgba(0,0,0,0.4);
+    cursor:pointer;
+    border:2px solid transparent;
+  }
+  .tile.selected { border-color:#42a5f5; transform:translateY(-4px); }
+  .tile.locked { opacity:0.55; cursor:not-allowed; }
+  .tile.joker { font-size:1.3rem; }
+  .c-red { color:#d32f2f; }
+  .c-blue { color:#1565c0; }
+  .c-black { color:#212121; }
+  .c-orange { color:#ef6c00; }
+
+  #rackWrap {
+    background:#161b22;
+    border-radius:14px;
+    padding:12px;
+  }
+  #rackHeader { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  #rackHeader .name { font-weight:700; }
+  #rackHeader .btns button {
+    margin-left:6px; padding:6px 10px; font-size:0.75rem; border:none; border-radius:6px; background:#30363d; color:#fff; cursor:pointer;
+  }
+  #rackHeader .btns button:hover { background:#3d444d; }
+  #rack {
+    display:flex;
+    flex-wrap:wrap;
+    gap:5px;
+    min-height:56px;
+    background:rgba(255,255,255,0.03);
+    border-radius:8px;
+    padding:8px;
+    cursor:pointer;
+  }
+
+  .actions { display:flex; gap:10px; justify-content:center; margin-top:14px; flex-wrap:wrap; }
+  .actions button {
+    padding:12px 20px; border:none; border-radius:10px; font-size:0.9rem; font-weight:700; cursor:pointer;
+  }
+  #btnEnd { background:#4caf50; color:#fff; }
+  #btnEnd:hover { background:#43a047; }
+  #btnDraw { background:#ef6c00; color:#fff; }
+  #btnDraw:hover { background:#e65100; }
+  #msg { text-align:center; min-height:20px; font-size:0.85rem; color:#ffab91; margin-top:8px; }
+
+  #gameOver { display:none; max-width:480px; margin:40px auto; background:#161b22; border-radius:16px; padding:28px; text-align:center; }
+  #gameOver h2 { margin-bottom:14px; color:#ffd54f; }
+  #gameOver table { width:100%; border-collapse:collapse; margin:14px 0; }
+  #gameOver td, #gameOver th { padding:6px 8px; border-bottom:1px solid #30363d; font-size:0.85rem; text-align:right; }
+  #gameOver th:first-child, #gameOver td:first-child { text-align:left; }
+  #gameOver button { margin-top:10px; padding:10px 18px; border:none; border-radius:8px; background:#4caf50; color:#fff; cursor:pointer; font-weight:700; }
+</style>
+</head>
+<body>
+<a class="back" href="../">← 게임 목록으로</a>
+<h1>🀄 루미큐브</h1>
+
+<div id="setup">
+  <h2>게임 설정</h2>
+  <label for="numPlayers">플레이어 수</label>
+  <select id="numPlayers">
+    <option value="2">2명</option>
+    <option value="3" selected>3명</option>
+    <option value="4">4명</option>
+  </select>
+  <div id="playerNames"></div>
+  <button id="btnStart">게임 시작</button>
+</div>
+
+<div id="game">
+  <div class="topbar">
+    <div class="turn" id="turnLabel"></div>
+    <div class="pool" id="poolLabel"></div>
+    <div class="scores" id="meldLabel"></div>
+  </div>
+
+  <div id="table"></div>
+  <div id="newSetZone">+ 선택한 타일로 새 조합 만들기</div>
+
+  <div id="rackWrap">
+    <div id="rackHeader">
+      <div class="name" id="rackName"></div>
+      <div class="btns">
+        <button id="sortNum">번호순</button>
+        <button id="sortColor">색상순</button>
+      </div>
+    </div>
+    <div id="rack"></div>
+  </div>
+
+  <div class="actions">
+    <button id="btnEnd">턴 종료(등록)</button>
+    <button id="btnDraw">타일 뽑기 / 되돌리기</button>
+  </div>
+  <div id="msg"></div>
+</div>
+
+<div id="gameOver">
+  <h2 id="winnerLine"></h2>
+  <table id="scoreTable"></table>
+  <button id="btnRestart">다시 시작</button>
+</div>
+
+<script>
+const COLORS = ['red','blue','black','orange'];
+const COLOR_NAME = {red:'빨강', blue:'파랑', black:'검정', orange:'주황'};
+
+let players = [];
+let table = [];        // array of sets (array of tile)
+let pool = [];
+let current = 0;
+let lockedIds = new Set();   // tile ids that existed on table before this turn (locked while not melded)
+let turnTableSnapshot = null;
+let turnRackSnapshot = null;
+let selected = null;   // {from:'rack'|'table', setIndex, tile}
+let tileSeq = 0;
+
+function uid(){ return 'T' + (tileSeq++); }
+
+function buildDeck(){
+  const deck = [];
+  for (const color of COLORS){
+    for (let n=1;n<=13;n++){
+      deck.push({id:uid(), color, num:n});
+      deck.push({id:uid(), color, num:n});
+    }
+  }
+  deck.push({id:uid(), joker:true});
+  deck.push({id:uid(), joker:true});
+  for (let i=deck.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [deck[i],deck[j]] = [deck[j],deck[i]];
+  }
+  return deck;
+}
+
+// ---- setup screen ----
+const numPlayersSel = document.getElementById('numPlayers');
+const playerNamesDiv = document.getElementById('playerNames');
+function renderNameInputs(){
+  const n = parseInt(numPlayersSel.value,10);
+  playerNamesDiv.innerHTML = '';
+  for (let i=0;i<n;i++){
+    const label = document.createElement('label');
+    label.textContent = `플레이어 ${i+1} 이름`;
+    const input = document.createElement('input');
+    input.id = 'pname'+i;
+    input.value = `플레이어 ${i+1}`;
+    playerNamesDiv.appendChild(label);
+    playerNamesDiv.appendChild(input);
+  }
+}
+numPlayersSel.addEventListener('change', renderNameInputs);
+renderNameInputs();
+
+document.getElementById('btnStart').addEventListener('click', () => {
+  const n = parseInt(numPlayersSel.value,10);
+  players = [];
+  for (let i=0;i<n;i++){
+    const name = document.getElementById('pname'+i).value.trim() || `플레이어 ${i+1}`;
+    players.push({name, rack:[], melded:false});
+  }
+  pool = buildDeck();
+  table = [];
+  current = 0;
+  for (let i=0;i<n;i++){
+    players[i].rack = pool.splice(0,14);
+  }
+  document.getElementById('setup').style.display = 'none';
+  document.getElementById('game').style.display = 'block';
+  document.getElementById('gameOver').style.display = 'none';
+  startTurn();
+});
+
+document.getElementById('btnRestart').addEventListener('click', () => {
+  document.getElementById('gameOver').style.display = 'none';
+  document.getElementById('setup').style.display = 'block';
+});
+
+// ---- set validity / value ----
+function checkSet(tiles){
+  if (tiles.length < 3) return {valid:false};
+  const jokers = tiles.filter(t=>t.joker);
+  const nonJokers = tiles.filter(t=>!t.joker);
+  const L = tiles.length;
+
+  // group check
+  let groupValid = false, groupValue = 0;
+  if (L <= 4){
+    if (nonJokers.length === 0){
+      groupValid = true; groupValue = 0;
+    } else {
+      const num = nonJokers[0].num;
+      const sameNum = nonJokers.every(t=>t.num===num);
+      const colorsSeen = new Set(nonJokers.map(t=>t.color));
+      const noDupColor = colorsSeen.size === nonJokers.length;
+      if (sameNum && noDupColor){
+        groupValid = true;
+        groupValue = num * L;
+      }
+    }
+  }
+
+  // run check
+  let runValid = false, runValue = 0;
+  if (nonJokers.length === 0){
+    if (L >= 3 && L <= 13){ runValid = true; runValue = 0; }
+  } else {
+    const color = nonJokers[0].color;
+    const sameColor = nonJokers.every(t=>t.color===color);
+    const nums = nonJokers.map(t=>t.num);
+    const noDupNum = new Set(nums).size === nums.length;
+    if (sameColor && noDupNum){
+      const minNum = Math.min(...nums);
+      const maxNum = Math.max(...nums);
+      const sMin = Math.max(1, maxNum - L + 1);
+      const sMax = Math.min(minNum, 13 - L + 1);
+      if (sMin <= sMax){
+        const s = sMax; // pick a valid start
+        runValid = true;
+        runValue = L*s + (L*(L-1))/2;
+      }
+    }
+  }
+
+  if (groupValid || runValid){
+    return {valid:true, value: groupValid ? groupValue : runValue};
+  }
+  return {valid:false};
+}
+
+function tableValid(){
+  for (const set of table){
+    if (set.length === 0) continue;
+    if (!checkSet(set).valid) return false;
+  }
+  return true;
+}
+
+// ---- turn management ----
+function deepCloneTable(t){ return t.map(set => set.map(tile => ({...tile}))); }
+
+function startTurn(){
+  selected = null;
+  lockedIds = players[current].melded ? new Set() : new Set(table.flat().map(t=>t.id));
+  turnTableSnapshot = deepCloneTable(table);
+  turnRackSnapshot = players[current].rack.map(t=>({...t}));
+  setMsg('');
+  render();
+}
+
+function setMsg(text){ document.getElementById('msg').textContent = text; }
+
+// ---- rendering ----
+function tileEl(tile, locked){
+  const el = document.createElement('div');
+  el.className = 'tile' + (tile.joker ? ' joker' : ' c-'+tile.color) + (locked ? ' locked' : '');
+  el.textContent = tile.joker ? '★' : tile.num;
+  if (selected && selected.tile.id === tile.id) el.classList.add('selected');
+  return el;
+}
+
+function render(){
+  const player = players[current];
+  document.getElementById('turnLabel').textContent = `${player.name}의 차례` + (player.melded ? '' : ' (첫 등록 전: 30점 이상 필요)');
+  document.getElementById('poolLabel').textContent = `남은 타일: ${pool.length}개`;
+  document.getElementById('meldLabel').textContent = players.map(p => `${p.name}:${p.melded?'등록완료':'미등록'}(${p.rack.length})`).join('  ');
+
+  // table
+  const tableDiv = document.getElementById('table');
+  tableDiv.innerHTML = '';
+  table.forEach((set, sIdx) => {
+    const row = document.createElement('div');
+    row.className = 'setRow';
+    if (set.length > 0 && !checkSet(set).valid) row.classList.add('invalid');
+    set.forEach((tile) => {
+      const locked = !player.melded && lockedIds.has(tile.id);
+      const t = tileEl(tile, locked);
+      t.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (locked) return;
+        onTileClick('table', sIdx, tile);
+      });
+      row.appendChild(t);
+    });
+    row.addEventListener('click', () => onRowClick(sIdx));
+    tableDiv.appendChild(row);
+  });
+
+  // rack
+  const rackDiv = document.getElementById('rack');
+  rackDiv.innerHTML = '';
+  document.getElementById('rackName').textContent = `${player.name}의 받침대 (${player.rack.length}개)`;
+  player.rack.forEach(tile => {
+    const t = tileEl(tile, false);
+    t.addEventListener('click', (e) => {
+      e.stopPropagation();
+      onTileClick('rack', -1, tile);
+    });
+    rackDiv.appendChild(t);
+  });
+  rackDiv.onclick = () => onRackBgClick();
+}
+
+function onTileClick(from, setIndex, tile){
+  if (!selected){
+    selected = {from, setIndex, tile};
+    render();
+    return;
+  }
+  if (selected.tile.id === tile.id){
+    selected = null;
+    render();
+    return;
+  }
+  // move selected tile to just before the clicked tile (same set)
+  if (from === 'table'){
+    moveSelectedTo(setIndex, tile.id);
+  } else {
+    // clicked a rack tile while something selected -> move selected to rack
+    moveSelectedToRack();
+  }
+}
+
+function onRowClick(setIndex){
+  if (!selected) return;
+  moveSelectedTo(setIndex, null);
+}
+
+function onRackBgClick(){
+  if (!selected) return;
+  moveSelectedToRack();
+}
+
+function removeSelectedFromOrigin(){
+  if (selected.from === 'rack'){
+    const player = players[current];
+    const idx = player.rack.findIndex(t=>t.id===selected.tile.id);
+    if (idx>=0) player.rack.splice(idx,1);
+  } else {
+    const set = table[selected.setIndex];
+    const idx = set.findIndex(t=>t.id===selected.tile.id);
+    if (idx>=0) set.splice(idx,1);
+  }
+}
+
+function moveSelectedTo(setIndex, beforeTileId){
+  const tile = selected.tile;
+  removeSelectedFromOrigin();
+  const set = table[setIndex];
+  if (beforeTileId){
+    const idx = set.findIndex(t=>t.id===beforeTileId);
+    set.splice(idx, 0, tile);
+  } else {
+    set.push(tile);
+  }
+  table = table.filter(s => s.length>0);
+  selected = null;
+  render();
+}
+
+function moveSelectedToRack(){
+  const tile = selected.tile;
+  if (selected.from === 'rack'){ selected = null; render(); return; }
+  removeSelectedFromOrigin();
+  players[current].rack.push(tile);
+  table = table.filter(s => s.length>0);
+  selected = null;
+  render();
+}
+
+document.getElementById('newSetZone').addEventListener('click', () => {
+  if (!selected) return;
+  const tile = selected.tile;
+  removeSelectedFromOrigin();
+  table.push([tile]);
+  table = table.filter(s => s.length>0);
+  selected = null;
+  render();
+});
+
+document.getElementById('sortNum').addEventListener('click', () => {
+  players[current].rack.sort((a,b) => {
+    if (a.joker) return 1;
+    if (b.joker) return -1;
+    if (a.num !== b.num) return a.num - b.num;
+    return COLORS.indexOf(a.color) - COLORS.indexOf(b.color);
+  });
+  render();
+});
+document.getElementById('sortColor').addEventListener('click', () => {
+  players[current].rack.sort((a,b) => {
+    if (a.joker) return 1;
+    if (b.joker) return -1;
+    if (a.color !== b.color) return COLORS.indexOf(a.color) - COLORS.indexOf(b.color);
+    return a.num - b.num;
+  });
+  render();
+});
+
+// ---- end turn / draw ----
+function newlyPlacedTiles(){
+  // tiles currently on table that were not on table at turn start (i.e. moved out of this player's rack this turn)
+  const startIds = new Set(turnTableSnapshot.flat().map(t=>t.id));
+  return table.flat().filter(t => !startIds.has(t.id));
+}
+
+document.getElementById('btnEnd').addEventListener('click', () => {
+  if (!tableValid()){
+    setMsg('유효하지 않은 조합이 있습니다. 모든 조합은 같은 숫자 3~4색 그룹이거나, 같은 색 3개 이상 연속 숫자여야 합니다.');
+    return;
+  }
+  const player = players[current];
+  if (!player.melded){
+    const placed = newlyPlacedTiles();
+    if (placed.length === 0){
+      setMsg('등록을 위해 타일을 테이블에 내려놓아야 합니다.');
+      return;
+    }
+    // sum value of sets that contain only newly placed tiles (own-tile-only meld)
+    let sum = 0;
+    for (const set of table){
+      if (set.every(t => placed.some(p=>p.id===t.id))){
+        sum += checkSet(set).value;
+      }
+    }
+    if (sum < 30){
+      setMsg(`첫 등록은 30점 이상이어야 합니다. (현재 ${sum}점)`);
+      return;
+    }
+    player.melded = true;
+  }
+  if (player.rack.length === 0){
+    endGame(current);
+    return;
+  }
+  nextTurn();
+});
+
+document.getElementById('btnDraw').addEventListener('click', () => {
+  // revert table & rack to snapshot
+  table = deepCloneTable(turnTableSnapshot);
+  players[current].rack = turnRackSnapshot.map(t=>({...t}));
+  if (pool.length > 0){
+    players[current].rack.push(pool.pop());
+  } else {
+    setMsg('풀에 더 이상 타일이 없습니다.');
+  }
+  nextTurn();
+});
+
+function nextTurn(){
+  current = (current + 1) % players.length;
+  startTurn();
+}
+
+function tileValue(t){ return t.joker ? 30 : t.num; }
+
+function endGame(winnerIdx){
+  document.getElementById('game').style.display = 'none';
+  const go = document.getElementById('gameOver');
+  go.style.display = 'block';
+  document.getElementById('winnerLine').textContent = `🏆 ${players[winnerIdx].name} 승리! (루미큐브!)`;
+  let winnerScore = 0;
+  const rows = players.map((p, i) => {
+    if (i === winnerIdx) return null;
+    const minus = p.rack.reduce((s,t)=>s+tileValue(t),0);
+    winnerScore += minus;
+    return {name:p.name, score:-minus};
+  });
+  const tbl = document.getElementById('scoreTable');
+  let html = '<tr><th>플레이어</th><th>점수</th></tr>';
+  html += `<tr><td>${players[winnerIdx].name}</td><td>+${winnerScore}</td></tr>`;
+  rows.forEach(r => { if (r) html += `<tr><td>${r.name}</td><td>${r.score}</td></tr>`; });
+  tbl.innerHTML = html;
+}
+</script>
+</body>
+</html>
