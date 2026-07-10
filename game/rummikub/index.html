@@ -290,6 +290,7 @@ let roomCode = null, roomRef = null, isHost = false, lobbyData = null;
 let gameStarted = false, gameOverShown = false;
 
 let G = null;              // { players:[{name,rack,melded,isAI}], table:[[tile]], pool:[tile], current, winner }
+let noProgressStreak = 0;  // 연속으로 아무것도 못한 턴 수 (교착 감지)
 let tileSeq = 0;
 let lockedIds = new Set();
 let turnTableSnapshot = null, turnRackSnapshot = null;
@@ -597,12 +598,14 @@ function onTimerExpired(){
     player.rack = keepRack.concat(returningTiles);
   }
   const placed = player.rack.length < turnRackSnapshot.length;
+  let drew = false;
   if (!placed && G.pool.length > 0){
     player.rack.push(G.pool.pop());
     sortRack(player.rack);
+    drew = true;
   }
   setMsg('⏰ 시간 초과! 턴이 자동으로 넘어갑니다.');
-  setTimeout(() => advanceTurn(), 1200);
+  setTimeout(() => advanceTurn(placed || drew), 1200);
 }
 
 function snapshotForUndo(){
@@ -624,6 +627,7 @@ function enterGameScreen(){
   lastTurnOwner = -2;
   gameOverShown = false;
   sortMode = null;
+  noProgressStreak = 0;
   render();
   if (mode === 'ai' && G.players[G.current].isAI){
     setTimeout(aiTakeTurn, 800);
@@ -968,11 +972,12 @@ document.getElementById('btnEnd').addEventListener('click', () => {
   }
   if (player.rack.length === 0){
     G.winner = G.current;
+    noProgressStreak = 0;
     syncPush();
     render();
     return;
   }
-  advanceTurn();
+  advanceTurn(true);  // 타일을 냈으므로 진행 있음
 });
 
 document.getElementById('btnDraw').addEventListener('click', () => {
@@ -984,13 +989,14 @@ document.getElementById('btnDraw').addEventListener('click', () => {
   const returningTiles = turnRackSnapshot.filter(t => !keepRackIds.has(t.id));
   G.table = deepCloneTable(turnTableSnapshot);
   player.rack = keepRack.concat(returningTiles);
-  if (G.pool.length > 0){
+  const drew = G.pool.length > 0;
+  if (drew){
     player.rack.push(G.pool.pop());
     sortRack(player.rack);
   } else {
     setMsg('풀에 타일이 없습니다. 되돌리기만 실행했습니다.');
   }
-  advanceTurn();
+  advanceTurn(drew);
 });
 
 document.getElementById('btnUndo').addEventListener('click', () => {
@@ -1015,14 +1021,32 @@ document.getElementById('btnAddTime').addEventListener('click', () => {
   updateTimerDisplay();
 });
 
-function advanceTurn(){
+function advanceTurn(madeProgress){
   clearTurnTimer();
+  if (madeProgress) noProgressStreak = 0;
+  else noProgressStreak++;
+  // 모든 플레이어가 연속으로 아무것도 못 했으면 교착 → 게임 종료
+  if (noProgressStreak >= G.players.length){
+    endGameByDeadlock();
+    return;
+  }
   G.current = (G.current + 1) % G.players.length;
   syncPush();
   render();
   if (mode === 'ai' && G.players[G.current] && G.players[G.current].isAI){
     setTimeout(aiTakeTurn, 800);
   }
+}
+
+function endGameByDeadlock(){
+  // 타일이 가장 적은 플레이어가 승자
+  let minTiles = Infinity, winnerIdx = 0;
+  G.players.forEach((p, i) => {
+    if (p.rack.length < minTiles){ minTiles = p.rack.length; winnerIdx = i; }
+  });
+  G.winner = winnerIdx;
+  syncPush();
+  render();
 }
 
 // ============================================================
@@ -1071,6 +1095,7 @@ function aiTakeTurn(){
   maybeStartTurn();
 
   const sets = findMeldSets(p.rack, p.melded ? 0 : 30);
+  let madeProgress = false;
   if (sets){
     sets.forEach(set=>{
       set.forEach(t=>{
@@ -1081,20 +1106,18 @@ function aiTakeTurn(){
     });
     if (!p.melded) p.melded = true;
     G.table = G.table.filter(s=>s.length>0);
+    madeProgress = true;
   } else {
-    if (G.pool.length > 0) p.rack.push(G.pool.pop());
+    if (G.pool.length > 0){ p.rack.push(G.pool.pop()); madeProgress = true; }
   }
 
   if (p.rack.length === 0){
     G.winner = idx;
+    noProgressStreak = 0;
     render();
     return;
   }
-  G.current = (G.current + 1) % G.players.length;
-  render();
-  if (G.players[G.current].isAI){
-    setTimeout(aiTakeTurn, 900);
-  }
+  advanceTurn(madeProgress);
 }
 
 // ============================================================
