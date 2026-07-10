@@ -12,6 +12,8 @@ body { min-height:100vh; background:#0d1117; font-family:'Segoe UI',sans-serif; 
 a.back { color:#888; font-size:0.85rem; text-decoration:none; display:inline-block; margin-bottom:10px; }
 a.back:hover { color:#ccc; }
 h1 { text-align:center; font-size:1.4rem; margin-bottom:16px; }
+#btnFs { position:fixed; top:10px; right:12px; z-index:200; background:#21262d; color:#ccc; border:none; border-radius:8px; padding:6px 10px; font-size:1.1rem; cursor:pointer; }
+#btnFs:hover { background:#30363d; color:#fff; }
 
 #setup { max-width:460px; margin:30px auto; background:#161b22; border-radius:16px; padding:28px; }
 #setup h2 { margin-bottom:12px; font-size:1rem; }
@@ -82,6 +84,7 @@ h1 { text-align:center; font-size:1.4rem; margin-bottom:16px; }
 </style>
 </head>
 <body>
+<button id="btnFs" title="전체화면">⛶</button>
 <a class="back" href="../">← 게임 목록</a>
 <h1>♟ 체스</h1>
 
@@ -715,6 +718,20 @@ document.getElementById('btnAgain').addEventListener('click',()=>{
   document.getElementById('gameOver').style.display='none';
   document.getElementById('setup').style.display='block';
   G=null;gameOverShown=false;
+});
+
+const btnFs=document.getElementById('btnFs');
+btnFs.addEventListener('click',()=>{
+  if(!document.fullscreenElement){
+    document.documentElement.requestFullscreen().catch(()=>{});
+    btnFs.textContent='✕';
+  } else {
+    document.exitFullscreen();
+    btnFs.textContent='⛶';
+  }
+});
+document.addEventListener('fullscreenchange',()=>{
+  if(!document.fullscreenElement) btnFs.textContent='⛶';
 });
 </script>
 </body>
