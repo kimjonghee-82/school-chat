@@ -47,6 +47,8 @@ h1 { text-align:center; font-size:1.4rem; margin-bottom:16px; }
 
 #board { display:grid; grid-template-columns:repeat(8,1fr); border:3px solid #444; border-radius:4px; overflow:hidden; width:100%; aspect-ratio:1; }
 .sq { aspect-ratio:1; display:flex; align-items:center; justify-content:center; font-size:clamp(1.4rem,5vw,2.2rem); cursor:pointer; position:relative; transition:background 0.08s; }
+.pw { color:#ffffff; -webkit-text-stroke:1.5px #000; text-stroke:1.5px #000; filter:drop-shadow(0 1px 1px #000); }
+.pb { color:#111111; -webkit-text-stroke:1px #fff; text-stroke:1px #fff; filter:drop-shadow(0 1px 1px rgba(255,255,255,0.4)); }
 .sq.light { background:#f0d9b5; }
 .sq.dark  { background:#b58863; }
 .sq.selected  { background:#7fc97f !important; }
@@ -572,7 +574,7 @@ function renderBoard(){
       const curKing=G.turn==='w'?'K':'k';
       if(G.board[r][c]===curKing&&inCheck(G.board,G.turn))sq.classList.add('incheck');
       // piece
-      if(G.board[r][c]){const sp=document.createElement('span');sp.textContent=UNI[G.board[r][c]];sq.appendChild(sp);}
+      if(G.board[r][c]){const sp=document.createElement('span');sp.textContent=UNI[G.board[r][c]];sp.className=G.board[r][c]===G.board[r][c].toUpperCase()?'pw':'pb';sq.appendChild(sp);}
       // coords
       if(ci===0){const s=document.createElement('span');s.className='coord-r';s.textContent=8-r;sq.appendChild(s);}
       if(ri===7){const s=document.createElement('span');s.className='coord-f';s.textContent=String.fromCharCode(97+c);sq.appendChild(s);}
@@ -609,7 +611,7 @@ function showPromo(color){
   const ps=color==='w'?['Q','R','B','N']:['q','r','b','n'];
   const opts=document.getElementById('promoOpts');opts.innerHTML='';
   ps.forEach(pp=>{
-    const d=document.createElement('div');d.className='promo-opt';d.textContent=UNI[pp];
+    const d=document.createElement('div');d.className='promo-opt';const psp=document.createElement('span');psp.textContent=UNI[pp];psp.className=pp===pp.toUpperCase()?'pw':'pb';d.appendChild(psp);
     d.addEventListener('click',()=>{
       document.getElementById('promoOverlay').classList.remove('show');
       const {fr,fc,tr,tc,sp}=pendingPromo;pendingPromo=null;
