@@ -563,7 +563,7 @@ function cCanAct(){ if(!CG||CG.winner!==null)return false; return CG.turn===cMyC
 
 function cRenderBoard(){
   const div=document.getElementById('board');div.innerHTML='';
-  const flip=mode==='online'&&cMyColor==='b';
+  const flip=cMyColor==='b';
   for(let ri=0;ri<8;ri++){
     const r=flip?7-ri:ri;
     for(let ci=0;ci<8;ci++){
@@ -1012,7 +1012,11 @@ function jInitCanvas(){
   jCanvas.addEventListener('click',jOnClick);
 }
 
-function jCoord(r,c){ return [jPad+c*jCellSize, jPad+r*jCellSize]; }
+function jCoord(r,c){
+  const fr = jMyColor==='2' ? (JROWS-1-r) : r;
+  const fc = jMyColor==='2' ? (JCOLS-1-c) : c;
+  return [jPad+fc*jCellSize, jPad+fr*jCellSize];
+}
 
 function jDrawBoard(){
   if(!jCtx)return;
