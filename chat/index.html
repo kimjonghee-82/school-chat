@@ -47,6 +47,13 @@
         .btn-teacher { background-color: #2196F3; margin-top: 10px; }
         .btn-teacher:hover { background-color: #0b7dda; }
 
+        /* 바로가기 (Quick Links) */
+        .ql-section { margin-top:12px; padding-top:10px; border-top:1px solid #ddd; }
+        .ql-section h4 { margin:0 0 6px 0; font-size:12px; color:#555; font-weight:bold; }
+        .ql-dropdown { width:100%; padding:7px 8px; border:1px solid #ccc; border-radius:6px; font-size:12px; margin-bottom:6px; box-sizing:border-box; background:white; cursor:pointer; }
+        .ql-btn-row { display:flex; gap:4px; }
+        .ql-btn { flex:1; padding:7px 4px; font-size:11px; border:none; border-radius:5px; cursor:pointer; color:white; font-weight:bold; }
+
         .btn-shortcut {
             background: linear-gradient(135deg, #6e8efb, #a777e3);
             color: white;
@@ -355,6 +362,13 @@
             <div class="sidebar">
                 <h3>👥 전체 접속자 명단<br><span style="font-size:11px; font-weight:normal; color:#666;">(다른 학생을 클릭해 1:1 대화방 개설)</span></h3>
                 <ul class="user-list" id="user-list-ul"></ul>
+                <div id="ql-student-section" class="ql-section" style="display:none;">
+                    <h4>🔗 바로가기</h4>
+                    <select id="ql-student-select" class="ql-dropdown">
+                        <option value="">-- 사이트 선택 --</option>
+                    </select>
+                    <button onclick="ql_open('student')" class="ql-btn" style="width:100%; background:#4CAF50; font-size:12px;">열기 🚀</button>
+                </div>
             </div>
             <div id="student-grid"></div>
         </div>
@@ -379,6 +393,17 @@
                 <div style="margin-top:12px; border-top:1px solid #ddd; padding-top:12px; display:flex; flex-direction:column; gap:6px;">
                     <button onclick="openTypingRecords()" style="background:#673AB7; font-size:13px; padding:10px; border:none; border-radius:6px; color:white; font-weight:bold; cursor:pointer; width:100%;">📊 타자 기록 보기</button>
                     <button onclick="openGiveTokenModal()" style="background:#FF6B35; font-size:13px; padding:10px; border:none; border-radius:6px; color:white; font-weight:bold; cursor:pointer; width:100%;">🪙 토큰 지급</button>
+                </div>
+                <div id="ql-teacher-section" class="ql-section" style="display:none;">
+                    <h4>🔗 바로가기 관리</h4>
+                    <select id="ql-teacher-select" class="ql-dropdown">
+                        <option value="">-- 사이트 선택 --</option>
+                    </select>
+                    <div class="ql-btn-row">
+                        <button onclick="ql_open('teacher')" class="ql-btn" style="background:#4CAF50;">열기</button>
+                        <button onclick="ql_openAddModal()" class="ql-btn" style="background:#2196F3;">추가</button>
+                        <button onclick="ql_delete()" class="ql-btn" style="background:#f44336;">삭제</button>
+                    </div>
                 </div>
             </div>
 
@@ -1168,6 +1193,8 @@
                 });
             }
 
+            ql_subscribe();
+
             const userType = isTeacher ? "teacher" : "student";
             const userKey = `user_${grade}_${classNum}_${name}_${userType}`;
             myUserRef = database.ref(`users/${userKey}`);
@@ -1190,6 +1217,8 @@
 
     function handleLogout() {
         isLoggingOut = true;
+        if (_qlRef) { _qlRef.off(); _qlRef = null; }
+        _qlLinks = {};
         document.getElementById('persistent-top-nav').style.display = 'none';
         document.getElementById('chat-screen').style.display = 'none';
         document.getElementById('teacher-screen').style.display = 'none';
@@ -4164,6 +4193,24 @@ function confirmRoomToken() {
     </div>
 </div>
 
+<!-- 바로가기 추가 모달 -->
+<div id="ql-add-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:white; border-radius:12px; padding:24px; width:320px; max-width:90vw; box-shadow:0 8px 30px rgba(0,0,0,0.3);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <h3 style="margin:0; font-size:16px;">🔗 바로가기 추가</h3>
+            <button onclick="document.getElementById('ql-add-modal').style.display='none'" style="background:none; border:none; font-size:18px; cursor:pointer; color:#888; width:auto; padding:0;">✕</button>
+        </div>
+        <label style="font-size:13px; font-weight:bold; display:block; margin-bottom:4px;">사이트 이름</label>
+        <input type="text" id="ql-add-title" placeholder="예: 수업 자료" style="width:100%; box-sizing:border-box; padding:9px; border:1px solid #ccc; border-radius:6px; font-size:14px; margin-bottom:12px;">
+        <label style="font-size:13px; font-weight:bold; display:block; margin-bottom:4px;">주소 (URL)</label>
+        <input type="text" id="ql-add-url" placeholder="https://..." style="width:100%; box-sizing:border-box; padding:9px; border:1px solid #ccc; border-radius:6px; font-size:14px; margin-bottom:16px;" onkeypress="if(event.keyCode==13) ql_add()">
+        <div style="display:flex; gap:8px;">
+            <button onclick="document.getElementById('ql-add-modal').style.display='none'" style="flex:1; padding:10px; background:#e0e0e0; color:#333; border:none; border-radius:6px; cursor:pointer; font-weight:bold; width:auto;">취소</button>
+            <button onclick="ql_add()" style="flex:1; padding:10px; background:#2196F3; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold; width:auto;">등록</button>
+        </div>
+    </div>
+</div>
+
 <!-- 학생 사용 시간 만료 알림 -->
 <div id="modal-expiry" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:11000;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;">
     <div style="background:white;border-radius:16px;width:300px;max-width:100%;text-align:center;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,0.4)">
@@ -4572,6 +4619,97 @@ function switchToMonitoring() {
     document.getElementById('mon-screen').style.display = 'block';
     document.getElementById('persistent-top-nav').style.display = 'flex';
     mon_initTeacherMonitor();
+}
+
+/* ═══ 바로가기 (Quick Links) ═══ */
+var _qlRef = null;
+var _qlLinks = {};
+
+function ql_path() {
+    if (!myInfo || !myInfo.grade || !myInfo.classNum) return null;
+    return 'quicklinks/' + myInfo.grade + '-' + myInfo.classNum;
+}
+
+function ql_subscribe() {
+    var path = ql_path();
+    if (!database || !path) return;
+    if (_qlRef) { _qlRef.off(); _qlRef = null; }
+    _qlRef = database.ref(path);
+    _qlRef.on('value', function(snap) {
+        _qlLinks = snap.val() || {};
+        ql_render();
+    });
+}
+
+function ql_render() {
+    var keys = Object.keys(_qlLinks);
+    var hasLinks = keys.length > 0;
+    var isTeacher = myInfo && myInfo.isTeacher;
+
+    function fillSelect(sel, keys) {
+        if (!sel) return;
+        var prev = sel.value;
+        sel.innerHTML = '<option value="">-- 사이트 선택 --</option>';
+        keys.forEach(function(k) {
+            var opt = document.createElement('option');
+            opt.value = k;
+            opt.textContent = _qlLinks[k].title;
+            sel.appendChild(opt);
+        });
+        if (prev && _qlLinks[prev]) sel.value = prev;
+    }
+
+    /* 학생 사이드바 */
+    var stuSection = document.getElementById('ql-student-section');
+    if (stuSection) stuSection.style.display = (!isTeacher && hasLinks) ? 'block' : 'none';
+    fillSelect(document.getElementById('ql-student-select'), keys);
+
+    /* 교사 사이드바 */
+    var tchSection = document.getElementById('ql-teacher-section');
+    if (tchSection) tchSection.style.display = isTeacher ? 'block' : 'none';
+    fillSelect(document.getElementById('ql-teacher-select'), keys);
+}
+
+function ql_open(who) {
+    var sel = document.getElementById(who === 'teacher' ? 'ql-teacher-select' : 'ql-student-select');
+    if (!sel || !sel.value) { alert('사이트를 선택해주세요.'); return; }
+    var link = _qlLinks[sel.value];
+    if (!link) return;
+    var url = link.url;
+    if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    window.open(url, '_blank', 'noopener');
+}
+
+function ql_openAddModal() {
+    document.getElementById('ql-add-title').value = '';
+    document.getElementById('ql-add-url').value = '';
+    document.getElementById('ql-add-modal').style.display = 'flex';
+    setTimeout(function(){ document.getElementById('ql-add-title').focus(); }, 100);
+}
+
+function ql_add() {
+    var title = document.getElementById('ql-add-title').value.trim();
+    var url   = document.getElementById('ql-add-url').value.trim();
+    if (!title) { alert('사이트 이름을 입력해주세요.'); return; }
+    if (!url)   { alert('주소(URL)를 입력해주세요.'); return; }
+    var path = ql_path();
+    if (!database || !path) return;
+    database.ref(path).push({ title: title, url: url })
+        .then(function() {
+            document.getElementById('ql-add-modal').style.display = 'none';
+        })
+        .catch(function(e) { alert('저장 오류: ' + e.message); });
+}
+
+function ql_delete() {
+    var sel = document.getElementById('ql-teacher-select');
+    if (!sel || !sel.value) { alert('삭제할 사이트를 선택해주세요.'); return; }
+    var key = sel.value;
+    var title = (_qlLinks[key] || {}).title || '';
+    if (!confirm('「' + title + '」을(를) 삭제하시겠습니까?')) return;
+    var path = ql_path();
+    if (!database || !path) return;
+    database.ref(path + '/' + key).remove();
 }
 </script>
 
