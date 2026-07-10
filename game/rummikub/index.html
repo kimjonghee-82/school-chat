@@ -62,14 +62,19 @@
     border-radius:14px;
     min-height:220px;
     padding:10px;
-    display:flex;
-    flex-direction:column;
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    grid-auto-rows:min-content;
     gap:8px;
     margin-bottom:14px;
+  }
+  @media (max-width:700px){
+    #table { grid-template-columns:repeat(2, 1fr); }
   }
   .setRow {
     display:flex;
     flex-wrap:wrap;
+    align-content:flex-start;
     gap:4px;
     background:rgba(255,255,255,0.04);
     border-radius:8px;
@@ -289,6 +294,25 @@ let turnTableSnapshot = null, turnRackSnapshot = null;
 let lastTurnOwner = -2;
 let selected = null;       // {from:'rack'|'table', setIndex, tile}
 let dragRef = null;
+let sortMode = null;       // null | 'num' | 'color' — auto-applied to newly drawn/returned rack tiles
+
+function sortRack(rack){
+  if (sortMode === 'num'){
+    rack.sort((a,b) => {
+      if (a.joker) return 1;
+      if (b.joker) return -1;
+      if (a.num !== b.num) return a.num - b.num;
+      return COLORS.indexOf(a.color) - COLORS.indexOf(b.color);
+    });
+  } else if (sortMode === 'color'){
+    rack.sort((a,b) => {
+      if (a.joker) return 1;
+      if (b.joker) return -1;
+      if (a.color !== b.color) return COLORS.indexOf(a.color) - COLORS.indexOf(b.color);
+      return a.num - b.num;
+    });
+  }
+}
 
 function uid(){ return 'T' + (tileSeq++) + '_' + Math.random().toString(36).slice(2,7); }
 
@@ -581,6 +605,7 @@ function enterGameScreen(){
   document.getElementById('gameOver').style.display = 'none';
   lastTurnOwner = -2;
   gameOverShown = false;
+  sortMode = null;
   render();
   if (mode === 'ai' && G.players[G.current].isAI){
     setTimeout(aiTakeTurn, 800);
@@ -745,6 +770,7 @@ function performMove(ref, dest){
   }
   if (dest.type === 'rack'){
     G.players[owner].rack.push(tile);
+    sortRack(G.players[owner].rack);
   } else if (dest.type === 'newset'){
     G.table.push([tile]);
   } else if (dest.type === 'set'){
@@ -816,24 +842,14 @@ document.getElementById('newSetZone').addEventListener('click', (e) => {
 
 document.getElementById('sortNum').addEventListener('click', () => {
   if (!G) return;
-  const rack = G.players[rackOwnerIndex()].rack;
-  rack.sort((a,b) => {
-    if (a.joker) return 1;
-    if (b.joker) return -1;
-    if (a.num !== b.num) return a.num - b.num;
-    return COLORS.indexOf(a.color) - COLORS.indexOf(b.color);
-  });
+  sortMode = 'num';
+  sortRack(G.players[rackOwnerIndex()].rack);
   render();
 });
 document.getElementById('sortColor').addEventListener('click', () => {
   if (!G) return;
-  const rack = G.players[rackOwnerIndex()].rack;
-  rack.sort((a,b) => {
-    if (a.joker) return 1;
-    if (b.joker) return -1;
-    if (a.color !== b.color) return COLORS.indexOf(a.color) - COLORS.indexOf(b.color);
-    return a.num - b.num;
-  });
+  sortMode = 'color';
+  sortRack(G.players[rackOwnerIndex()].rack);
   render();
 });
 
@@ -890,6 +906,7 @@ document.getElementById('btnDraw').addEventListener('click', () => {
   player.rack = keepRack.concat(returningTiles);
   if (G.pool.length > 0){
     player.rack.push(G.pool.pop());
+    sortRack(player.rack);
   } else {
     setMsg('풀에 더 이상 타일이 없습니다.');
   }
