@@ -126,11 +126,11 @@
   .c-blue   { color:#0d47a1; }
   .c-black  { color:#111111; }
   .c-orange { color:#f9a825; }
-  /* 새로 뽑은 타일 깜박임 */
-  .tile.new-tile { animation: newTilePulse 0.6s ease-in-out 8 alternate; }
-  @keyframes newTilePulse {
-    from { box-shadow: 0 0 0 2px #ffd54f, 0 2px 3px rgba(0,0,0,0.4); }
-    to   { box-shadow: 0 0 0 5px #ff6f00, 0 2px 3px rgba(0,0,0,0.4); background:#fffde7; }
+  /* 이전 턴 대비 테이블에 새로 등록/변경된 타일 깜박임 */
+  .tile.changed-tile { animation: changedPulse 0.55s ease-in-out infinite alternate; }
+  @keyframes changedPulse {
+    from { box-shadow: 0 0 0 2px #ffeb3b, 0 2px 3px rgba(0,0,0,0.4); }
+    to   { box-shadow: 0 0 0 6px #ff6f00, 0 2px 3px rgba(0,0,0,0.4); background:#fffde7; }
   }
   .backTile {
     width:30px; height:40px; background:#37474f; border-radius:5px; box-shadow:0 2px 3px rgba(0,0,0,0.4);
@@ -303,9 +303,10 @@ let turnTableSnapshot = null, turnRackSnapshot = null;
 let lastTurnOwner = -2;
 let selected = null;       // {from:'rack'|'table', setIndex, tile}
 let dragRef = null;
-let sortMode = null;       // null | 'num' | 'color' — auto-applied to newly drawn/returned rack tiles
-let newlyDrawnId = null;   // 이번 턴에 새로 뽑은 타일 id (깜박임용)
-let turnStartRackIds = new Set(); // 내 턴 시작 시 rack 구성 (새 타일 감지용)
+let sortMode = null;       // null | 'num' | 'color'
+let changedTableIds = new Set(); // 이전 턴 대비 테이블에 새로 나타난 타일 id (깜박임용)
+let prevTurnTableIds = new Set(); // 직전 턴 종료 시 테이블 타일 id
+let changedTableTimer = null;
 let undoStack = [];
 let turnTimerInterval = null;
 let turnTimeLeft = 30;
@@ -595,14 +596,19 @@ function maybeStartTurn(){
     turnRackSnapshot = G.players[G.current].rack.map(t=>({...t}));
     undoStack = [];
     setMsg('');
-    if (canAct()){
-      // 내 턴이 되었을 때 이전 턴 이후 추가된 타일(상대가 뽑아준 게 아니라 내가 이전에 뽑은 것) 감지
-      const myRack = G.players[G.current].rack;
-      const newTiles = myRack.filter(t => !turnStartRackIds.has(t.id));
-      newlyDrawnId = newTiles.length > 0 ? new Set(newTiles.map(t=>t.id)) : null;
-      turnStartRackIds = new Set(myRack.map(t=>t.id));
-      startTurnTimer();
+    // 테이블에서 이전 턴 대비 새로 등록된 타일 감지 → 깜박임
+    const curTableIds = new Set(G.table.flat().map(t => t.id));
+    changedTableIds = new Set([...curTableIds].filter(id => !prevTurnTableIds.has(id)));
+    prevTurnTableIds = curTableIds;
+    if (changedTableTimer) clearTimeout(changedTableTimer);
+    if (changedTableIds.size > 0){
+      changedTableTimer = setTimeout(() => {
+        changedTableIds = new Set();
+        changedTableTimer = null;
+        render();
+      }, 5000);
     }
+    if (canAct()) startTurnTimer();
   }
 }
 
@@ -665,8 +671,9 @@ function enterGameScreen(){
   gameOverShown = false;
   sortMode = null;
   noProgressStreak = 0;
-  newlyDrawnId = null;
-  turnStartRackIds = new Set();
+  changedTableIds = new Set();
+  prevTurnTableIds = new Set();
+  if (changedTableTimer){ clearTimeout(changedTableTimer); changedTableTimer = null; }
   render();
   if (mode === 'ai' && G.players[G.current].isAI){
     setTimeout(aiTakeTurn, 800);
@@ -699,7 +706,7 @@ function tileEl(tile, locked, faceDown, isNew){
     return el;
   }
   el.className = 'tile' + (tile.joker ? ' joker' : ' c-'+tile.color) + (locked ? ' locked' : '');
-  if (isNew) el.classList.add('new-tile');
+  if (isNew) el.classList.add('changed-tile');
   el.textContent = tile.joker ? '★' : tile.num;
   if (selected && selected.tile.id === tile.id) el.classList.add('selected');
   return el;
@@ -740,7 +747,7 @@ function render(){
     const rowLocked = !player.melded && set.some(t => lockedIds.has(t.id));
     set.forEach((tile) => {
       const locked = !iAct || (!player.melded && lockedIds.has(tile.id));
-      const t = tileEl(tile, locked, false);
+      const t = tileEl(tile, locked, false, changedTableIds.has(tile.id));
       t.draggable = !locked;
       t.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -790,8 +797,7 @@ function render(){
   document.getElementById('rackName').textContent = `${ownerPlayer.name}의 받침대 (${ownerPlayer.rack.length}개)`;
   const rackInteractable = iAct && ownerIdx === G.current;
   ownerPlayer.rack.forEach(tile => {
-    const isNew = !!(newlyDrawnId && newlyDrawnId.has(tile.id));
-    const t = tileEl(tile, false, false, isNew);
+    const t = tileEl(tile, false, false);
     t.draggable = rackInteractable;
     t.addEventListener('click', (e) => {
       e.stopPropagation();
