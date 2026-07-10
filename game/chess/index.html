@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>체스</title>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; user-select:none; }
+body { min-height:100vh; background:#0d1117; font-family:'Segoe UI',sans-serif; color:#fff; padding:16px; }
+a.back { color:#888; font-size:0.85rem; text-decoration:none; display:inline-block; margin-bottom:10px; }
+a.back:hover { color:#ccc; }
+h1 { text-align:center; font-size:1.4rem; margin-bottom:16px; }
+
+#setup { max-width:460px; margin:30px auto; background:#161b22; border-radius:16px; padding:28px; }
+#setup h2 { margin-bottom:12px; font-size:1rem; }
+#setup label { display:block; margin:10px 0 4px; font-size:0.85rem; color:#8b949e; }
+#setup input, #setup select { width:100%; padding:8px 10px; border-radius:8px; border:1px solid #30363d; background:#0d1117; color:#fff; font-size:0.95rem; }
+.modeTabs { display:flex; gap:6px; margin-bottom:18px; }
+.modeTabs button { flex:1; padding:10px 6px; font-size:0.82rem; background:#21262d; color:#8b949e; border-radius:8px; border:none; cursor:pointer; }
+.modeTabs button.active { background:#388e3c; color:#fff; }
+.modePane { display:none; }
+.modePane.active { display:block; }
+.onlineSubTabs { display:flex; gap:6px; margin-bottom:12px; }
+.onlineSubTabs button { flex:1; padding:8px; font-size:0.8rem; background:#21262d; color:#8b949e; border-radius:8px; border:none; cursor:pointer; }
+.onlineSubTabs button.active { background:#1565c0; color:#fff; }
+.onlinePane { display:none; }
+.onlinePane.active { display:block; }
+#setup .modePane > button, #setup .onlinePane > button { margin-top:14px; width:100%; padding:12px; border:none; border-radius:10px; background:#4caf50; color:#fff; font-size:1rem; font-weight:600; cursor:pointer; }
+#setup .modePane > button:hover, #setup .onlinePane > button:hover { background:#43a047; }
+
+#lobby { display:none; max-width:420px; margin:30px auto; background:#161b22; border-radius:16px; padding:28px; text-align:center; }
+#lobby .code { font-size:2rem; font-weight:800; letter-spacing:4px; color:#ffd54f; margin:10px 0 18px; }
+#lobby ul { list-style:none; text-align:left; margin-bottom:16px; }
+#lobby li { padding:8px 12px; background:#0d1117; border-radius:8px; margin-bottom:6px; font-size:0.9rem; }
+#lobby li.empty { color:#6e7681; }
+#lobby button { padding:10px 18px; border:none; border-radius:8px; background:#4caf50; color:#fff; cursor:pointer; font-weight:700; }
+#lobby button:disabled { background:#30363d; cursor:not-allowed; }
+#lobby .hint { font-size:0.78rem; color:#8b949e; margin-top:10px; }
+
+#game { display:none; max-width:560px; margin:0 auto; }
+.status-bar { background:#161b22; border-radius:12px; padding:10px 16px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; }
+.turn-label { font-weight:700; font-size:0.95rem; }
+.check-label { color:#ef5350; font-weight:700; }
+.captured-row { display:flex; justify-content:space-between; font-size:0.8rem; color:#8b949e; margin-bottom:6px; min-height:20px; }
+
+#board { display:grid; grid-template-columns:repeat(8,1fr); border:3px solid #444; border-radius:4px; overflow:hidden; width:100%; aspect-ratio:1; }
+.sq { aspect-ratio:1; display:flex; align-items:center; justify-content:center; font-size:clamp(1.4rem,5vw,2.2rem); cursor:pointer; position:relative; transition:background 0.08s; }
+.sq.light { background:#f0d9b5; }
+.sq.dark  { background:#b58863; }
+.sq.selected  { background:#7fc97f !important; }
+.sq.lastmove  { background:#cdd26a !important; }
+.sq.incheck   { background:#e53935 !important; }
+.sq.legal::after { content:''; position:absolute; width:30%; height:30%; background:rgba(0,0,0,0.18); border-radius:50%; pointer-events:none; }
+.sq.legal.occupied::after { content:''; position:absolute; inset:3px; border:3px solid rgba(0,0,0,0.22); border-radius:50%; background:transparent; width:auto; height:auto; }
+.coord-r { position:absolute; top:2px; left:3px; font-size:0.55rem; font-weight:700; color:rgba(0,0,0,0.4); pointer-events:none; }
+.coord-f { position:absolute; bottom:2px; right:3px; font-size:0.55rem; font-weight:700; color:rgba(0,0,0,0.4); pointer-events:none; }
+
+.action-row { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+.action-row button { flex:1; padding:9px; border:none; border-radius:8px; background:#21262d; color:#fff; cursor:pointer; font-size:0.82rem; font-weight:600; }
+.action-row button:hover { background:#30363d; }
+#btnResign { background:#b71c1c; }
+#btnResign:hover { background:#c62828; }
+
+#moveHistory { max-height:100px; overflow-y:auto; background:#0d1117; border-radius:8px; padding:8px 10px; margin-top:8px; font-size:0.75rem; color:#8b949e; font-family:monospace; line-height:1.8; }
+
+#promoOverlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:100; align-items:center; justify-content:center; }
+#promoOverlay.show { display:flex; }
+#promoBox { background:#161b22; border-radius:16px; padding:24px; text-align:center; }
+#promoBox p { margin-bottom:14px; font-size:0.95rem; }
+.promo-opts { display:flex; gap:12px; }
+.promo-opt { width:68px; height:68px; background:#21262d; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:2.6rem; cursor:pointer; }
+.promo-opt:hover { background:#388e3c; }
+
+#gameOver { display:none; max-width:420px; margin:40px auto; background:#161b22; border-radius:16px; padding:28px; text-align:center; }
+#gameOver h2 { color:#ffd54f; margin-bottom:10px; font-size:1.3rem; }
+#gameOver p { color:#8b949e; margin-bottom:16px; }
+#gameOver button { padding:10px 22px; border:none; border-radius:8px; background:#4caf50; color:#fff; cursor:pointer; font-weight:700; font-size:1rem; }
+</style>
+</head>
+<body>
+<a class="back" href="../">← 게임 목록</a>
+<h1>♟ 체스</h1>
+
+<div id="setup">
+  <div class="modeTabs">
+    <button id="tabAI" class="active">PC 인공지능</button>
+    <button id="tabOnline">온라인(각자 PC)</button>
+  </div>
+
+  <div id="paneAI" class="modePane active">
+    <h2>인공지능과 대결</h2>
+    <label>내 이름</label><input id="myNameAI" value="나">
+    <label>내 색상</label>
+    <select id="myColor">
+      <option value="w">⬜ 흰색 (선공)</option>
+      <option value="b">⬛ 검정 (후공)</option>
+    </select>
+    <label>난이도</label>
+    <select id="aiLevel">
+      <option value="1">쉬움</option>
+      <option value="2" selected>보통</option>
+      <option value="3">어려움</option>
+    </select>
+    <button id="btnStartAI">게임 시작</button>
+  </div>
+
+  <div id="paneOnline" class="modePane">
+    <h2>온라인 (각자 PC에서)</h2>
+    <div class="onlineSubTabs">
+      <button id="subCreate" class="active">방 만들기</button>
+      <button id="subJoin">참가하기</button>
+    </div>
+    <div id="paneCreate" class="onlinePane active">
+      <label>내 이름</label><input id="myNameCreate" value="나">
+      <button id="btnCreateRoom">방 만들기 (⬜ 흰색)</button>
+    </div>
+    <div id="paneJoin" class="onlinePane">
+      <label>내 이름</label><input id="myNameJoin" value="나">
+      <label>방 코드 (4자리)</label>
+      <input id="joinCode" maxlength="4" placeholder="예: 4821">
+      <button id="btnJoinRoom">참가하기 (⬛ 검정)</button>
+    </div>
+  </div>
+</div>
+
+<div id="lobby">
+  <h2>대기실</h2>
+  <div class="code" id="lobbyCode"></div>
+  <ul id="lobbySeats"></ul>
+  <button id="btnHostStart" disabled>상대 입장 대기 중</button>
+  <div class="hint" id="lobbyHint"></div>
+</div>
+
+<div id="game">
+  <div class="status-bar">
+    <span class="turn-label" id="turnLabel">흰색 차례</span>
+    <span class="check-label" id="checkLabel"></span>
+  </div>
+  <div class="captured-row">
+    <span id="capW"></span>
+    <span id="capB"></span>
+  </div>
+  <div id="board"></div>
+  <div id="moveHistory"></div>
+  <div class="action-row">
+    <button id="btnResign">기권</button>
+    <button id="btnBack">처음으로</button>
+  </div>
+</div>
+
+<div id="promoOverlay">
+  <div id="promoBox">
+    <p>승격할 기물을 선택하세요</p>
+    <div class="promo-opts" id="promoOpts"></div>
+  </div>
+</div>
+
+<div id="gameOver">
+  <h2 id="goTitle"></h2>
+  <p id="goDesc"></p>
+  <button id="btnAgain">처음으로</button>
+</div>
+
+<script>
+// ── Firebase ──────────────────────────────────────────────────
+let db = null;
+try {
+  if (!firebase.apps.length) firebase.initializeApp({ databaseURL:'https://school-chat-7051e-default-rtdb.firebaseio.com/' });
+  db = firebase.database();
+} catch(e){ console.error(e); }
+
+// ── Constants ─────────────────────────────────────────────────
+const INIT = [
+  ['r','n','b','q','k','b','n','r'],
+  ['p','p','p','p','p','p','p','p'],
+  [null,null,null,null,null,null,null,null],
+  [null,null,null,null,null,null,null,null],
+  [null,null,null,null,null,null,null,null],
+  [null,null,null,null,null,null,null,null],
+  ['P','P','P','P','P','P','P','P'],
+  ['R','N','B','Q','K','B','N','R'],
+];
+const UNI = {K:'♔',Q:'♕',R:'♖',B:'♗',N:'♘',P:'♙',k:'♚',q:'♛',r:'♜',b:'♝',n:'♞',p:'♟'};
+const VALS = {p:100,n:320,b:330,r:500,q:900,k:20000};
+const PST = {
+  p:[[0,0,0,0,0,0,0,0],[50,50,50,50,50,50,50,50],[10,10,20,30,30,20,10,10],[5,5,10,25,25,10,5,5],[0,0,0,20,20,0,0,0],[5,-5,-10,0,0,-10,-5,5],[5,10,10,-20,-20,10,10,5],[0,0,0,0,0,0,0,0]],
+  n:[[-50,-40,-30,-30,-30,-30,-40,-50],[-40,-20,0,0,0,0,-20,-40],[-30,0,10,15,15,10,0,-30],[-30,5,15,20,20,15,5,-30],[-30,0,15,20,20,15,0,-30],[-30,5,10,15,15,10,5,-30],[-40,-20,0,5,5,0,-20,-40],[-50,-40,-30,-30,-30,-30,-40,-50]],
+  b:[[-20,-10,-10,-10,-10,-10,-10,-20],[-10,0,0,0,0,0,0,-10],[-10,0,5,10,10,5,0,-10],[-10,5,5,10,10,5,5,-10],[-10,0,10,10,10,10,0,-10],[-10,10,10,10,10,10,10,-10],[-10,5,0,0,0,0,5,-10],[-20,-10,-10,-10,-10,-10,-10,-20]],
+  r:[[0,0,0,0,0,0,0,0],[5,10,10,10,10,10,10,5],[-5,0,0,0,0,0,0,-5],[-5,0,0,0,0,0,0,-5],[-5,0,0,0,0,0,0,-5],[-5,0,0,0,0,0,0,-5],[-5,0,0,0,0,0,0,-5],[0,0,0,5,5,0,0,0]],
+  q:[[-20,-10,-10,-5,-5,-10,-10,-20],[-10,0,0,0,0,0,0,-10],[-10,0,5,5,5,5,0,-10],[-5,0,5,5,5,5,0,-5],[0,0,5,5,5,5,0,-5],[-10,5,5,5,5,5,0,-10],[-10,0,5,0,0,0,0,-10],[-20,-10,-10,-5,-5,-10,-10,-20]],
+  k:[[-30,-40,-40,-50,-50,-40,-40,-30],[-30,-40,-40,-50,-50,-40,-40,-30],[-30,-40,-40,-50,-50,-40,-40,-30],[-30,-40,-40,-50,-50,-40,-40,-30],[-20,-30,-30,-40,-40,-30,-30,-20],[-10,-20,-20,-20,-20,-20,-20,-10],[20,20,0,0,0,0,20,20],[20,30,10,0,0,10,30,20]],
+};
+
+// ── State ─────────────────────────────────────────────────────
+let mode='ai', myColor='w', aiDepth=2, mySeat=null;
+let G=null, selected=null, legalCache=[], lastMove=null, moveLog=[], pendingPromo=null, gameOverShown=false;
+let roomCode=null, roomRef=null, isHost=false, gameStarted=false, lobbyData=null;
+
+// ── Chess helpers ─────────────────────────────────────────────
+const isW = p => p && p === p.toUpperCase();
+const isB = p => p && p === p.toLowerCase();
+const col  = p => p ? (isW(p)?'w':'b') : null;
+const opp  = c => c==='w'?'b':'w';
+const inB  = (r,c) => r>=0&&r<8&&c>=0&&c<8;
+const cloneB = b => b.map(r=>[...r]);
+const sameCol = (a,b) => a&&b&&col(a)===col(b);
+
+function pseudoMoves(board, r, c, ep, cas) {
+  const p = board[r][c]; if(!p) return [];
+  const pc = col(p), t = p.toLowerCase(), ms = [];
+  const slide = dirs => {
+    for(const [dr,dc] of dirs){
+      let nr=r+dr,nc=c+dc;
+      while(inB(nr,nc)){
+        if(!board[nr][nc]){ms.push([nr,nc,null]);}
+        else{if(!sameCol(p,board[nr][nc]))ms.push([nr,nc,null]);break;}
+        nr+=dr;nc+=dc;
+      }
+    }
+  };
+  if(t==='p'){
+    const d=pc==='w'?-1:1, sr=pc==='w'?6:1;
+    if(inB(r+d,c)&&!board[r+d][c]){
+      ms.push([r+d,c,null]);
+      if(r===sr&&!board[r+2*d][c])ms.push([r+2*d,c,null]);
+    }
+    for(const dc of[-1,1]){
+      const nr=r+d,nc=c+dc;
+      if(!inB(nr,nc))continue;
+      if(board[nr][nc]&&col(board[nr][nc])!==pc)ms.push([nr,nc,null]);
+      if(ep&&nr===ep[0]&&nc===ep[1])ms.push([nr,nc,'ep']);
+    }
+  } else if(t==='n'){
+    for(const [dr,dc] of[[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]]){
+      const nr=r+dr,nc=c+dc;
+      if(inB(nr,nc)&&!sameCol(p,board[nr][nc]))ms.push([nr,nc,null]);
+    }
+  } else if(t==='b') slide([[-1,-1],[-1,1],[1,-1],[1,1]]);
+  else if(t==='r') slide([[-1,0],[1,0],[0,-1],[0,1]]);
+  else if(t==='q') slide([[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]]);
+  else if(t==='k'){
+    for(const [dr,dc] of[[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]]){
+      const nr=r+dr,nc=c+dc;
+      if(inB(nr,nc)&&!sameCol(p,board[nr][nc]))ms.push([nr,nc,null]);
+    }
+    if(pc==='w'&&r===7&&c===4){
+      if(cas.wK&&!board[7][5]&&!board[7][6]&&board[7][7]==='R')ms.push([7,6,'castle']);
+      if(cas.wQ&&!board[7][3]&&!board[7][2]&&!board[7][1]&&board[7][0]==='R')ms.push([7,2,'castle']);
+    }
+    if(pc==='b'&&r===0&&c===4){
+      if(cas.bK&&!board[0][5]&&!board[0][6]&&board[0][7]==='r')ms.push([0,6,'castle']);
+      if(cas.bQ&&!board[0][3]&&!board[0][2]&&!board[0][1]&&board[0][0]==='r')ms.push([0,2,'castle']);
+    }
+  }
+  return ms;
+}
+
+function inCheck(board, color) {
+  const king=color==='w'?'K':'k';
+  let kr=-1,kc=-1;
+  for(let r=0;r<8;r++)for(let c=0;c<8;c++)if(board[r][c]===king){kr=r;kc=c;}
+  if(kr<0)return false;
+  for(let r=0;r<8;r++)for(let c=0;c<8;c++){
+    if(board[r][c]&&col(board[r][c])===opp(color)){
+      if(pseudoMoves(board,r,c,null,{wK:false,wQ:false,bK:false,bQ:false}).some(([mr,mc])=>mr===kr&&mc===kc))return true;
+    }
+  }
+  return false;
+}
+
+function applyMove(state, fr, fc, tr, tc, sp, promo) {
+  const board=cloneB(state.board), p=board[fr][fc], pc=col(p);
+  const cas={...state.castling};
+  board[tr][tc]=p; board[fr][fc]=null;
+  if(sp==='ep') board[pc==='w'?tr+1:tr-1][tc]=null;
+  if(sp==='castle'){
+    if(tc===6){board[tr][5]=board[tr][7];board[tr][7]=null;}
+    else       {board[tr][3]=board[tr][0];board[tr][0]=null;}
+  }
+  const promRow=pc==='w'?0:7;
+  if(p.toLowerCase()==='p'&&tr===promRow)board[tr][tc]=promo||(pc==='w'?'Q':'q');
+  let ep=null;
+  if(p.toLowerCase()==='p'&&Math.abs(tr-fr)===2)ep=[(fr+tr)/2,tc];
+  if(p==='K'){cas.wK=false;cas.wQ=false;}
+  if(p==='k'){cas.bK=false;cas.bQ=false;}
+  if(fr===7&&fc===0)cas.wQ=false; if(fr===7&&fc===7)cas.wK=false;
+  if(fr===0&&fc===0)cas.bQ=false; if(fr===0&&fc===7)cas.bK=false;
+  const half=(p.toLowerCase()==='p'||board[tr][tc])?0:(state.halfmove||0)+1;
+  return {...state,board,turn:opp(pc),enPassant:ep,castling:cas,winner:null,halfmove:half};
+}
+
+function legalOf(state, r, c) {
+  const p=state.board[r][c];
+  if(!p||col(p)!==state.turn)return[];
+  return pseudoMoves(state.board,r,c,state.enPassant,state.castling).filter(([tr,tc,sp])=>{
+    if(sp==='castle'){
+      const pc=col(p);
+      if(inCheck(state.board,pc))return false;
+      const passC=tc===6?5:3, tmp=cloneB(state.board);
+      tmp[r][passC]=p;tmp[r][c]=null;
+      if(inCheck(tmp,pc))return false;
+    }
+    const ns=applyMove(state,r,c,tr,tc,sp,col(p)==='w'?'Q':'q');
+    return!inCheck(ns.board,col(p));
+  });
+}
+
+function allLegal(state) {
+  const ms=[];
+  for(let r=0;r<8;r++)for(let c=0;c<8;c++)
+    if(state.board[r][c]&&col(state.board[r][c])===state.turn)
+      legalOf(state,r,c).forEach(m=>ms.push([r,c,...m]));
+  return ms;
+}
+
+function status(state) {
+  const ms=allLegal(state);
+  if(!ms.length)return inCheck(state.board,state.turn)?'checkmate':'stalemate';
+  if((state.halfmove||0)>=100)return'draw50';
+  if(inCheck(state.board,state.turn))return'check';
+  return'ok';
+}
+
+// ── AI ────────────────────────────────────────────────────────
+function evalBoard(board) {
+  let s=0;
+  for(let r=0;r<8;r++)for(let c=0;c<8;c++){
+    const p=board[r][c]; if(!p)continue;
+    const t=p.toLowerCase();
+    const pv=VALS[t], pst=PST[t];
+    const pos=isW(p)?pst[r][c]:pst[7-r][c];
+    s+=isW(p)?(pv+pos):-(pv+pos);
+  }
+  return s;
+}
+
+function minimax(state, depth, alpha, beta, maxing) {
+  const st=status(state);
+  if(st==='checkmate')return maxing?-25000:25000;
+  if(st==='stalemate'||st==='draw50')return 0;
+  if(depth===0)return evalBoard(state.board);
+  const ms=allLegal(state);
+  if(maxing){
+    let best=-Infinity;
+    for(const [fr,fc,tr,tc,sp] of ms){
+      const v=minimax(applyMove(state,fr,fc,tr,tc,sp,'Q'),depth-1,alpha,beta,false);
+      best=Math.max(best,v);alpha=Math.max(alpha,v);if(beta<=alpha)break;
+    }
+    return best;
+  } else {
+    let best=Infinity;
+    for(const [fr,fc,tr,tc,sp] of ms){
+      const v=minimax(applyMove(state,fr,fc,tr,tc,sp,'q'),depth-1,alpha,beta,true);
+      best=Math.min(best,v);beta=Math.min(beta,v);if(beta<=alpha)break;
+    }
+    return best;
+  }
+}
+
+function aiBestMove(state, depth) {
+  const ms=allLegal(state);
+  if(!ms.length)return null;
+  for(let i=ms.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[ms[i],ms[j]]=[ms[j],ms[i]];}
+  const max=state.turn==='w';
+  let best=max?-Infinity:Infinity, bestM=ms[0];
+  for(const [fr,fc,tr,tc,sp] of ms){
+    const promo=state.turn==='w'?'Q':'q';
+    const v=minimax(applyMove(state,fr,fc,tr,tc,sp,promo),depth-1,-Infinity,Infinity,!max);
+    if(max?v>best:v<best){best=v;bestM=[fr,fc,tr,tc,sp];}
+  }
+  return bestM;
+}
+
+// ── Notation ──────────────────────────────────────────────────
+const sqName=(r,c)=>String.fromCharCode(97+c)+(8-r);
+function notation(board,fr,fc,tr,tc,sp){
+  const p=board[fr][fc]; if(!p)return'';
+  if(sp==='castle')return tc===6?'O-O':'O-O-O';
+  const t=p.toLowerCase(); let s='';
+  if(t!=='p')s+=p.toUpperCase();
+  else if(board[tr][tc]||sp==='ep')s+=sqName(fr,fc)[0];
+  if(board[tr][tc]||sp==='ep')s+='x';
+  s+=sqName(tr,tc);
+  const pr=col(p)==='w'?0:7;
+  if(t==='p'&&tr===pr)s+='=Q';
+  return s;
+}
+
+// ── Firebase normalize ────────────────────────────────────────
+function normalRow(row) {
+  const r=[];
+  for(let i=0;i<8;i++)r.push((row&&row[i]!==undefined)?row[i]:null);
+  return r;
+}
+function normalState(s) {
+  if(!s)return s;
+  if(s.winner===undefined)s.winner=null;
+  if(s.enPassant===undefined||s.enPassant===false)s.enPassant=null;
+  else if(s.enPassant&&!Array.isArray(s.enPassant))s.enPassant=Object.values(s.enPassant).map(Number);
+  s.castling=s.castling||{wK:false,wQ:false,bK:false,bQ:false};
+  s.halfmove=s.halfmove||0;
+  if(!s.board)return s;
+  const rawBoard=Array.isArray(s.board)?s.board:Object.values(s.board);
+  s.board=Array.from({length:8},(_,i)=>normalRow(rawBoard[i]));
+  return s;
+}
+
+// ── Setup UI ──────────────────────────────────────────────────
+document.getElementById('tabAI').addEventListener('click',()=>{
+  ['tabAI','tabOnline'].forEach(id=>document.getElementById(id).classList.toggle('active',id==='tabAI'));
+  ['paneAI','paneOnline'].forEach(id=>document.getElementById(id).classList.toggle('active',id==='paneAI'));
+});
+document.getElementById('tabOnline').addEventListener('click',()=>{
+  ['tabAI','tabOnline'].forEach(id=>document.getElementById(id).classList.toggle('active',id==='tabOnline'));
+  ['paneAI','paneOnline'].forEach(id=>document.getElementById(id).classList.toggle('active',id==='paneOnline'));
+});
+document.getElementById('subCreate').addEventListener('click',()=>{
+  ['subCreate','subJoin'].forEach(id=>document.getElementById(id).classList.toggle('active',id==='subCreate'));
+  ['paneCreate','paneJoin'].forEach(id=>document.getElementById(id).classList.toggle('active',id==='paneCreate'));
+});
+document.getElementById('subJoin').addEventListener('click',()=>{
+  ['subCreate','subJoin'].forEach(id=>document.getElementById(id).classList.toggle('active',id==='subJoin'));
+  ['paneCreate','paneJoin'].forEach(id=>document.getElementById(id).classList.toggle('active',id==='paneJoin'));
+});
+
+document.getElementById('btnStartAI').addEventListener('click',()=>{
+  const name=document.getElementById('myNameAI').value.trim()||'나';
+  myColor=document.getElementById('myColor').value;
+  aiDepth=parseInt(document.getElementById('aiLevel').value);
+  mode='ai'; mySeat=myColor==='w'?0:1;
+  const names={w:myColor==='w'?name:'AI',b:myColor==='b'?name:'AI'};
+  initGame(names);
+  if(G.turn!==myColor)setTimeout(runAI,400);
+});
+
+// ── Online ────────────────────────────────────────────────────
+function genCode(){return String(Math.floor(1000+Math.random()*9000));}
+
+document.getElementById('btnCreateRoom').addEventListener('click',async()=>{
+  if(!db){alert('온라인 기능을 사용할 수 없습니다.');return;}
+  const name=document.getElementById('myNameCreate').value.trim()||'나';
+  let code=genCode();
+  for(let i=0;i<6;i++){if(!(await db.ref('chess_rooms/'+code).once('value')).exists())break;code=genCode();}
+  roomCode=code;isHost=true;mySeat=0;myColor='w';
+  roomRef=db.ref('chess_rooms/'+code);
+  await roomRef.set({names:{0:name,1:''},started:false,state:null,createdAt:Date.now()});
+  listenRoom();
+});
+
+document.getElementById('btnJoinRoom').addEventListener('click',async()=>{
+  if(!db){alert('온라인 기능을 사용할 수 없습니다.');return;}
+  const name=document.getElementById('myNameJoin').value.trim()||'나';
+  const code=document.getElementById('joinCode').value.trim();
+  if(!code){alert('방 코드를 입력하세요.');return;}
+  const ref=db.ref('chess_rooms/'+code);
+  const snap=await ref.once('value');
+  if(!snap.exists()){alert('존재하지 않는 방 코드입니다.');return;}
+  const data=snap.val();
+  if(data.started){alert('이미 시작된 게임입니다.');return;}
+  await ref.child('names/1').set(name);
+  roomCode=code;roomRef=ref;mySeat=1;isHost=false;myColor='b';
+  listenRoom();
+});
+
+function listenRoom(){
+  document.getElementById('setup').style.display='none';
+  document.getElementById('lobby').style.display='block';
+  document.getElementById('lobbyCode').textContent=roomCode;
+  document.getElementById('lobbyHint').textContent=isHost?'친구에게 방 코드를 알려주세요.':'방장이 시작하기를 누르면 게임이 시작됩니다.';
+  roomRef.on('value',snap=>{
+    const data=snap.val();if(!data)return;
+    if(data.abandoned){
+      roomRef.off();roomRef=null;roomCode=null;isHost=false;mySeat=null;gameStarted=false;G=null;
+      ['game','gameOver','lobby'].forEach(id=>document.getElementById(id).style.display='none');
+      document.getElementById('setup').style.display='block';
+      alert('상대방이 게임을 나갔습니다.');
+      return;
+    }
+    if(!data.started){renderLobby(data);}
+    else if(!gameStarted){
+      gameStarted=true;mode='online';
+      G=normalState(data.state);moveLog=data.moveLog||[];lastMove=data.lastMove||null;
+      document.getElementById('lobby').style.display='none';
+      enterGame();
+    } else {
+      if(G&&G.turn===myColor)return;
+      G=normalState(data.state);moveLog=data.moveLog||[];
+      lastMove=data.lastMove||null;selected=null;legalCache=[];
+      render();
+    }
+  });
+}
+
+function renderLobby(data){
+  const ul=document.getElementById('lobbySeats');ul.innerHTML='';
+  [{i:0,label:'⬜ 흰색'},{i:1,label:'⬛ 검정'}].forEach(({i,label})=>{
+    const li=document.createElement('li');
+    const nm=data.names&&data.names[i];
+    li.textContent=nm?`${label}: ${nm}${i===0?' (방장)':''}`:`${label}: 비어있음`;
+    if(!nm)li.className='empty';
+    ul.appendChild(li);
+  });
+  if(isHost){
+    const btn=document.getElementById('btnHostStart');
+    btn.style.display='inline-block';
+    const full=data.names&&data.names[0]&&data.names[1];
+    btn.disabled=!full;btn.textContent=full?'게임 시작':'상대 입장 대기 중';
+    lobbyData=data;
+  }else{document.getElementById('btnHostStart').style.display='none';}
+}
+
+document.getElementById('btnHostStart').addEventListener('click',()=>{
+  if(!lobbyData)return;
+  const state=makeInitState();
+  const names={w:lobbyData.names[0],b:lobbyData.names[1]};
+  roomRef.update({started:true,state:{...state,names},moveLog:[],lastMove:null});
+});
+
+// ── Game init ─────────────────────────────────────────────────
+function makeInitState(){
+  return {board:INIT.map(r=>[...r]),turn:'w',castling:{wK:true,wQ:true,bK:true,bQ:true},enPassant:null,winner:null,halfmove:0};
+}
+
+function initGame(names){
+  G={...makeInitState(),names};
+  moveLog=[];selected=null;legalCache=[];lastMove=null;gameOverShown=false;
+  document.getElementById('setup').style.display='none';
+  enterGame();
+}
+
+function enterGame(){
+  document.getElementById('setup').style.display='none';
+  document.getElementById('lobby').style.display='none';
+  document.getElementById('gameOver').style.display='none';
+  document.getElementById('game').style.display='block';
+  gameOverShown=false;selected=null;legalCache=[];
+  render();
+}
+
+// ── Render ────────────────────────────────────────────────────
+function render(){
+  if(!G)return;
+  renderBoard();
+  renderStatus();
+  renderCaptured();
+  renderLog();
+  checkOver();
+}
+
+function canAct(){
+  if(!G||G.winner!==null)return false;
+  return G.turn===myColor;
+}
+
+function renderBoard(){
+  const div=document.getElementById('board');div.innerHTML='';
+  const flip=mode==='online'&&myColor==='b';
+  for(let ri=0;ri<8;ri++){
+    const r=flip?7-ri:ri;
+    for(let ci=0;ci<8;ci++){
+      const c=flip?7-ci:ci;
+      const sq=document.createElement('div');
+      sq.className='sq '+((r+c)%2===0?'light':'dark');
+      // highlights
+      if(lastMove&&((r===lastMove.from[0]&&c===lastMove.from[1])||(r===lastMove.to[0]&&c===lastMove.to[1])))
+        sq.classList.add('lastmove');
+      if(selected&&selected.r===r&&selected.c===c)sq.classList.add('selected');
+      const legal=legalCache.find(([tr,tc])=>tr===r&&tc===c);
+      if(legal){sq.classList.add('legal');if(G.board[r][c])sq.classList.add('occupied');}
+      const curKing=G.turn==='w'?'K':'k';
+      if(G.board[r][c]===curKing&&inCheck(G.board,G.turn))sq.classList.add('incheck');
+      // piece
+      if(G.board[r][c]){const sp=document.createElement('span');sp.textContent=UNI[G.board[r][c]];sq.appendChild(sp);}
+      // coords
+      if(ci===0){const s=document.createElement('span');s.className='coord-r';s.textContent=8-r;sq.appendChild(s);}
+      if(ri===7){const s=document.createElement('span');s.className='coord-f';s.textContent=String.fromCharCode(97+c);sq.appendChild(s);}
+      sq.addEventListener('click',()=>onSqClick(r,c));
+      div.appendChild(sq);
+    }
+  }
+}
+
+function onSqClick(r,c){
+  if(!canAct())return;
+  if(selected){
+    const mv=legalCache.find(([tr,tc])=>tr===r&&tc===c);
+    if(mv){
+      const [tr,tc,sp]=mv;
+      const p=G.board[selected.r][selected.c];
+      const promRow=col(p)==='w'?0:7;
+      if(p.toLowerCase()==='p'&&tr===promRow){
+        pendingPromo={fr:selected.r,fc:selected.c,tr,tc,sp};
+        showPromo(col(p));return;
+      }
+      doMove(selected.r,selected.c,tr,tc,sp,null);return;
+    }
+  }
+  const p=G.board[r][c];
+  if(p&&col(p)===G.turn){
+    if(selected&&selected.r===r&&selected.c===c){selected=null;legalCache=[];render();return;}
+    selected={r,c};legalCache=legalOf(G,r,c);render();return;
+  }
+  selected=null;legalCache=[];render();
+}
+
+function showPromo(color){
+  const ps=color==='w'?['Q','R','B','N']:['q','r','b','n'];
+  const opts=document.getElementById('promoOpts');opts.innerHTML='';
+  ps.forEach(pp=>{
+    const d=document.createElement('div');d.className='promo-opt';d.textContent=UNI[pp];
+    d.addEventListener('click',()=>{
+      document.getElementById('promoOverlay').classList.remove('show');
+      const {fr,fc,tr,tc,sp}=pendingPromo;pendingPromo=null;
+      doMove(fr,fc,tr,tc,sp,pp);
+    });
+    opts.appendChild(d);
+  });
+  document.getElementById('promoOverlay').classList.add('show');
+}
+
+function doMove(fr,fc,tr,tc,sp,promo){
+  const note=notation(G.board,fr,fc,tr,tc,sp);
+  lastMove={from:[fr,fc],to:[tr,tc]};
+  G=applyMove(G,fr,fc,tr,tc,sp,promo);
+  const st=status(G);
+  moveLog.push(note+(st==='checkmate'?'#':st==='check'?'+':''));
+  selected=null;legalCache=[];
+  if(mode==='online'){
+    roomRef.child('state').set(G);
+    roomRef.child('lastMove').set(lastMove);
+    roomRef.child('moveLog').set(moveLog);
+  }
+  render();
+  if(mode==='ai'&&!gameOverShown&&G.turn!==myColor)setTimeout(runAI,350);
+}
+
+function runAI(){
+  if(!G||G.winner!==null||G.turn===myColor)return;
+  const mv=aiBestMove(G,aiDepth);
+  if(!mv)return;
+  const [fr,fc,tr,tc,sp]=mv;
+  doMove(fr,fc,tr,tc,sp,G.turn==='w'?'Q':'q');
+}
+
+function renderStatus(){
+  const names=G.names||{w:'흰색',b:'검정'};
+  const nm=names[G.turn];
+  const colorLabel=G.turn==='w'?'⬜ 흰색':'⬛ 검정';
+  let label='';
+  if(mode==='ai') label=`${nm}의 차례 (${colorLabel})`;
+  else label=G.turn===myColor?`내 차례 (${colorLabel})`:`${nm}의 차례 (${colorLabel})`;
+  document.getElementById('turnLabel').textContent=label;
+  const st=status(G);
+  document.getElementById('checkLabel').textContent=st==='check'?'⚠️ 체크!':'';
+}
+
+function renderCaptured(){
+  const cnt={p:8,n:2,b:2,r:2,q:1};
+  const onB={};
+  for(let r=0;r<8;r++)for(let c=0;c<8;c++){const p=G.board[r][c];if(p)onB[p]=(onB[p]||0)+1;}
+  let wLost='',bLost='';
+  for(const t of['q','r','b','n','p']){const gone=cnt[t]-(onB[t]||0);for(let i=0;i<gone;i++)wLost+=UNI[t];}
+  for(const t of['Q','R','B','N','P']){const gone=cnt[t.toLowerCase()]-(onB[t]||0);for(let i=0;i<gone;i++)bLost+=UNI[t];}
+  document.getElementById('capB').textContent='⬛ 포획: '+wLost;
+  document.getElementById('capW').textContent='⬜ 포획: '+bLost;
+}
+
+function renderLog(){
+  let html='';
+  for(let i=0;i<moveLog.length;i+=2)html+=`${Math.floor(i/2)+1}. ${moveLog[i]||''} ${moveLog[i+1]||''}  `;
+  const d=document.getElementById('moveHistory');d.textContent=html;d.scrollTop=d.scrollHeight;
+}
+
+function checkOver(){
+  if(gameOverShown||!G)return;
+  const st=status(G);
+  let title='',desc='';
+  if(G.winner==='w'||G.winner==='b'){
+    const wn=G.winner;title=(wn==='w'?'⬜ 흰색':'⬛ 검정')+' 승리!';desc='기권으로 인한 승리';
+  } else if(st==='checkmate'){
+    const w=opp(G.turn);title=(w==='w'?'⬜ 흰색':'⬛ 검정')+' 승리! (체크메이트)';
+  } else if(st==='stalemate'){
+    title='무승부';desc='스테일메이트 (합법 수 없음)';
+  } else if(st==='draw50'){
+    title='무승부';desc='50수 규칙';
+  } else return;
+  gameOverShown=true;
+  document.getElementById('goTitle').textContent=title;
+  document.getElementById('goDesc').textContent=desc;
+  document.getElementById('game').style.display='none';
+  document.getElementById('gameOver').style.display='block';
+}
+
+// ── Buttons ───────────────────────────────────────────────────
+document.getElementById('btnResign').addEventListener('click',()=>{
+  if(!G||G.winner!==null||!canAct())return;
+  if(!confirm('기권하시겠습니까?'))return;
+  G.winner=opp(myColor);
+  if(mode==='online')roomRef.child('state').set(G);
+  render();
+});
+
+document.getElementById('btnBack').addEventListener('click',()=>{
+  if(mode==='online'&&roomRef){roomRef.update({abandoned:true});roomRef.off();roomRef=null;}
+  G=null;gameStarted=false;gameOverShown=false;roomCode=null;isHost=false;mySeat=null;
+  ['game','gameOver','lobby'].forEach(id=>document.getElementById(id).style.display='none');
+  document.getElementById('setup').style.display='block';
+});
+
+document.getElementById('btnAgain').addEventListener('click',()=>{
+  document.getElementById('gameOver').style.display='none';
+  document.getElementById('setup').style.display='block';
+  G=null;gameOverShown=false;
+});
+</script>
+</body>
+</html>

@@ -25,8 +25,8 @@
   #setup label { display:block; margin:10px 0 4px; font-size:0.85rem; color:#8b949e; }
   #setup input, #setup select { width:100%; padding:8px 10px; border-radius:8px; border:1px solid #30363d; background:#0d1117; color:#fff; font-size:0.95rem; }
   #playerNames { display:flex; flex-direction:column; gap:8px; margin-top:8px; }
-  #setup .modePane > button, #setup .onlinePane > button { margin-top:14px; width:100%; padding:12px; border:none; border-radius:10px; background:#4caf50; color:#fff; font-size:1rem; font-weight:600; cursor:pointer; }
-  #setup .modePane > button:hover, #setup .onlinePane > button:hover { background:#43a047; }
+  #setup button { margin-top:14px; width:100%; padding:12px; border:none; border-radius:10px; background:#4caf50; color:#fff; font-size:1rem; font-weight:600; cursor:pointer; }
+  #setup button:hover { background:#43a047; }
 
   .modeTabs { display:flex; gap:6px; margin-bottom:18px; }
   .modeTabs button { flex:1; margin:0; padding:10px 6px; font-size:0.82rem; background:#21262d; color:#8b949e; border-radius:8px; }
@@ -55,14 +55,6 @@
   .topbar .pool { font-size:0.85rem; color:#8b949e; }
   .scores { font-size:0.78rem; color:#8b949e; }
   .waitNotice { text-align:center; font-size:0.85rem; color:#ffab40; margin-bottom:8px; min-height:18px; }
-  #timerBar { display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:8px; }
-  #timerDisplay { font-size:1.4rem; font-weight:800; min-width:48px; text-align:center; }
-  #timerDisplay.urgent { color:#ef5350; animation:pulse 0.5s ease-in-out infinite alternate; }
-  #timerDisplay.ok { color:#66bb6a; }
-  @keyframes pulse { from { opacity:1; } to { opacity:0.4; } }
-  #btnAddTime { padding:6px 14px; border:none; border-radius:8px; background:#5c6bc0; color:#fff; font-size:0.8rem; font-weight:700; cursor:pointer; }
-  #btnAddTime:hover { background:#3949ab; }
-  #btnAddTime:disabled { background:#30363d; cursor:not-allowed; }
 
   #table {
     background:#10331f;
@@ -106,16 +98,14 @@
   #newSetZone.dragover { outline:2px dashed #42a5f5; }
 
   .tile {
-    width:42px; height:54px;
+    width:38px; height:48px;
     background:#fdf6e3;
     border-radius:6px;
     display:flex;
     align-items:center;
     justify-content:center;
-    font-weight:900;
-    font-size:1.3rem;
-    -webkit-text-stroke:0.5px #333;
-    text-stroke:0.5px #333;
+    font-weight:800;
+    font-size:1.1rem;
     box-shadow:0 2px 3px rgba(0,0,0,0.4);
     cursor:grab;
     border:2px solid transparent;
@@ -123,17 +113,11 @@
   .tile.selected { border-color:#42a5f5; transform:translateY(-4px); }
   .tile.locked { opacity:0.55; cursor:not-allowed; }
   .tile.dragging { opacity:0.3; }
-  .tile.joker { font-size:1.5rem; }
-  .c-red    { color:#c62828; }
-  .c-blue   { color:#0288d1; }
-  .c-black  { color:#111111; }
-  .c-orange { color:#f9a825; }
-  /* 이전 턴 대비 테이블에 새로 등록/변경된 타일 깜박임 */
-  .tile.changed-tile { animation: changedPulse 0.55s ease-in-out infinite alternate; }
-  @keyframes changedPulse {
-    from { box-shadow: 0 0 0 2px #ffeb3b, 0 2px 3px rgba(0,0,0,0.4); }
-    to   { box-shadow: 0 0 0 6px #ff6f00, 0 2px 3px rgba(0,0,0,0.4); background:#fffde7; }
-  }
+  .tile.joker { font-size:1.3rem; }
+  .c-red { color:#d32f2f; }
+  .c-blue { color:#1565c0; }
+  .c-black { color:#212121; }
+  .c-orange { color:#ef6c00; }
   .backTile {
     width:30px; height:40px; background:#37474f; border-radius:5px; box-shadow:0 2px 3px rgba(0,0,0,0.4);
   }
@@ -168,8 +152,6 @@
   .actions button:disabled { background:#30363d !important; cursor:not-allowed; }
   #btnEnd { background:#4caf50; color:#fff; }
   #btnEnd:hover { background:#43a047; }
-  #btnUndo { background:#1565c0; color:#fff; }
-  #btnUndo:hover { background:#0d47a1; }
   #btnDraw { background:#ef6c00; color:#fff; }
   #btnDraw:hover { background:#e65100; }
   #msg { text-align:center; min-height:20px; font-size:0.85rem; color:#ffab91; margin-top:8px; }
@@ -247,10 +229,6 @@
     <div class="scores" id="meldLabel"></div>
   </div>
   <div class="waitNotice" id="waitNotice"></div>
-  <div id="timerBar">
-    <div id="timerDisplay" class="ok">30</div>
-    <button id="btnAddTime">+30초</button>
-  </div>
 
   <div id="table"></div>
   <div id="newSetZone">+ 선택한 타일로 새 조합 만들기 (또는 타일을 끌어다 놓기)</div>
@@ -298,21 +276,14 @@ let roomCode = null, roomRef = null, isHost = false, lobbyData = null;
 let gameStarted = false, gameOverShown = false;
 
 let G = null;              // { players:[{name,rack,melded,isAI}], table:[[tile]], pool:[tile], current, winner }
-let noProgressStreak = 0;  // 연속으로 아무것도 못한 턴 수 (교착 감지)
 let tileSeq = 0;
 let lockedIds = new Set();
 let turnTableSnapshot = null, turnRackSnapshot = null;
 let lastTurnOwner = -2;
 let selected = null;       // {from:'rack'|'table', setIndex, tile}
 let dragRef = null;
-let sortMode = null;       // null | 'num' | 'color'
-let changedTableIds = new Set(); // 이전 턴 대비 테이블에 새로 나타난 타일 id (깜박임용)
-let prevTurnTableIds = new Set(); // 직전 턴 종료 시 테이블 타일 id
-let changedTableTimer = null;
+let sortMode = null;       // null | 'num' | 'color' — auto-applied to newly drawn/returned rack tiles
 let undoStack = [];
-let turnTimerInterval = null;
-let turnTimeLeft = 30;
-const TURN_BASE_TIME = 30;
 
 function sortRack(rack){
   if (sortMode === 'num'){
@@ -433,23 +404,6 @@ document.getElementById('btnJoinRoom').addEventListener('click', async () => {
   listenRoom();
 });
 
-// Firebase는 빈 배열 []을 null로 저장하므로, 읽어온 state를 정규화
-function normalizeState(state){
-  if (!state) return state;
-  state.table  = state.table  || [];
-  state.pool   = state.pool   || [];
-  // Firebase는 null 값을 키 삭제로 저장 → undefined로 돌아오므로 명시적으로 null 복원
-  if (state.winner === undefined) state.winner = null;
-  if (state.players){
-    if (!Array.isArray(state.players))
-      state.players = Object.values(state.players);
-    state.players.forEach(p => { p.rack = p.rack || []; });
-  }
-  // table의 각 세트도 배열 보장
-  state.table = state.table.map(set => Array.isArray(set) ? set : Object.values(set));
-  return state;
-}
-
 function listenRoom(){
   document.getElementById('setup').style.display = 'none';
   document.getElementById('lobby').style.display = 'block';
@@ -460,72 +414,22 @@ function listenRoom(){
   roomRef.on('value', snap => {
     const data = snap.val();
     if (!data) return;
-    // 누군가 방을 나갔을 때
-    if (data.abandoned){
-      clearTurnTimer();
-      if (roomRef){ roomRef.off(); roomRef = null; }
-      roomCode = null; isHost = false; mySeat = null; gameStarted = false; G = null;
-      document.getElementById('game').style.display = 'none';
-      document.getElementById('gameOver').style.display = 'none';
-      document.getElementById('lobby').style.display = 'none';
-      document.getElementById('setup').style.display = 'block';
-      alert('상대방이 게임을 나갔습니다. 처음으로 돌아갑니다.');
-      return;
-    }
     if (!data.started){
       lobbyData = data;
       renderLobby(data);
     } else if (!gameStarted){
       gameStarted = true;
       mode = 'online';
-      G = normalizeState(data.state);
+      G = data.state;
       lastTurnOwner = -2;
       gameOverShown = false;
       document.getElementById('lobby').style.display = 'none';
       enterGameScreen();
     } else {
-      // 자기 턴이면 Firebase 전체 state로 덮어쓰지 않음 (로컬 상태 유지)
-      if (!canAct()){
-        G = normalizeState(data.state);
-        render();
-      }
+      G = data.state;
+      render();
     }
   });
-
-  // 상대 턴 중 테이블 실시간 변화 감지
-  roomRef.child('liveTable').on('value', snap => {
-    if (!gameStarted || !G || canAct()) return; // 내 턴이면 무시
-    const live = snap.val();
-    if (live === null || live === undefined) return;
-    const table = Array.isArray(live)
-      ? live.map(set => Array.isArray(set) ? set : Object.values(set))
-      : Object.values(live).map(set => Array.isArray(set) ? set : Object.values(set));
-    G.table = table;
-    renderTableOnly();
-  });
-}
-
-// 테이블만 다시 그리기 (rack/타이머 등 건드리지 않음)
-function renderTableOnly(){
-  if (!G) return;
-  const player = G.players[G.current];
-  const iAct = canAct();
-  const tableDiv = document.getElementById('table');
-  tableDiv.innerHTML = '';
-  G.table.forEach((set, sIdx) => {
-    const row = document.createElement('div');
-    row.className = 'setRow';
-    if (set.length > 0 && !checkSet(set).valid) row.classList.add('invalid');
-    set.forEach(tile => {
-      const t = tileEl(tile, true, false, false); // 상대 턴 중엔 조작 불가
-      row.appendChild(t);
-    });
-    row.style.cursor = 'default';
-    tableDiv.appendChild(row);
-  });
-  // 새 조합 영역은 숨김
-  const newZone = document.getElementById('newSetZone');
-  if (newZone) newZone.style.display = 'none';
 }
 
 function renderLobby(data){
@@ -636,59 +540,7 @@ function maybeStartTurn(){
     turnRackSnapshot = G.players[G.current].rack.map(t=>({...t}));
     undoStack = [];
     setMsg('');
-    // 테이블에서 이전 턴 대비 새로 등록된 타일 감지 → 깜박임
-    const curTableIds = new Set(G.table.flat().map(t => t.id));
-    changedTableIds = new Set([...curTableIds].filter(id => !prevTurnTableIds.has(id)));
-    prevTurnTableIds = curTableIds;
-    if (changedTableTimer) clearTimeout(changedTableTimer);
-    if (changedTableIds.size > 0){
-      changedTableTimer = setTimeout(() => {
-        changedTableIds = new Set();
-        changedTableTimer = null;
-        render();
-      }, 5000);
-    }
-    if (canAct()) startTurnTimer();
   }
-}
-
-function startTurnTimer(){
-  clearTurnTimer();
-  turnTimeLeft = TURN_BASE_TIME;
-  updateTimerDisplay();
-  turnTimerInterval = setInterval(() => {
-    turnTimeLeft--;
-    updateTimerDisplay();
-    if (turnTimeLeft <= 0) onTimerExpired();
-  }, 1000);
-}
-
-function clearTurnTimer(){
-  if (turnTimerInterval){ clearInterval(turnTimerInterval); turnTimerInterval = null; }
-}
-
-function updateTimerDisplay(){
-  const disp = document.getElementById('timerDisplay');
-  if (!disp) return;
-  disp.textContent = turnTimeLeft;
-  disp.className = turnTimeLeft <= 10 ? 'urgent' : 'ok';
-}
-
-function onTimerExpired(){
-  clearTurnTimer();
-  if (!G || G.winner !== null || !canAct()) return;
-  const player = G.players[G.current];
-  // 시간 초과 시 항상 이번 턴 변경 전체를 되돌림 (유효 여부 무관)
-  G.table = deepCloneTable(turnTableSnapshot);
-  player.rack = turnRackSnapshot.map(t => ({...t}));
-  // 되돌렸으므로 타일을 낸 것이 없음 → 풀에서 강제 뽑기
-  let drew = false;
-  if (G.pool.length > 0){
-    player.rack.push(G.pool.pop());
-    drew = true;
-  }
-  setMsg('⏰ 시간 초과! 이번 턴 변경이 취소되고 타일을 뽑았습니다.');
-  setTimeout(() => advanceTurn(drew), 1200);
 }
 
 function snapshotForUndo(){
@@ -701,13 +553,6 @@ function syncPush(){
   if (mode === 'online' && roomRef){ roomRef.child('state').set(G); }
 }
 
-// 턴 진행 중 테이블 변화만 실시간으로 상대에게 전송 (rack/pool/winner 제외)
-function syncTableLive(){
-  if (mode === 'online' && roomRef){
-    roomRef.child('liveTable').set(G.table.length > 0 ? G.table : null);
-  }
-}
-
 // ---- screen transition ----
 function enterGameScreen(){
   document.getElementById('setup').style.display = 'none';
@@ -717,10 +562,6 @@ function enterGameScreen(){
   lastTurnOwner = -2;
   gameOverShown = false;
   sortMode = null;
-  noProgressStreak = 0;
-  changedTableIds = new Set();
-  prevTurnTableIds = new Set();
-  if (changedTableTimer){ clearTimeout(changedTableTimer); changedTableTimer = null; }
   render();
   if (mode === 'ai' && G.players[G.current].isAI){
     setTimeout(aiTakeTurn, 800);
@@ -728,32 +569,22 @@ function enterGameScreen(){
 }
 
 document.getElementById('btnRestart').addEventListener('click', () => {
-  clearTurnTimer();
-  // 온라인 중이면 상대방에게 퇴장 신호 전송 후 나가기
-  if (roomRef && mode === 'online'){
-    roomRef.update({ abandoned: true }).finally(() => {
-      roomRef.off(); roomRef = null;
-    });
-  } else if (roomRef){
-    roomRef.off(); roomRef = null;
-  }
+  if (roomRef){ roomRef.off(); roomRef = null; }
   roomCode = null; isHost = false; mySeat = null; gameStarted = false; G = null;
   document.getElementById('gameOver').style.display = 'none';
-  document.getElementById('game').style.display = 'none';
   document.getElementById('setup').style.display = 'block';
 });
 
 // ============================================================
 // RENDER
 // ============================================================
-function tileEl(tile, locked, faceDown, isNew){
+function tileEl(tile, locked, faceDown){
   const el = document.createElement('div');
   if (faceDown){
     el.className = 'backTile';
     return el;
   }
   el.className = 'tile' + (tile.joker ? ' joker' : ' c-'+tile.color) + (locked ? ' locked' : '');
-  if (isNew) el.classList.add('changed-tile');
   el.textContent = tile.joker ? '★' : tile.num;
   if (selected && selected.tile.id === tile.id) el.classList.add('selected');
   return el;
@@ -764,28 +595,14 @@ function render(){
   maybeStartTurn();
   maybeHandleWinner();
   if (gameOverShown) return;
-  // liveTable 뷰에서 숨겼을 수 있으므로 복원
-  const newZone = document.getElementById('newSetZone');
-  if (newZone) newZone.style.display = '';
 
   const player = G.players[G.current];
   const iAct = canAct();
   document.getElementById('turnLabel').textContent = `${player.name}의 차례` + (player.melded ? '' : ' (첫 등록 전: 30점 이상 필요)') + (player.isAI ? ' 🤖' : '');
   document.getElementById('poolLabel').textContent = `남은 타일: ${G.pool.length}개`;
-  document.getElementById('meldLabel').textContent = G.players.map(p => `${p.name}:${p.melded?'등록완료':'미등록'}`).join('  ');
+  document.getElementById('meldLabel').textContent = G.players.map(p => `${p.name}:${p.melded?'등록완료':'미등록'}(${p.rack.length})`).join('  ');
   document.getElementById('waitNotice').textContent = iAct ? '' :
     (player.isAI ? `${player.name}가 진행 중입니다...` : `${player.name}의 차례입니다. 잠시만 기다려주세요.`);
-  const timerBar = document.getElementById('timerBar');
-  const timerDisp = document.getElementById('timerDisplay');
-  const btnAdd = document.getElementById('btnAddTime');
-  if (iAct){
-    timerBar.style.display = 'flex';
-    timerDisp.textContent = turnTimeLeft;
-    timerDisp.className = turnTimeLeft <= 10 ? 'urgent' : 'ok';
-    btnAdd.disabled = false;
-  } else {
-    timerBar.style.display = 'none';
-  }
 
   // table
   const tableDiv = document.getElementById('table');
@@ -797,7 +614,7 @@ function render(){
     const rowLocked = !player.melded && set.some(t => lockedIds.has(t.id));
     set.forEach((tile) => {
       const locked = !iAct || (!player.melded && lockedIds.has(tile.id));
-      const t = tileEl(tile, locked, false, changedTableIds.has(tile.id));
+      const t = tileEl(tile, locked, false);
       t.draggable = !locked;
       t.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -971,8 +788,8 @@ function performMove(ref, dest, recordUndo){
 }
 
 function afterStateChange(){
-  // 온라인 모드: 내 턴 중 테이블 변화를 실시간으로 상대방에게 전송
-  if (mode === 'online') syncTableLive();
+  // local optimistic edits during the active player's own turn aren't pushed
+  // until the turn actually ends (see btnEnd / btnDraw), so nothing to do here.
 }
 
 function onTileClick(from, setIndex, tile){
@@ -1027,14 +844,12 @@ document.getElementById('newSetZone').addEventListener('click', (e) => {
 document.getElementById('sortNum').addEventListener('click', () => {
   if (!G) return;
   sortMode = 'num';
-  newlyDrawnId = null; // 정렬 후 강조 해제
   sortRack(G.players[rackOwnerIndex()].rack);
   render();
 });
 document.getElementById('sortColor').addEventListener('click', () => {
   if (!G) return;
   sortMode = 'color';
-  newlyDrawnId = null;
   sortRack(G.players[rackOwnerIndex()].rack);
   render();
 });
@@ -1054,8 +869,7 @@ document.getElementById('btnEnd').addEventListener('click', () => {
     return;
   }
   const player = G.players[G.current];
-  const placedAny = player.rack.length < turnRackSnapshot.length;
-  if (!placedAny && G.pool.length > 0){
+  if (player.rack.length >= turnRackSnapshot.length){
     setMsg('타일을 내려놓지 않았다면 반드시 타일을 뽑아야 합니다. "타일 뽑기 / 되돌리기" 버튼을 눌러주세요.');
     return;
   }
@@ -1079,31 +893,29 @@ document.getElementById('btnEnd').addEventListener('click', () => {
   }
   if (player.rack.length === 0){
     G.winner = G.current;
-    noProgressStreak = 0;
     syncPush();
     render();
     return;
   }
-  advanceTurn(true);  // 타일을 냈으므로 진행 있음
+  advanceTurn();
 });
 
 document.getElementById('btnDraw').addEventListener('click', () => {
   if (!canAct()) return;
   const player = G.players[G.current];
-  // 테이블만 턴 시작 상태로 되돌림
+  const startTableIds = new Set(turnTableSnapshot.flat().map(t=>t.id));
+  const keepRack = player.rack.filter(t => !startTableIds.has(t.id));
+  const keepRackIds = new Set(keepRack.map(t=>t.id));
+  const returningTiles = turnRackSnapshot.filter(t => !keepRackIds.has(t.id));
   G.table = deepCloneTable(turnTableSnapshot);
-  // 현재 rack 순서를 유지하면서, 이번 턴에 테이블로 옮긴 타일만 돌려받기
-  const currentRackIds = new Set(player.rack.map(t => t.id));
-  const returningTiles = turnRackSnapshot.filter(t => !currentRackIds.has(t.id));
-  player.rack = [...player.rack, ...returningTiles.map(t => ({...t}))];
-  const drew = G.pool.length > 0;
-  if (drew){
-    // 새 타일은 맨 뒤에 추가
+  player.rack = keepRack.concat(returningTiles);
+  if (G.pool.length > 0){
     player.rack.push(G.pool.pop());
+    sortRack(player.rack);
   } else {
-    setMsg('풀에 타일이 없습니다. 되돌리기만 실행했습니다.');
+    setMsg('풀에 더 이상 타일이 없습니다.');
   }
-  advanceTurn(drew);
+  advanceTurn();
 });
 
 document.getElementById('btnUndo').addEventListener('click', () => {
@@ -1121,41 +933,13 @@ document.getElementById('btnUndo').addEventListener('click', () => {
   render();
 });
 
-
-document.getElementById('btnAddTime').addEventListener('click', () => {
-  if (!canAct()) return;
-  turnTimeLeft += 30;
-  updateTimerDisplay();
-});
-
-function advanceTurn(madeProgress){
-  clearTurnTimer();
-  // 턴 종료 시 liveTable 임시 데이터 삭제
-  if (mode === 'online' && roomRef) roomRef.child('liveTable').remove();
-  if (madeProgress) noProgressStreak = 0;
-  else noProgressStreak++;
-  // 모든 플레이어가 연속으로 아무것도 못 했으면 교착 → 게임 종료
-  if (noProgressStreak >= G.players.length){
-    endGameByDeadlock();
-    return;
-  }
+function advanceTurn(){
   G.current = (G.current + 1) % G.players.length;
   syncPush();
   render();
   if (mode === 'ai' && G.players[G.current] && G.players[G.current].isAI){
     setTimeout(aiTakeTurn, 800);
   }
-}
-
-function endGameByDeadlock(){
-  // 타일이 가장 적은 플레이어가 승자
-  let minTiles = Infinity, winnerIdx = 0;
-  G.players.forEach((p, i) => {
-    if (p.rack.length < minTiles){ minTiles = p.rack.length; winnerIdx = i; }
-  });
-  G.winner = winnerIdx;
-  syncPush();
-  render();
 }
 
 // ============================================================
@@ -1204,7 +988,6 @@ function aiTakeTurn(){
   maybeStartTurn();
 
   const sets = findMeldSets(p.rack, p.melded ? 0 : 30);
-  let madeProgress = false;
   if (sets){
     sets.forEach(set=>{
       set.forEach(t=>{
@@ -1215,25 +998,27 @@ function aiTakeTurn(){
     });
     if (!p.melded) p.melded = true;
     G.table = G.table.filter(s=>s.length>0);
-    madeProgress = true;
   } else {
-    if (G.pool.length > 0){ p.rack.push(G.pool.pop()); madeProgress = true; }
+    if (G.pool.length > 0) p.rack.push(G.pool.pop());
   }
 
   if (p.rack.length === 0){
     G.winner = idx;
-    noProgressStreak = 0;
     render();
     return;
   }
-  advanceTurn(madeProgress);
+  G.current = (G.current + 1) % G.players.length;
+  render();
+  if (G.players[G.current].isAI){
+    setTimeout(aiTakeTurn, 900);
+  }
 }
 
 // ============================================================
 // GAME OVER
 // ============================================================
 function maybeHandleWinner(){
-  if (G && G.winner !== null && G.winner !== undefined && !gameOverShown){
+  if (G && G.winner !== null && !gameOverShown){
     gameOverShown = true;
     endGame(G.winner);
   }
