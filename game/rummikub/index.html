@@ -114,6 +114,8 @@
     justify-content:center;
     font-weight:900;
     font-size:1.3rem;
+    -webkit-text-stroke:0.5px #333;
+    text-stroke:0.5px #333;
     box-shadow:0 2px 3px rgba(0,0,0,0.4);
     cursor:grab;
     border:2px solid transparent;
@@ -125,7 +127,7 @@
   .c-red    { color:#c62828; }
   .c-blue   { color:#0288d1; }
   .c-black  { color:#111111; }
-  .c-orange { color:#f9a825; -webkit-text-stroke:0.5px #333; text-stroke:0.5px #333; }
+  .c-orange { color:#f9a825; }
   /* 이전 턴 대비 테이블에 새로 등록/변경된 타일 깜박임 */
   .tile.changed-tile { animation: changedPulse 0.55s ease-in-out infinite alternate; }
   @keyframes changedPulse {
