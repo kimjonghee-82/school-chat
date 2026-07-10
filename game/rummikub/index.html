@@ -482,10 +482,48 @@ function listenRoom(){
       document.getElementById('lobby').style.display = 'none';
       enterGameScreen();
     } else {
-      G = normalizeState(data.state);
-      render();
+      // 자기 턴이면 Firebase 전체 state로 덮어쓰지 않음 (로컬 상태 유지)
+      if (!canAct()){
+        G = normalizeState(data.state);
+        render();
+      }
     }
   });
+
+  // 상대 턴 중 테이블 실시간 변화 감지
+  roomRef.child('liveTable').on('value', snap => {
+    if (!gameStarted || !G || canAct()) return; // 내 턴이면 무시
+    const live = snap.val();
+    if (live === null || live === undefined) return;
+    const table = Array.isArray(live)
+      ? live.map(set => Array.isArray(set) ? set : Object.values(set))
+      : Object.values(live).map(set => Array.isArray(set) ? set : Object.values(set));
+    G.table = table;
+    renderTableOnly();
+  });
+}
+
+// 테이블만 다시 그리기 (rack/타이머 등 건드리지 않음)
+function renderTableOnly(){
+  if (!G) return;
+  const player = G.players[G.current];
+  const iAct = canAct();
+  const tableDiv = document.getElementById('table');
+  tableDiv.innerHTML = '';
+  G.table.forEach((set, sIdx) => {
+    const row = document.createElement('div');
+    row.className = 'setRow';
+    if (set.length > 0 && !checkSet(set).valid) row.classList.add('invalid');
+    set.forEach(tile => {
+      const t = tileEl(tile, true, false, false); // 상대 턴 중엔 조작 불가
+      row.appendChild(t);
+    });
+    row.style.cursor = 'default';
+    tableDiv.appendChild(row);
+  });
+  // 새 조합 영역은 숨김
+  const newZone = document.getElementById('newSetZone');
+  if (newZone) newZone.style.display = 'none';
 }
 
 function renderLobby(data){
@@ -661,6 +699,13 @@ function syncPush(){
   if (mode === 'online' && roomRef){ roomRef.child('state').set(G); }
 }
 
+// 턴 진행 중 테이블 변화만 실시간으로 상대에게 전송 (rack/pool/winner 제외)
+function syncTableLive(){
+  if (mode === 'online' && roomRef){
+    roomRef.child('liveTable').set(G.table.length > 0 ? G.table : null);
+  }
+}
+
 // ---- screen transition ----
 function enterGameScreen(){
   document.getElementById('setup').style.display = 'none';
@@ -717,6 +762,9 @@ function render(){
   maybeStartTurn();
   maybeHandleWinner();
   if (gameOverShown) return;
+  // liveTable 뷰에서 숨겼을 수 있으므로 복원
+  const newZone = document.getElementById('newSetZone');
+  if (newZone) newZone.style.display = '';
 
   const player = G.players[G.current];
   const iAct = canAct();
@@ -921,8 +969,8 @@ function performMove(ref, dest, recordUndo){
 }
 
 function afterStateChange(){
-  // local optimistic edits during the active player's own turn aren't pushed
-  // until the turn actually ends (see btnEnd / btnDraw), so nothing to do here.
+  // 온라인 모드: 내 턴 중 테이블 변화를 실시간으로 상대방에게 전송
+  if (mode === 'online') syncTableLive();
 }
 
 function onTileClick(from, setIndex, tile){
@@ -1077,6 +1125,8 @@ document.getElementById('btnAddTime').addEventListener('click', () => {
 
 function advanceTurn(madeProgress){
   clearTurnTimer();
+  // 턴 종료 시 liveTable 임시 데이터 삭제
+  if (mode === 'online' && roomRef) roomRef.child('liveTable').remove();
   if (madeProgress) noProgressStreak = 0;
   else noProgressStreak++;
   // 모든 플레이어가 연속으로 아무것도 못 했으면 교착 → 게임 종료
