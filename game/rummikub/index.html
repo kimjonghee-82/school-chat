@@ -425,8 +425,10 @@ document.getElementById('btnJoinRoom').addEventListener('click', async () => {
 // Firebase는 빈 배열 []을 null로 저장하므로, 읽어온 state를 정규화
 function normalizeState(state){
   if (!state) return state;
-  state.table = state.table || [];
-  state.pool  = state.pool  || [];
+  state.table  = state.table  || [];
+  state.pool   = state.pool   || [];
+  // Firebase는 null 값을 키 삭제로 저장 → undefined로 돌아오므로 명시적으로 null 복원
+  if (state.winner === undefined) state.winner = null;
   if (state.players){
     if (!Array.isArray(state.players))
       state.players = Object.values(state.players);
@@ -1139,7 +1141,7 @@ function aiTakeTurn(){
 // GAME OVER
 // ============================================================
 function maybeHandleWinner(){
-  if (G && G.winner !== null && !gameOverShown){
+  if (G && G.winner !== null && G.winner !== undefined && !gameOverShown){
     gameOverShown = true;
     endGame(G.winner);
   }
