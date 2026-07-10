@@ -55,6 +55,14 @@
   .topbar .pool { font-size:0.85rem; color:#8b949e; }
   .scores { font-size:0.78rem; color:#8b949e; }
   .waitNotice { text-align:center; font-size:0.85rem; color:#ffab40; margin-bottom:8px; min-height:18px; }
+  #timerBar { display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:8px; }
+  #timerDisplay { font-size:1.4rem; font-weight:800; min-width:48px; text-align:center; }
+  #timerDisplay.urgent { color:#ef5350; animation:pulse 0.5s ease-in-out infinite alternate; }
+  #timerDisplay.ok { color:#66bb6a; }
+  @keyframes pulse { from { opacity:1; } to { opacity:0.4; } }
+  #btnAddTime { padding:6px 14px; border:none; border-radius:8px; background:#5c6bc0; color:#fff; font-size:0.8rem; font-weight:700; cursor:pointer; }
+  #btnAddTime:hover { background:#3949ab; }
+  #btnAddTime:disabled { background:#30363d; cursor:not-allowed; }
 
   #table {
     background:#10331f;
@@ -156,6 +164,8 @@
   #btnUndo:hover { background:#0d47a1; }
   #btnDraw { background:#ef6c00; color:#fff; }
   #btnDraw:hover { background:#e65100; }
+  #btnSkip { background:#546e7a; color:#fff; }
+  #btnSkip:hover { background:#37474f; }
   #msg { text-align:center; min-height:20px; font-size:0.85rem; color:#ffab91; margin-top:8px; }
 
   #gameOver { display:none; max-width:480px; margin:40px auto; background:#161b22; border-radius:16px; padding:28px; text-align:center; }
@@ -231,6 +241,10 @@
     <div class="scores" id="meldLabel"></div>
   </div>
   <div class="waitNotice" id="waitNotice"></div>
+  <div id="timerBar">
+    <div id="timerDisplay" class="ok">30</div>
+    <button id="btnAddTime">+30초</button>
+  </div>
 
   <div id="table"></div>
   <div id="newSetZone">+ 선택한 타일로 새 조합 만들기 (또는 타일을 끌어다 놓기)</div>
@@ -250,6 +264,7 @@
     <button id="btnEnd">턴 종료(등록)</button>
     <button id="btnUndo">한 단계 되돌리기</button>
     <button id="btnDraw">타일 뽑기 / 되돌리기</button>
+    <button id="btnSkip">타일 뽑기 없이 넘기기</button>
   </div>
   <div id="msg"></div>
 </div>
@@ -286,6 +301,9 @@ let selected = null;       // {from:'rack'|'table', setIndex, tile}
 let dragRef = null;
 let sortMode = null;       // null | 'num' | 'color' — auto-applied to newly drawn/returned rack tiles
 let undoStack = [];
+let turnTimerInterval = null;
+let turnTimeLeft = 30;
+const TURN_BASE_TIME = 30;
 
 function sortRack(rack){
   if (sortMode === 'num'){
@@ -542,7 +560,52 @@ function maybeStartTurn(){
     turnRackSnapshot = G.players[G.current].rack.map(t=>({...t}));
     undoStack = [];
     setMsg('');
+    if (canAct()) startTurnTimer();
   }
+}
+
+function startTurnTimer(){
+  clearTurnTimer();
+  turnTimeLeft = TURN_BASE_TIME;
+  updateTimerDisplay();
+  turnTimerInterval = setInterval(() => {
+    turnTimeLeft--;
+    updateTimerDisplay();
+    if (turnTimeLeft <= 0) onTimerExpired();
+  }, 1000);
+}
+
+function clearTurnTimer(){
+  if (turnTimerInterval){ clearInterval(turnTimerInterval); turnTimerInterval = null; }
+}
+
+function updateTimerDisplay(){
+  const disp = document.getElementById('timerDisplay');
+  if (!disp) return;
+  disp.textContent = turnTimeLeft;
+  disp.className = turnTimeLeft <= 10 ? 'urgent' : 'ok';
+}
+
+function onTimerExpired(){
+  clearTurnTimer();
+  if (!G || G.winner !== null || !canAct()) return;
+  const player = G.players[G.current];
+  // 무효 조합이면 턴 시작 상태로 되돌리기
+  if (!tableValid()){
+    const startTableIds = new Set(turnTableSnapshot.flat().map(t=>t.id));
+    const keepRack = player.rack.filter(t => !startTableIds.has(t.id));
+    const keepRackIds = new Set(keepRack.map(t=>t.id));
+    const returningTiles = turnRackSnapshot.filter(t => !keepRackIds.has(t.id));
+    G.table = deepCloneTable(turnTableSnapshot);
+    player.rack = keepRack.concat(returningTiles);
+  }
+  const placed = player.rack.length < turnRackSnapshot.length;
+  if (!placed && G.pool.length > 0){
+    player.rack.push(G.pool.pop());
+    sortRack(player.rack);
+  }
+  setMsg('⏰ 시간 초과! 턴이 자동으로 넘어갑니다.');
+  setTimeout(() => advanceTurn(), 1200);
 }
 
 function snapshotForUndo(){
@@ -571,6 +634,7 @@ function enterGameScreen(){
 }
 
 document.getElementById('btnRestart').addEventListener('click', () => {
+  clearTurnTimer();
   if (roomRef){ roomRef.off(); roomRef = null; }
   roomCode = null; isHost = false; mySeat = null; gameStarted = false; G = null;
   document.getElementById('gameOver').style.display = 'none';
@@ -602,9 +666,20 @@ function render(){
   const iAct = canAct();
   document.getElementById('turnLabel').textContent = `${player.name}의 차례` + (player.melded ? '' : ' (첫 등록 전: 30점 이상 필요)') + (player.isAI ? ' 🤖' : '');
   document.getElementById('poolLabel').textContent = `남은 타일: ${G.pool.length}개`;
-  document.getElementById('meldLabel').textContent = G.players.map(p => `${p.name}:${p.melded?'등록완료':'미등록'}(${p.rack.length})`).join('  ');
+  document.getElementById('meldLabel').textContent = G.players.map(p => `${p.name}:${p.melded?'등록완료':'미등록'}`).join('  ');
   document.getElementById('waitNotice').textContent = iAct ? '' :
     (player.isAI ? `${player.name}가 진행 중입니다...` : `${player.name}의 차례입니다. 잠시만 기다려주세요.`);
+  const timerBar = document.getElementById('timerBar');
+  const timerDisp = document.getElementById('timerDisplay');
+  const btnAdd = document.getElementById('btnAddTime');
+  if (iAct){
+    timerBar.style.display = 'flex';
+    timerDisp.textContent = turnTimeLeft;
+    timerDisp.className = turnTimeLeft <= 10 ? 'urgent' : 'ok';
+    btnAdd.disabled = false;
+  } else {
+    timerBar.style.display = 'none';
+  }
 
   // table
   const tableDiv = document.getElementById('table');
@@ -708,6 +783,8 @@ function render(){
   document.getElementById('btnEnd').disabled = !iAct;
   document.getElementById('btnDraw').disabled = !iAct;
   document.getElementById('btnUndo').disabled = !iAct || undoStack.length === 0;
+  // 풀이 비어있을 때만 "뽑기 없이 넘기기" 활성화
+  document.getElementById('btnSkip').disabled = !iAct || G.pool.length > 0;
 }
 
 // ============================================================
@@ -871,7 +948,8 @@ document.getElementById('btnEnd').addEventListener('click', () => {
     return;
   }
   const player = G.players[G.current];
-  if (player.rack.length >= turnRackSnapshot.length){
+  const placedAny = player.rack.length < turnRackSnapshot.length;
+  if (!placedAny && G.pool.length > 0){
     setMsg('타일을 내려놓지 않았다면 반드시 타일을 뽑아야 합니다. "타일 뽑기 / 되돌리기" 버튼을 눌러주세요.');
     return;
   }
@@ -915,7 +993,7 @@ document.getElementById('btnDraw').addEventListener('click', () => {
     player.rack.push(G.pool.pop());
     sortRack(player.rack);
   } else {
-    setMsg('풀에 더 이상 타일이 없습니다.');
+    setMsg('풀에 타일이 없습니다. 되돌리기만 실행했습니다.');
   }
   advanceTurn();
 });
@@ -935,7 +1013,29 @@ document.getElementById('btnUndo').addEventListener('click', () => {
   render();
 });
 
+document.getElementById('btnSkip').addEventListener('click', () => {
+  if (!canAct() || G.pool.length > 0) return;
+  // 풀이 비었을 때: 조합 되돌리기 후 턴 넘기기
+  if (!tableValid()){
+    const startTableIds = new Set(turnTableSnapshot.flat().map(t=>t.id));
+    const player = G.players[G.current];
+    const keepRack = player.rack.filter(t => !startTableIds.has(t.id));
+    const keepRackIds = new Set(keepRack.map(t=>t.id));
+    const returningTiles = turnRackSnapshot.filter(t => !keepRackIds.has(t.id));
+    G.table = deepCloneTable(turnTableSnapshot);
+    player.rack = keepRack.concat(returningTiles);
+  }
+  advanceTurn();
+});
+
+document.getElementById('btnAddTime').addEventListener('click', () => {
+  if (!canAct()) return;
+  turnTimeLeft += 30;
+  updateTimerDisplay();
+});
+
 function advanceTurn(){
+  clearTurnTimer();
   G.current = (G.current + 1) % G.players.length;
   syncPush();
   render();
