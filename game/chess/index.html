@@ -55,6 +55,12 @@ h1 { text-align:center; font-size:1.4rem; margin-bottom:12px; }
 .timer-display.warning { color:#ff6b35; }
 .timer-display.danger { color:#ef5350; animation:pulse 0.5s infinite alternate; }
 @keyframes pulse { from{opacity:1} to{opacity:0.5} }
+@keyframes countPop { 0%{transform:translate(-50%,-50%) scale(1.4);opacity:0.9} 100%{transform:translate(-50%,-50%) scale(1);opacity:0.25} }
+.countdown-overlay { display:none; position:absolute; inset:0; pointer-events:none; z-index:50; }
+.countdown-overlay.show { display:block; }
+.countdown-num { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:min(35vw,220px); font-weight:900; font-family:monospace; color:#ef5350; opacity:0.25; animation:countPop 0.9s ease-out forwards; line-height:1; user-select:none; }
+#chessGame { position:relative; }
+#janggiWrap { position:relative; }
 .timer-extra { font-size:0.75rem; color:#8b949e; }
 .timer-add-btn { padding:4px 10px; background:#1565c0; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:0.8rem; font-weight:700; }
 .timer-add-btn:disabled { background:#333; cursor:not-allowed; }
@@ -199,7 +205,10 @@ h1 { text-align:center; font-size:1.4rem; margin-bottom:12px; }
     <span id="capW"></span>
     <span id="capB"></span>
   </div>
-  <div id="board"></div>
+  <div style="position:relative;">
+    <div id="board"></div>
+    <div class="countdown-overlay" id="chessCountdown"></div>
+  </div>
   <div id="moveHistory"></div>
   <div class="action-row">
     <button id="btnResign">기권</button>
@@ -221,6 +230,7 @@ h1 { text-align:center; font-size:1.4rem; margin-bottom:12px; }
   </div>
   <div id="janggiWrap">
     <canvas id="janggiCanvas"></canvas>
+    <div class="countdown-overlay" id="janggiCountdown"></div>
   </div>
   <div class="janggi-action">
     <button id="btnJResign">기권</button>
@@ -299,9 +309,30 @@ function updateTimerDisplay(displayId) {
   const el = document.getElementById(displayId);
   el.textContent = timerSeconds;
   el.className = 'timer-display' + (timerSeconds<=5?' danger':timerSeconds<=10?' warning':'');
+  // Board countdown overlay for last 5 seconds
+  const overlayId = displayId==='chessTimerDisplay'?'chessCountdown':'janggiCountdown';
+  const overlay = document.getElementById(overlayId);
+  if(overlay){
+    if(timerSeconds<=5&&timerSeconds>0){
+      overlay.classList.add('show');
+      overlay.innerHTML='<span class="countdown-num" style="animation:none;opacity:0.25">'+timerSeconds+'</span>';
+      // Restart animation
+      void overlay.offsetWidth;
+      overlay.innerHTML='<span class="countdown-num">'+timerSeconds+'</span>';
+    } else {
+      overlay.classList.remove('show');
+      overlay.innerHTML='';
+    }
+  }
 }
 
-function stopTimer() { clearInterval(timerInterval); timerInterval=null; }
+function stopTimer() {
+  clearInterval(timerInterval); timerInterval=null;
+  ['chessCountdown','janggiCountdown'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){el.classList.remove('show');el.innerHTML='';}
+  });
+}
 
 // ─────────────────────────────────────────────────────────────
 // ██████  CHESS
