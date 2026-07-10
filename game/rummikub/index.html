@@ -422,6 +422,21 @@ document.getElementById('btnJoinRoom').addEventListener('click', async () => {
   listenRoom();
 });
 
+// Firebase는 빈 배열 []을 null로 저장하므로, 읽어온 state를 정규화
+function normalizeState(state){
+  if (!state) return state;
+  state.table = state.table || [];
+  state.pool  = state.pool  || [];
+  if (state.players){
+    if (!Array.isArray(state.players))
+      state.players = Object.values(state.players);
+    state.players.forEach(p => { p.rack = p.rack || []; });
+  }
+  // table의 각 세트도 배열 보장
+  state.table = state.table.map(set => Array.isArray(set) ? set : Object.values(set));
+  return state;
+}
+
 function listenRoom(){
   document.getElementById('setup').style.display = 'none';
   document.getElementById('lobby').style.display = 'block';
@@ -438,13 +453,13 @@ function listenRoom(){
     } else if (!gameStarted){
       gameStarted = true;
       mode = 'online';
-      G = data.state;
+      G = normalizeState(data.state);
       lastTurnOwner = -2;
       gameOverShown = false;
       document.getElementById('lobby').style.display = 'none';
       enterGameScreen();
     } else {
-      G = data.state;
+      G = normalizeState(data.state);
       render();
     }
   });
