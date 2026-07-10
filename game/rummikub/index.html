@@ -449,6 +449,18 @@ function listenRoom(){
   roomRef.on('value', snap => {
     const data = snap.val();
     if (!data) return;
+    // 누군가 방을 나갔을 때
+    if (data.abandoned){
+      clearTurnTimer();
+      if (roomRef){ roomRef.off(); roomRef = null; }
+      roomCode = null; isHost = false; mySeat = null; gameStarted = false; G = null;
+      document.getElementById('game').style.display = 'none';
+      document.getElementById('gameOver').style.display = 'none';
+      document.getElementById('lobby').style.display = 'none';
+      document.getElementById('setup').style.display = 'block';
+      alert('상대방이 게임을 나갔습니다. 처음으로 돌아갑니다.');
+      return;
+    }
     if (!data.started){
       lobbyData = data;
       renderLobby(data);
@@ -653,9 +665,17 @@ function enterGameScreen(){
 
 document.getElementById('btnRestart').addEventListener('click', () => {
   clearTurnTimer();
-  if (roomRef){ roomRef.off(); roomRef = null; }
+  // 온라인 중이면 상대방에게 퇴장 신호 전송 후 나가기
+  if (roomRef && mode === 'online'){
+    roomRef.update({ abandoned: true }).finally(() => {
+      roomRef.off(); roomRef = null;
+    });
+  } else if (roomRef){
+    roomRef.off(); roomRef = null;
+  }
   roomCode = null; isHost = false; mySeat = null; gameStarted = false; G = null;
   document.getElementById('gameOver').style.display = 'none';
+  document.getElementById('game').style.display = 'none';
   document.getElementById('setup').style.display = 'block';
 });
 
