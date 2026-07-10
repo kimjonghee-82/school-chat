@@ -106,14 +106,14 @@
   #newSetZone.dragover { outline:2px dashed #42a5f5; }
 
   .tile {
-    width:38px; height:48px;
+    width:42px; height:54px;
     background:#fdf6e3;
     border-radius:6px;
     display:flex;
     align-items:center;
     justify-content:center;
-    font-weight:800;
-    font-size:1.1rem;
+    font-weight:900;
+    font-size:1.3rem;
     box-shadow:0 2px 3px rgba(0,0,0,0.4);
     cursor:grab;
     border:2px solid transparent;
@@ -121,11 +121,17 @@
   .tile.selected { border-color:#42a5f5; transform:translateY(-4px); }
   .tile.locked { opacity:0.55; cursor:not-allowed; }
   .tile.dragging { opacity:0.3; }
-  .tile.joker { font-size:1.3rem; }
-  .c-red { color:#d32f2f; }
-  .c-blue { color:#1565c0; }
-  .c-black { color:#212121; }
-  .c-orange { color:#ef6c00; }
+  .tile.joker { font-size:1.5rem; }
+  .c-red    { color:#c62828; }
+  .c-blue   { color:#0d47a1; }
+  .c-black  { color:#111111; }
+  .c-orange { color:#e65100; }
+  /* 새로 뽑은 타일 깜박임 */
+  .tile.new-tile { animation: newTilePulse 0.6s ease-in-out 8 alternate; }
+  @keyframes newTilePulse {
+    from { box-shadow: 0 0 0 2px #ffd54f, 0 2px 3px rgba(0,0,0,0.4); }
+    to   { box-shadow: 0 0 0 5px #ff6f00, 0 2px 3px rgba(0,0,0,0.4); background:#fffde7; }
+  }
   .backTile {
     width:30px; height:40px; background:#37474f; border-radius:5px; box-shadow:0 2px 3px rgba(0,0,0,0.4);
   }
@@ -298,6 +304,8 @@ let lastTurnOwner = -2;
 let selected = null;       // {from:'rack'|'table', setIndex, tile}
 let dragRef = null;
 let sortMode = null;       // null | 'num' | 'color' — auto-applied to newly drawn/returned rack tiles
+let newlyDrawnId = null;   // 이번 턴에 새로 뽑은 타일 id (깜박임용)
+let turnStartRackIds = new Set(); // 내 턴 시작 시 rack 구성 (새 타일 감지용)
 let undoStack = [];
 let turnTimerInterval = null;
 let turnTimeLeft = 30;
@@ -587,7 +595,14 @@ function maybeStartTurn(){
     turnRackSnapshot = G.players[G.current].rack.map(t=>({...t}));
     undoStack = [];
     setMsg('');
-    if (canAct()) startTurnTimer();
+    if (canAct()){
+      // 내 턴이 되었을 때 이전 턴 이후 추가된 타일(상대가 뽑아준 게 아니라 내가 이전에 뽑은 것) 감지
+      const myRack = G.players[G.current].rack;
+      const newTiles = myRack.filter(t => !turnStartRackIds.has(t.id));
+      newlyDrawnId = newTiles.length > 0 ? new Set(newTiles.map(t=>t.id)) : null;
+      turnStartRackIds = new Set(myRack.map(t=>t.id));
+      startTurnTimer();
+    }
   }
 }
 
@@ -629,8 +644,7 @@ function onTimerExpired(){
   const placed = player.rack.length < turnRackSnapshot.length;
   let drew = false;
   if (!placed && G.pool.length > 0){
-    player.rack.push(G.pool.pop());
-    sortRack(player.rack);
+    player.rack.push(G.pool.pop()); // 맨 뒤로
     drew = true;
   }
   setMsg('⏰ 시간 초과! 턴이 자동으로 넘어갑니다.');
@@ -657,6 +671,8 @@ function enterGameScreen(){
   gameOverShown = false;
   sortMode = null;
   noProgressStreak = 0;
+  newlyDrawnId = null;
+  turnStartRackIds = new Set();
   render();
   if (mode === 'ai' && G.players[G.current].isAI){
     setTimeout(aiTakeTurn, 800);
@@ -682,13 +698,14 @@ document.getElementById('btnRestart').addEventListener('click', () => {
 // ============================================================
 // RENDER
 // ============================================================
-function tileEl(tile, locked, faceDown){
+function tileEl(tile, locked, faceDown, isNew){
   const el = document.createElement('div');
   if (faceDown){
     el.className = 'backTile';
     return el;
   }
   el.className = 'tile' + (tile.joker ? ' joker' : ' c-'+tile.color) + (locked ? ' locked' : '');
+  if (isNew) el.classList.add('new-tile');
   el.textContent = tile.joker ? '★' : tile.num;
   if (selected && selected.tile.id === tile.id) el.classList.add('selected');
   return el;
@@ -779,7 +796,8 @@ function render(){
   document.getElementById('rackName').textContent = `${ownerPlayer.name}의 받침대 (${ownerPlayer.rack.length}개)`;
   const rackInteractable = iAct && ownerIdx === G.current;
   ownerPlayer.rack.forEach(tile => {
-    const t = tileEl(tile, false, false);
+    const isNew = !!(newlyDrawnId && newlyDrawnId.has(tile.id));
+    const t = tileEl(tile, false, false, isNew);
     t.draggable = rackInteractable;
     t.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -959,12 +977,14 @@ document.getElementById('newSetZone').addEventListener('click', (e) => {
 document.getElementById('sortNum').addEventListener('click', () => {
   if (!G) return;
   sortMode = 'num';
+  newlyDrawnId = null; // 정렬 후 강조 해제
   sortRack(G.players[rackOwnerIndex()].rack);
   render();
 });
 document.getElementById('sortColor').addEventListener('click', () => {
   if (!G) return;
   sortMode = 'color';
+  newlyDrawnId = null;
   sortRack(G.players[rackOwnerIndex()].rack);
   render();
 });
@@ -1028,8 +1048,8 @@ document.getElementById('btnDraw').addEventListener('click', () => {
   player.rack = keepRack.concat(returningTiles);
   const drew = G.pool.length > 0;
   if (drew){
+    // 새 타일은 정렬 없이 맨 뒤로
     player.rack.push(G.pool.pop());
-    sortRack(player.rack);
   } else {
     setMsg('풀에 타일이 없습니다. 되돌리기만 실행했습니다.');
   }
