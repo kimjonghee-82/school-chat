@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>루미큐브</title>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; }
   body {
@@ -18,13 +20,33 @@
   h1 { text-align:center; font-size:1.4rem; margin-bottom:16px; }
 
   /* setup screen */
-  #setup { max-width:420px; margin:40px auto; background:#161b22; border-radius:16px; padding:28px; }
+  #setup { max-width:460px; margin:30px auto; background:#161b22; border-radius:16px; padding:28px; }
   #setup h2 { margin-bottom:16px; font-size:1.1rem; }
   #setup label { display:block; margin:10px 0 4px; font-size:0.85rem; color:#8b949e; }
   #setup input, #setup select { width:100%; padding:8px 10px; border-radius:8px; border:1px solid #30363d; background:#0d1117; color:#fff; font-size:0.95rem; }
   #playerNames { display:flex; flex-direction:column; gap:8px; margin-top:8px; }
-  #setup button { margin-top:20px; width:100%; padding:12px; border:none; border-radius:10px; background:#4caf50; color:#fff; font-size:1rem; font-weight:600; cursor:pointer; }
+  #setup button { margin-top:14px; width:100%; padding:12px; border:none; border-radius:10px; background:#4caf50; color:#fff; font-size:1rem; font-weight:600; cursor:pointer; }
   #setup button:hover { background:#43a047; }
+
+  .modeTabs { display:flex; gap:6px; margin-bottom:18px; }
+  .modeTabs button { flex:1; margin:0; padding:10px 6px; font-size:0.82rem; background:#21262d; color:#8b949e; border-radius:8px; }
+  .modeTabs button.active { background:#388e3c; color:#fff; }
+  .modePane { display:none; }
+  .modePane.active { display:block; }
+  .onlineSubTabs { display:flex; gap:6px; margin-bottom:12px; }
+  .onlineSubTabs button { flex:1; margin:0; padding:8px; font-size:0.8rem; background:#21262d; color:#8b949e; border-radius:8px; }
+  .onlineSubTabs button.active { background:#1565c0; color:#fff; }
+  .onlinePane { display:none; }
+  .onlinePane.active { display:block; }
+
+  #lobby { display:none; max-width:420px; margin:30px auto; background:#161b22; border-radius:16px; padding:28px; text-align:center; }
+  #lobby .code { font-size:2rem; font-weight:800; letter-spacing:4px; color:#ffd54f; margin:10px 0 18px; }
+  #lobby ul { list-style:none; text-align:left; margin-bottom:16px; }
+  #lobby li { padding:8px 12px; background:#0d1117; border-radius:8px; margin-bottom:6px; font-size:0.9rem; }
+  #lobby li.empty { color:#6e7681; }
+  #lobby button { padding:10px 18px; border:none; border-radius:8px; background:#4caf50; color:#fff; cursor:pointer; font-weight:700; }
+  #lobby button:disabled { background:#30363d; cursor:not-allowed; }
+  #lobby .hint { font-size:0.78rem; color:#8b949e; margin-top:10px; }
 
   /* game screen */
   #game { display:none; max-width:980px; margin:0 auto; }
@@ -32,6 +54,7 @@
   .topbar .turn { font-weight:700; color:#ffd54f; }
   .topbar .pool { font-size:0.85rem; color:#8b949e; }
   .scores { font-size:0.78rem; color:#8b949e; }
+  .waitNotice { text-align:center; font-size:0.85rem; color:#ffab40; margin-bottom:8px; min-height:18px; }
 
   #table {
     background:#10331f;
@@ -55,6 +78,7 @@
     cursor:pointer;
   }
   .setRow.invalid { outline:2px solid #e53935; }
+  .setRow.dragover { outline:2px dashed #42a5f5; }
   #newSetZone {
     border:2px dashed #2e7d32;
     border-radius:8px;
@@ -66,6 +90,7 @@
     font-size:0.8rem;
     cursor:pointer;
   }
+  #newSetZone.dragover { outline:2px dashed #42a5f5; }
 
   .tile {
     width:38px; height:48px;
@@ -77,16 +102,20 @@
     font-weight:800;
     font-size:1.1rem;
     box-shadow:0 2px 3px rgba(0,0,0,0.4);
-    cursor:pointer;
+    cursor:grab;
     border:2px solid transparent;
   }
   .tile.selected { border-color:#42a5f5; transform:translateY(-4px); }
   .tile.locked { opacity:0.55; cursor:not-allowed; }
+  .tile.dragging { opacity:0.3; }
   .tile.joker { font-size:1.3rem; }
   .c-red { color:#d32f2f; }
   .c-blue { color:#1565c0; }
   .c-black { color:#212121; }
   .c-orange { color:#ef6c00; }
+  .backTile {
+    width:30px; height:40px; background:#37474f; border-radius:5px; box-shadow:0 2px 3px rgba(0,0,0,0.4);
+  }
 
   #rackWrap {
     background:#161b22;
@@ -109,11 +138,13 @@
     padding:8px;
     cursor:pointer;
   }
+  #rack.dragover { outline:2px dashed #42a5f5; }
 
   .actions { display:flex; gap:10px; justify-content:center; margin-top:14px; flex-wrap:wrap; }
   .actions button {
     padding:12px 20px; border:none; border-radius:10px; font-size:0.9rem; font-weight:700; cursor:pointer;
   }
+  .actions button:disabled { background:#30363d !important; cursor:not-allowed; }
   #btnEnd { background:#4caf50; color:#fff; }
   #btnEnd:hover { background:#43a047; }
   #btnDraw { background:#ef6c00; color:#fff; }
@@ -133,15 +164,70 @@
 <h1>🀄 루미큐브</h1>
 
 <div id="setup">
-  <h2>게임 설정</h2>
-  <label for="numPlayers">플레이어 수</label>
-  <select id="numPlayers">
-    <option value="2">2명</option>
-    <option value="3" selected>3명</option>
-    <option value="4">4명</option>
-  </select>
-  <div id="playerNames"></div>
-  <button id="btnStart">게임 시작</button>
+  <div class="modeTabs">
+    <button id="tabLocal" class="active">한 화면(같이)</button>
+    <button id="tabAI">PC 인공지능</button>
+    <button id="tabOnline">온라인(각자 PC)</button>
+  </div>
+
+  <div id="paneLocal" class="modePane active">
+    <h2>같은 화면에서 순서대로</h2>
+    <label for="numPlayersLocal">플레이어 수</label>
+    <select id="numPlayersLocal">
+      <option value="2">2명</option>
+      <option value="3" selected>3명</option>
+      <option value="4">4명</option>
+    </select>
+    <div id="playerNamesLocal"></div>
+    <button id="btnStartLocal">게임 시작</button>
+  </div>
+
+  <div id="paneAI" class="modePane">
+    <h2>PC(인공지능)와 대결</h2>
+    <label for="myNameAI">내 이름</label>
+    <input id="myNameAI" value="나">
+    <label for="numAI">상대 AI 수</label>
+    <select id="numAI">
+      <option value="1">1명</option>
+      <option value="2" selected>2명</option>
+      <option value="3">3명</option>
+    </select>
+    <button id="btnStartAI">게임 시작</button>
+  </div>
+
+  <div id="paneOnline" class="modePane">
+    <h2>온라인 (각자 PC에서)</h2>
+    <div class="onlineSubTabs">
+      <button id="subCreate" class="active">방 만들기</button>
+      <button id="subJoin">참가하기</button>
+    </div>
+    <div id="paneCreate" class="onlinePane active">
+      <label for="myNameCreate">내 이름</label>
+      <input id="myNameCreate" value="나">
+      <label for="numPlayersOnline">전체 인원</label>
+      <select id="numPlayersOnline">
+        <option value="2">2명</option>
+        <option value="3" selected>3명</option>
+        <option value="4">4명</option>
+      </select>
+      <button id="btnCreateRoom">방 만들기</button>
+    </div>
+    <div id="paneJoin" class="onlinePane">
+      <label for="myNameJoin">내 이름</label>
+      <input id="myNameJoin" value="나">
+      <label for="joinCode">방 코드 (4자리)</label>
+      <input id="joinCode" maxlength="4" placeholder="예: 4821">
+      <button id="btnJoinRoom">참가하기</button>
+    </div>
+  </div>
+</div>
+
+<div id="lobby">
+  <h2>대기실</h2>
+  <div class="code" id="lobbyCode"></div>
+  <ul id="lobbySeats"></ul>
+  <button id="btnHostStart" disabled>모두 입장하면 시작 가능</button>
+  <div class="hint" id="lobbyHint">친구에게 방 코드를 알려주고 "참가하기"로 들어오게 하세요.</div>
 </div>
 
 <div id="game">
@@ -150,9 +236,10 @@
     <div class="pool" id="poolLabel"></div>
     <div class="scores" id="meldLabel"></div>
   </div>
+  <div class="waitNotice" id="waitNotice"></div>
 
   <div id="table"></div>
-  <div id="newSetZone">+ 선택한 타일로 새 조합 만들기</div>
+  <div id="newSetZone">+ 선택한 타일로 새 조합 만들기 (또는 타일을 끌어다 놓기)</div>
 
   <div id="rackWrap">
     <div id="rackHeader">
@@ -180,19 +267,30 @@
 
 <script>
 const COLORS = ['red','blue','black','orange'];
-const COLOR_NAME = {red:'빨강', blue:'파랑', black:'검정', orange:'주황'};
 
-let players = [];
-let table = [];        // array of sets (array of tile)
-let pool = [];
-let current = 0;
-let lockedIds = new Set();   // tile ids that existed on table before this turn (locked while not melded)
-let turnTableSnapshot = null;
-let turnRackSnapshot = null;
-let selected = null;   // {from:'rack'|'table', setIndex, tile}
+// ---- firebase ----
+let db = null;
+try {
+  const firebaseConfig = { databaseURL: "https://school-chat-7051e-default-rtdb.firebaseio.com/" };
+  if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+  db = firebase.database();
+} catch(e){ console.error('Firebase init error', e); }
+
+// ---- global state ----
+let mode = 'local';       // 'local' | 'ai' | 'online'
+let mySeat = null;        // for ai/online: which seat index is "me"
+let roomCode = null, roomRef = null, isHost = false, lobbyData = null;
+let gameStarted = false, gameOverShown = false;
+
+let G = null;              // { players:[{name,rack,melded,isAI}], table:[[tile]], pool:[tile], current, winner }
 let tileSeq = 0;
+let lockedIds = new Set();
+let turnTableSnapshot = null, turnRackSnapshot = null;
+let lastTurnOwner = -2;
+let selected = null;       // {from:'rack'|'table', setIndex, tile}
+let dragRef = null;
 
-function uid(){ return 'T' + (tileSeq++); }
+function uid(){ return 'T' + (tileSeq++) + '_' + Math.random().toString(36).slice(2,7); }
 
 function buildDeck(){
   const deck = [];
@@ -211,74 +309,203 @@ function buildDeck(){
   return deck;
 }
 
-// ---- setup screen ----
-const numPlayersSel = document.getElementById('numPlayers');
-const playerNamesDiv = document.getElementById('playerNames');
-function renderNameInputs(){
-  const n = parseInt(numPlayersSel.value,10);
-  playerNamesDiv.innerHTML = '';
+// ============================================================
+// SETUP SCREEN
+// ============================================================
+function showPane(tabId, paneMap){
+  Object.keys(paneMap).forEach(id => {
+    document.getElementById(id).classList.toggle('active', id === tabId);
+  });
+}
+document.getElementById('tabLocal').addEventListener('click', () => {
+  ['tabLocal','tabAI','tabOnline'].forEach(id => document.getElementById(id).classList.toggle('active', id==='tabLocal'));
+  ['paneLocal','paneAI','paneOnline'].forEach(id => document.getElementById(id).classList.toggle('active', id==='paneLocal'));
+});
+document.getElementById('tabAI').addEventListener('click', () => {
+  ['tabLocal','tabAI','tabOnline'].forEach(id => document.getElementById(id).classList.toggle('active', id==='tabAI'));
+  ['paneLocal','paneAI','paneOnline'].forEach(id => document.getElementById(id).classList.toggle('active', id==='paneAI'));
+});
+document.getElementById('tabOnline').addEventListener('click', () => {
+  ['tabLocal','tabAI','tabOnline'].forEach(id => document.getElementById(id).classList.toggle('active', id==='tabOnline'));
+  ['paneLocal','paneAI','paneOnline'].forEach(id => document.getElementById(id).classList.toggle('active', id==='paneOnline'));
+});
+document.getElementById('subCreate').addEventListener('click', () => {
+  ['subCreate','subJoin'].forEach(id => document.getElementById(id).classList.toggle('active', id==='subCreate'));
+  ['paneCreate','paneJoin'].forEach(id => document.getElementById(id).classList.toggle('active', id==='paneCreate'));
+});
+document.getElementById('subJoin').addEventListener('click', () => {
+  ['subCreate','subJoin'].forEach(id => document.getElementById(id).classList.toggle('active', id==='subJoin'));
+  ['paneCreate','paneJoin'].forEach(id => document.getElementById(id).classList.toggle('active', id==='paneJoin'));
+});
+
+// local mode name inputs
+const numPlayersLocalSel = document.getElementById('numPlayersLocal');
+const playerNamesLocalDiv = document.getElementById('playerNamesLocal');
+function renderLocalNameInputs(){
+  const n = parseInt(numPlayersLocalSel.value,10);
+  playerNamesLocalDiv.innerHTML = '';
   for (let i=0;i<n;i++){
     const label = document.createElement('label');
     label.textContent = `플레이어 ${i+1} 이름`;
     const input = document.createElement('input');
-    input.id = 'pname'+i;
+    input.id = 'pnameLocal'+i;
     input.value = `플레이어 ${i+1}`;
-    playerNamesDiv.appendChild(label);
-    playerNamesDiv.appendChild(input);
+    playerNamesLocalDiv.appendChild(label);
+    playerNamesLocalDiv.appendChild(input);
   }
 }
-numPlayersSel.addEventListener('change', renderNameInputs);
-renderNameInputs();
+numPlayersLocalSel.addEventListener('change', renderLocalNameInputs);
+renderLocalNameInputs();
 
-document.getElementById('btnStart').addEventListener('click', () => {
-  const n = parseInt(numPlayersSel.value,10);
-  players = [];
+document.getElementById('btnStartLocal').addEventListener('click', () => {
+  const n = parseInt(numPlayersLocalSel.value,10);
+  const playersArr = [];
   for (let i=0;i<n;i++){
-    const name = document.getElementById('pname'+i).value.trim() || `플레이어 ${i+1}`;
-    players.push({name, rack:[], melded:false});
+    const name = document.getElementById('pnameLocal'+i).value.trim() || `플레이어 ${i+1}`;
+    playersArr.push({name, rack:[], melded:false, isAI:false});
   }
-  pool = buildDeck();
-  table = [];
-  current = 0;
-  for (let i=0;i<n;i++){
-    players[i].rack = pool.splice(0,14);
+  const deck = buildDeck();
+  for (let i=0;i<n;i++){ playersArr[i].rack = deck.splice(0,14); }
+  mode = 'local';
+  mySeat = null;
+  G = {players:playersArr, table:[], pool:deck, current:0, winner:null};
+  enterGameScreen();
+});
+
+document.getElementById('btnStartAI').addEventListener('click', () => {
+  const myName = document.getElementById('myNameAI').value.trim() || '나';
+  const numAI = parseInt(document.getElementById('numAI').value,10);
+  const playersArr = [{name:myName, rack:[], melded:false, isAI:false}];
+  for (let i=0;i<numAI;i++) playersArr.push({name:`AI ${i+1}`, rack:[], melded:false, isAI:true});
+  const deck = buildDeck();
+  for (let i=0;i<playersArr.length;i++){ playersArr[i].rack = deck.splice(0,14); }
+  mode = 'ai';
+  mySeat = 0;
+  G = {players:playersArr, table:[], pool:deck, current:0, winner:null};
+  enterGameScreen();
+});
+
+// ---- online: create / join ----
+function genCode(){ return String(Math.floor(1000 + Math.random()*9000)); }
+
+document.getElementById('btnCreateRoom').addEventListener('click', async () => {
+  if (!db){ alert('온라인 기능을 사용할 수 없습니다.'); return; }
+  const myName = document.getElementById('myNameCreate').value.trim() || '나';
+  const numPlayers = parseInt(document.getElementById('numPlayersOnline').value,10);
+  let code = genCode();
+  for (let tries=0; tries<6; tries++){
+    const snap = await db.ref('rummikub_rooms/'+code).once('value');
+    if (!snap.exists()) break;
+    code = genCode();
   }
+  roomCode = code;
+  isHost = true;
+  mySeat = 0;
+  const names = new Array(numPlayers).fill('');
+  names[0] = myName;
+  roomRef = db.ref('rummikub_rooms/'+code);
+  await roomRef.set({ numPlayers, names, started:false, state:null, createdAt: Date.now() });
+  listenRoom();
+});
+
+document.getElementById('btnJoinRoom').addEventListener('click', async () => {
+  if (!db){ alert('온라인 기능을 사용할 수 없습니다.'); return; }
+  const myName = document.getElementById('myNameJoin').value.trim() || '나';
+  const code = document.getElementById('joinCode').value.trim();
+  if (!code){ alert('방 코드를 입력하세요.'); return; }
+  const ref = db.ref('rummikub_rooms/'+code);
+  const snap = await ref.once('value');
+  if (!snap.exists()){ alert('존재하지 않는 방 코드입니다.'); return; }
+  const data = snap.val();
+  if (data.started){ alert('이미 시작된 게임입니다.'); return; }
+  const idx = data.names.findIndex(n => !n);
+  if (idx < 0){ alert('방이 가득 찼습니다.'); return; }
+  await ref.child('names/'+idx).set(myName);
+  roomCode = code;
+  roomRef = ref;
+  mySeat = idx;
+  isHost = false;
+  listenRoom();
+});
+
+function listenRoom(){
   document.getElementById('setup').style.display = 'none';
-  document.getElementById('game').style.display = 'block';
-  document.getElementById('gameOver').style.display = 'none';
-  startTurn();
+  document.getElementById('lobby').style.display = 'block';
+  document.getElementById('lobbyCode').textContent = roomCode;
+  document.getElementById('lobbyHint').textContent = isHost
+    ? '친구에게 방 코드를 알려주고 "참가하기"로 들어오게 하세요.'
+    : '방장이 시작하기를 누르면 게임이 시작됩니다.';
+  roomRef.on('value', snap => {
+    const data = snap.val();
+    if (!data) return;
+    if (!data.started){
+      lobbyData = data;
+      renderLobby(data);
+    } else if (!gameStarted){
+      gameStarted = true;
+      mode = 'online';
+      G = data.state;
+      lastTurnOwner = -2;
+      gameOverShown = false;
+      document.getElementById('lobby').style.display = 'none';
+      enterGameScreen();
+    } else {
+      G = data.state;
+      render();
+    }
+  });
+}
+
+function renderLobby(data){
+  const ul = document.getElementById('lobbySeats');
+  ul.innerHTML = '';
+  data.names.forEach((nm, i) => {
+    const li = document.createElement('li');
+    if (nm){ li.textContent = `${i+1}번 자리: ${nm}` + (i===0 ? ' (방장)' : ''); }
+    else { li.textContent = `${i+1}번 자리: 비어있음`; li.className = 'empty'; }
+    ul.appendChild(li);
+  });
+  const full = data.names.every(n => !!n);
+  const startBtn = document.getElementById('btnHostStart');
+  if (isHost){
+    startBtn.style.display = 'inline-block';
+    startBtn.disabled = !full;
+    startBtn.textContent = full ? '게임 시작' : '모두 입장하면 시작 가능';
+  } else {
+    startBtn.style.display = 'none';
+  }
+}
+
+document.getElementById('btnHostStart').addEventListener('click', () => {
+  if (!lobbyData) return;
+  const names = lobbyData.names;
+  const playersArr = names.map(nm => ({name:nm, rack:[], melded:false, isAI:false}));
+  const deck = buildDeck();
+  for (let i=0;i<playersArr.length;i++){ playersArr[i].rack = deck.splice(0,14); }
+  const state = {players:playersArr, table:[], pool:deck, current:0, winner:null};
+  roomRef.update({ started:true, state });
 });
 
-document.getElementById('btnRestart').addEventListener('click', () => {
-  document.getElementById('gameOver').style.display = 'none';
-  document.getElementById('setup').style.display = 'block';
-});
-
-// ---- set validity / value ----
+// ============================================================
+// CORE ENGINE
+// ============================================================
 function checkSet(tiles){
   if (tiles.length < 3) return {valid:false};
-  const jokers = tiles.filter(t=>t.joker);
   const nonJokers = tiles.filter(t=>!t.joker);
   const L = tiles.length;
 
-  // group check
   let groupValid = false, groupValue = 0;
   if (L <= 4){
-    if (nonJokers.length === 0){
-      groupValid = true; groupValue = 0;
-    } else {
+    if (nonJokers.length === 0){ groupValid = true; groupValue = 0; }
+    else {
       const num = nonJokers[0].num;
       const sameNum = nonJokers.every(t=>t.num===num);
       const colorsSeen = new Set(nonJokers.map(t=>t.color));
       const noDupColor = colorsSeen.size === nonJokers.length;
-      if (sameNum && noDupColor){
-        groupValid = true;
-        groupValue = num * L;
-      }
+      if (sameNum && noDupColor){ groupValid = true; groupValue = num * L; }
     }
   }
 
-  // run check
   let runValid = false, runValue = 0;
   if (nonJokers.length === 0){
     if (L >= 3 && L <= 13){ runValid = true; runValue = 0; }
@@ -293,44 +520,89 @@ function checkSet(tiles){
       const sMin = Math.max(1, maxNum - L + 1);
       const sMax = Math.min(minNum, 13 - L + 1);
       if (sMin <= sMax){
-        const s = sMax; // pick a valid start
+        const s = sMax;
         runValid = true;
         runValue = L*s + (L*(L-1))/2;
       }
     }
   }
 
-  if (groupValid || runValid){
-    return {valid:true, value: groupValid ? groupValue : runValue};
-  }
+  if (groupValid || runValid) return {valid:true, value: groupValid ? groupValue : runValue};
   return {valid:false};
 }
 
 function tableValid(){
-  for (const set of table){
+  for (const set of G.table){
     if (set.length === 0) continue;
     if (!checkSet(set).valid) return false;
   }
   return true;
 }
 
-// ---- turn management ----
 function deepCloneTable(t){ return t.map(set => set.map(tile => ({...tile}))); }
+function tileValue(t){ return t.joker ? 30 : t.num; }
 
-function startTurn(){
-  selected = null;
-  lockedIds = players[current].melded ? new Set() : new Set(table.flat().map(t=>t.id));
-  turnTableSnapshot = deepCloneTable(table);
-  turnRackSnapshot = players[current].rack.map(t=>({...t}));
-  setMsg('');
-  render();
+function rackOwnerIndex(){
+  return mode === 'local' ? G.current : mySeat;
 }
 
-function setMsg(text){ document.getElementById('msg').textContent = text; }
+function canAct(){
+  if (!G || G.winner !== null) return false;
+  if (mode === 'local') return true;
+  if (mode === 'ai') return G.current === 0;
+  if (mode === 'online') return G.current === mySeat;
+  return false;
+}
 
-// ---- rendering ----
-function tileEl(tile, locked){
+function maybeStartTurn(){
+  if (!G) return;
+  if (G.current !== lastTurnOwner){
+    lastTurnOwner = G.current;
+    selected = null;
+    dragRef = null;
+    lockedIds = G.players[G.current].melded ? new Set() : new Set(G.table.flat().map(t=>t.id));
+    turnTableSnapshot = deepCloneTable(G.table);
+    turnRackSnapshot = G.players[G.current].rack.map(t=>({...t}));
+    setMsg('');
+  }
+}
+
+function setMsg(text){ const el = document.getElementById('msg'); if (el) el.textContent = text || ''; }
+
+function syncPush(){
+  if (mode === 'online' && roomRef){ roomRef.child('state').set(G); }
+}
+
+// ---- screen transition ----
+function enterGameScreen(){
+  document.getElementById('setup').style.display = 'none';
+  document.getElementById('lobby').style.display = 'none';
+  document.getElementById('game').style.display = 'block';
+  document.getElementById('gameOver').style.display = 'none';
+  lastTurnOwner = -2;
+  gameOverShown = false;
+  render();
+  if (mode === 'ai' && G.players[G.current].isAI){
+    setTimeout(aiTakeTurn, 800);
+  }
+}
+
+document.getElementById('btnRestart').addEventListener('click', () => {
+  if (roomRef){ roomRef.off(); roomRef = null; }
+  roomCode = null; isHost = false; mySeat = null; gameStarted = false; G = null;
+  document.getElementById('gameOver').style.display = 'none';
+  document.getElementById('setup').style.display = 'block';
+});
+
+// ============================================================
+// RENDER
+// ============================================================
+function tileEl(tile, locked, faceDown){
   const el = document.createElement('div');
+  if (faceDown){
+    el.className = 'backTile';
+    return el;
+  }
   el.className = 'tile' + (tile.joker ? ' joker' : ' c-'+tile.color) + (locked ? ' locked' : '');
   el.textContent = tile.joker ? '★' : tile.num;
   if (selected && selected.tile.id === tile.id) el.classList.add('selected');
@@ -338,31 +610,65 @@ function tileEl(tile, locked){
 }
 
 function render(){
-  const player = players[current];
-  document.getElementById('turnLabel').textContent = `${player.name}의 차례` + (player.melded ? '' : ' (첫 등록 전: 30점 이상 필요)');
-  document.getElementById('poolLabel').textContent = `남은 타일: ${pool.length}개`;
-  document.getElementById('meldLabel').textContent = players.map(p => `${p.name}:${p.melded?'등록완료':'미등록'}(${p.rack.length})`).join('  ');
+  if (!G) return;
+  maybeStartTurn();
+  maybeHandleWinner();
+  if (gameOverShown) return;
+
+  const player = G.players[G.current];
+  const iAct = canAct();
+  document.getElementById('turnLabel').textContent = `${player.name}의 차례` + (player.melded ? '' : ' (첫 등록 전: 30점 이상 필요)') + (player.isAI ? ' 🤖' : '');
+  document.getElementById('poolLabel').textContent = `남은 타일: ${G.pool.length}개`;
+  document.getElementById('meldLabel').textContent = G.players.map(p => `${p.name}:${p.melded?'등록완료':'미등록'}(${p.rack.length})`).join('  ');
+  document.getElementById('waitNotice').textContent = iAct ? '' :
+    (player.isAI ? `${player.name}가 진행 중입니다...` : `${player.name}의 차례입니다. 잠시만 기다려주세요.`);
 
   // table
   const tableDiv = document.getElementById('table');
   tableDiv.innerHTML = '';
-  table.forEach((set, sIdx) => {
+  G.table.forEach((set, sIdx) => {
     const row = document.createElement('div');
     row.className = 'setRow';
     if (set.length > 0 && !checkSet(set).valid) row.classList.add('invalid');
     const rowLocked = !player.melded && set.some(t => lockedIds.has(t.id));
     set.forEach((tile) => {
-      const locked = !player.melded && lockedIds.has(tile.id);
-      const t = tileEl(tile, locked);
+      const locked = !iAct || (!player.melded && lockedIds.has(tile.id));
+      const t = tileEl(tile, locked, false);
+      t.draggable = !locked;
       t.addEventListener('click', (e) => {
         e.stopPropagation();
         if (locked) return;
         onTileClick('table', sIdx, tile);
       });
+      t.addEventListener('dragstart', (e) => {
+        if (locked){ e.preventDefault(); return; }
+        dragRef = {from:'table', setIndex:sIdx, tile};
+        t.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', tile.id);
+      });
+      t.addEventListener('dragend', () => { t.classList.remove('dragging'); dragRef = null; });
+      t.addEventListener('dragover', (e) => { if (rowLocked || !iAct) return; e.preventDefault(); e.stopPropagation(); });
+      t.addEventListener('drop', (e) => {
+        e.preventDefault(); e.stopPropagation();
+        if (!dragRef || rowLocked || !iAct) return;
+        if (dragRef.tile.id === tile.id) return;
+        performMove(dragRef, {type:'set', setIndex:sIdx, beforeTileId:tile.id});
+        dragRef = null; selected = null; setMsg(''); render(); afterStateChange();
+      });
       row.appendChild(t);
     });
-    if (!rowLocked){
-      row.addEventListener('click', () => onRowClick(sIdx));
+    if (!rowLocked && iAct){
+      row.addEventListener('click', (e) => { if (e.target === row) onRowClick(sIdx); });
+      row.addEventListener('dragover', (e) => { e.preventDefault(); row.classList.add('dragover'); });
+      row.addEventListener('dragleave', () => row.classList.remove('dragover'));
+      row.addEventListener('drop', (e) => {
+        e.preventDefault();
+        row.classList.remove('dragover');
+        if (!dragRef) return;
+        performMove(dragRef, {type:'set', setIndex:sIdx});
+        dragRef = null; selected = null; setMsg(''); render(); afterStateChange();
+      });
     } else {
       row.style.cursor = 'not-allowed';
     }
@@ -370,24 +676,100 @@ function render(){
   });
 
   // rack
+  const ownerIdx = rackOwnerIndex();
+  const ownerPlayer = G.players[ownerIdx];
   const rackDiv = document.getElementById('rack');
   rackDiv.innerHTML = '';
-  document.getElementById('rackName').textContent = `${player.name}의 받침대 (${player.rack.length}개)`;
-  player.rack.forEach(tile => {
-    const t = tileEl(tile, false);
+  document.getElementById('rackName').textContent = `${ownerPlayer.name}의 받침대 (${ownerPlayer.rack.length}개)`;
+  const rackInteractable = iAct && ownerIdx === G.current;
+  ownerPlayer.rack.forEach(tile => {
+    const t = tileEl(tile, false, false);
+    t.draggable = rackInteractable;
     t.addEventListener('click', (e) => {
       e.stopPropagation();
+      if (!rackInteractable) return;
       onTileClick('rack', -1, tile);
     });
+    t.addEventListener('dragstart', (e) => {
+      if (!rackInteractable){ e.preventDefault(); return; }
+      dragRef = {from:'rack', setIndex:-1, tile};
+      t.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', tile.id);
+    });
+    t.addEventListener('dragend', () => { t.classList.remove('dragging'); dragRef = null; });
     rackDiv.appendChild(t);
   });
-  rackDiv.onclick = () => onRackBgClick();
+  rackDiv.onclick = (e) => { if (e.target === rackDiv && rackInteractable) onRackBgClick(); };
+  rackDiv.addEventListener('dragover', (e) => { if (!rackInteractable) return; e.preventDefault(); rackDiv.classList.add('dragover'); });
+  rackDiv.addEventListener('dragleave', () => rackDiv.classList.remove('dragover'));
+  rackDiv.ondrop = (e) => {
+    e.preventDefault();
+    rackDiv.classList.remove('dragover');
+    if (!dragRef || !rackInteractable) return;
+    performMove(dragRef, {type:'rack'});
+    dragRef = null; selected = null; setMsg(''); render(); afterStateChange();
+  };
+
+  const newSetZone = document.getElementById('newSetZone');
+  newSetZone.ondragover = (e) => { if (!iAct) return; e.preventDefault(); newSetZone.classList.add('dragover'); };
+  newSetZone.ondragleave = () => newSetZone.classList.remove('dragover');
+  newSetZone.ondrop = (e) => {
+    e.preventDefault();
+    newSetZone.classList.remove('dragover');
+    if (!dragRef || !iAct) return;
+    performMove(dragRef, {type:'newset'});
+    dragRef = null; selected = null; setMsg(''); render(); afterStateChange();
+  };
+
+  document.getElementById('btnEnd').disabled = !iAct;
+  document.getElementById('btnDraw').disabled = !iAct;
+}
+
+// ============================================================
+// MOVES (shared by click-select and drag & drop)
+// ============================================================
+function performMove(ref, dest){
+  const owner = rackOwnerIndex();
+  const tile = ref.tile;
+  if (ref.from === 'rack'){
+    const idx = G.players[owner].rack.findIndex(t=>t.id===tile.id);
+    if (idx < 0) return;
+    G.players[owner].rack.splice(idx,1);
+  } else {
+    const set = G.table[ref.setIndex];
+    if (!set) return;
+    const idx = set.findIndex(t=>t.id===tile.id);
+    if (idx < 0) return;
+    set.splice(idx,1);
+  }
+  if (dest.type === 'rack'){
+    G.players[owner].rack.push(tile);
+  } else if (dest.type === 'newset'){
+    G.table.push([tile]);
+  } else if (dest.type === 'set'){
+    const set = G.table[dest.setIndex];
+    if (!set) return;
+    if (dest.beforeTileId){
+      const idx = set.findIndex(t=>t.id===dest.beforeTileId);
+      set.splice(idx<0?set.length:idx, 0, tile);
+    } else {
+      set.push(tile);
+    }
+  }
+  G.table = G.table.filter(s => s.length>0);
+}
+
+function afterStateChange(){
+  // local optimistic edits during the active player's own turn aren't pushed
+  // until the turn actually ends (see btnEnd / btnDraw), so nothing to do here.
 }
 
 function onTileClick(from, setIndex, tile){
+  if (!canAct()) return;
   if (!selected){
     selected = {from, setIndex, tile};
-    setMsg('타일을 선택했습니다. 합치고 싶은 조합 줄을 클릭하거나, "새 조합 만들기"를 눌러 새 줄을 만드세요.');
+    setMsg('타일을 선택했습니다. 합치고 싶은 조합 줄을 클릭하거나, "새 조합 만들기"를 눌러 새 줄을 만드세요. (끌어다 놓기도 가능합니다)');
     render();
     return;
   }
@@ -397,77 +779,45 @@ function onTileClick(from, setIndex, tile){
     render();
     return;
   }
-  // move selected tile to just before the clicked tile (same set)
   if (from === 'table'){
-    moveSelectedTo(setIndex, tile.id);
+    performMove(selected, {type:'set', setIndex, beforeTileId: tile.id});
   } else {
-    // clicked a rack tile while something selected -> move selected to rack
-    moveSelectedToRack();
+    performMove(selected, {type:'rack'});
   }
+  selected = null;
+  setMsg('');
+  render();
 }
 
 function onRowClick(setIndex){
-  if (!selected) return;
-  moveSelectedTo(setIndex, null);
+  if (!selected || !canAct()) return;
+  performMove(selected, {type:'set', setIndex});
+  selected = null;
+  setMsg('');
+  render();
 }
 
 function onRackBgClick(){
-  if (!selected) return;
-  moveSelectedToRack();
-}
-
-function removeSelectedFromOrigin(){
-  if (selected.from === 'rack'){
-    const player = players[current];
-    const idx = player.rack.findIndex(t=>t.id===selected.tile.id);
-    if (idx>=0) player.rack.splice(idx,1);
-  } else {
-    const set = table[selected.setIndex];
-    const idx = set.findIndex(t=>t.id===selected.tile.id);
-    if (idx>=0) set.splice(idx,1);
-  }
-}
-
-function moveSelectedTo(setIndex, beforeTileId){
-  const tile = selected.tile;
-  removeSelectedFromOrigin();
-  const set = table[setIndex];
-  if (beforeTileId){
-    const idx = set.findIndex(t=>t.id===beforeTileId);
-    set.splice(idx, 0, tile);
-  } else {
-    set.push(tile);
-  }
-  table = table.filter(s => s.length>0);
+  if (!selected || !canAct()) return;
+  performMove(selected, {type:'rack'});
   selected = null;
   setMsg('');
   render();
 }
 
-function moveSelectedToRack(){
-  const tile = selected.tile;
-  if (selected.from === 'rack'){ selected = null; render(); return; }
-  removeSelectedFromOrigin();
-  players[current].rack.push(tile);
-  table = table.filter(s => s.length>0);
-  selected = null;
-  setMsg('');
-  render();
-}
-
-document.getElementById('newSetZone').addEventListener('click', () => {
-  if (!selected) return;
-  const tile = selected.tile;
-  removeSelectedFromOrigin();
-  table.push([tile]);
-  table = table.filter(s => s.length>0);
+document.getElementById('newSetZone').addEventListener('click', (e) => {
+  if (e.target !== e.currentTarget && e.target.closest === undefined) {}
+  if (!selected || !canAct()) return;
+  performMove(selected, {type:'newset'});
   selected = null;
   setMsg('');
   render();
 });
 
 document.getElementById('sortNum').addEventListener('click', () => {
-  players[current].rack.sort((a,b) => {
+  if (!G) return;
+  const rack = G.players[rackOwnerIndex()].rack;
+  rack.sort((a,b) => {
     if (a.joker) return 1;
     if (b.joker) return -1;
     if (a.num !== b.num) return a.num - b.num;
@@ -476,7 +826,9 @@ document.getElementById('sortNum').addEventListener('click', () => {
   render();
 });
 document.getElementById('sortColor').addEventListener('click', () => {
-  players[current].rack.sort((a,b) => {
+  if (!G) return;
+  const rack = G.players[rackOwnerIndex()].rack;
+  rack.sort((a,b) => {
     if (a.joker) return 1;
     if (b.joker) return -1;
     if (a.color !== b.color) return COLORS.indexOf(a.color) - COLORS.indexOf(b.color);
@@ -485,28 +837,29 @@ document.getElementById('sortColor').addEventListener('click', () => {
   render();
 });
 
-// ---- end turn / draw ----
+// ============================================================
+// END TURN / DRAW
+// ============================================================
 function newlyPlacedTiles(){
-  // tiles currently on table that were not on table at turn start (i.e. moved out of this player's rack this turn)
   const startIds = new Set(turnTableSnapshot.flat().map(t=>t.id));
-  return table.flat().filter(t => !startIds.has(t.id));
+  return G.table.flat().filter(t => !startIds.has(t.id));
 }
 
 document.getElementById('btnEnd').addEventListener('click', () => {
+  if (!canAct()) return;
   if (!tableValid()){
     setMsg('유효하지 않은 조합이 있습니다. 모든 조합은 같은 숫자 3~4색 그룹이거나, 같은 색 3개 이상 연속 숫자여야 합니다.');
     return;
   }
-  const player = players[current];
+  const player = G.players[G.current];
   if (!player.melded){
     const placed = newlyPlacedTiles();
     if (placed.length === 0){
       setMsg('등록을 위해 타일을 테이블에 내려놓아야 합니다.');
       return;
     }
-    // sum value of sets that contain only newly placed tiles (own-tile-only meld)
     let sum = 0;
-    for (const set of table){
+    for (const set of G.table){
       if (set.every(t => placed.some(p=>p.id===t.id))){
         sum += checkSet(set).value;
       }
@@ -518,45 +871,129 @@ document.getElementById('btnEnd').addEventListener('click', () => {
     player.melded = true;
   }
   if (player.rack.length === 0){
-    endGame(current);
+    G.winner = G.current;
+    syncPush();
+    render();
     return;
   }
-  nextTurn();
+  advanceTurn();
 });
 
 document.getElementById('btnDraw').addEventListener('click', () => {
-  // Revert the table to how it looked at the start of this turn, but keep the
-  // player's current rack arrangement (e.g. sorting) intact, only adding back
-  // whichever tiles were moved out of the rack onto the table this turn.
-  const player = players[current];
+  if (!canAct()) return;
+  const player = G.players[G.current];
   const startTableIds = new Set(turnTableSnapshot.flat().map(t=>t.id));
   const keepRack = player.rack.filter(t => !startTableIds.has(t.id));
   const keepRackIds = new Set(keepRack.map(t=>t.id));
   const returningTiles = turnRackSnapshot.filter(t => !keepRackIds.has(t.id));
-  table = deepCloneTable(turnTableSnapshot);
+  G.table = deepCloneTable(turnTableSnapshot);
   player.rack = keepRack.concat(returningTiles);
-  if (pool.length > 0){
-    player.rack.push(pool.pop());
+  if (G.pool.length > 0){
+    player.rack.push(G.pool.pop());
   } else {
     setMsg('풀에 더 이상 타일이 없습니다.');
   }
-  nextTurn();
+  advanceTurn();
 });
 
-function nextTurn(){
-  current = (current + 1) % players.length;
-  startTurn();
+function advanceTurn(){
+  G.current = (G.current + 1) % G.players.length;
+  syncPush();
+  render();
+  if (mode === 'ai' && G.players[G.current] && G.players[G.current].isAI){
+    setTimeout(aiTakeTurn, 800);
+  }
 }
 
-function tileValue(t){ return t.joker ? 30 : t.num; }
+// ============================================================
+// AI BOT
+// ============================================================
+function findMeldSets(rack, threshold){
+  const avail = rack.filter(t=>!t.joker).map(t=>({...t}));
+  const used = new Set();
+  const sets = [];
+  for (let n=1;n<=13;n++){
+    const byColor = {};
+    avail.filter(t=>t.num===n && !used.has(t.id)).forEach(t=>{ if(!byColor[t.color]) byColor[t.color]=t; });
+    const colors = Object.keys(byColor);
+    if (colors.length>=3){
+      const set = colors.map(c=>byColor[c]);
+      set.forEach(t=>used.add(t.id));
+      sets.push(set);
+    }
+  }
+  for (const color of COLORS){
+    const cands = avail.filter(t=>t.color===color && !used.has(t.id)).sort((a,b)=>a.num-b.num);
+    let i=0;
+    while (i<cands.length){
+      let j=i;
+      while (j+1<cands.length && cands[j+1].num===cands[j].num+1) j++;
+      const runLen = j-i+1;
+      if (runLen>=3){
+        const set = cands.slice(i,j+1);
+        set.forEach(t=>used.add(t.id));
+        sets.push(set);
+      }
+      i=j+1;
+    }
+  }
+  if (sets.length===0) return null;
+  const total = sets.reduce((s,set)=>s+checkSet(set).value,0);
+  if (total < threshold) return null;
+  return sets;
+}
+
+function aiTakeTurn(){
+  if (!G || G.winner !== null) return;
+  const idx = G.current;
+  const p = G.players[idx];
+  if (!p || !p.isAI) return;
+  maybeStartTurn();
+
+  const sets = findMeldSets(p.rack, p.melded ? 0 : 30);
+  if (sets){
+    sets.forEach(set=>{
+      set.forEach(t=>{
+        const i = p.rack.findIndex(r=>r.id===t.id);
+        if (i>=0) p.rack.splice(i,1);
+      });
+      G.table.push(set);
+    });
+    if (!p.melded) p.melded = true;
+    G.table = G.table.filter(s=>s.length>0);
+  } else {
+    if (G.pool.length > 0) p.rack.push(G.pool.pop());
+  }
+
+  if (p.rack.length === 0){
+    G.winner = idx;
+    render();
+    return;
+  }
+  G.current = (G.current + 1) % G.players.length;
+  render();
+  if (G.players[G.current].isAI){
+    setTimeout(aiTakeTurn, 900);
+  }
+}
+
+// ============================================================
+// GAME OVER
+// ============================================================
+function maybeHandleWinner(){
+  if (G && G.winner !== null && !gameOverShown){
+    gameOverShown = true;
+    endGame(G.winner);
+  }
+}
 
 function endGame(winnerIdx){
   document.getElementById('game').style.display = 'none';
   const go = document.getElementById('gameOver');
   go.style.display = 'block';
-  document.getElementById('winnerLine').textContent = `🏆 ${players[winnerIdx].name} 승리! (루미큐브!)`;
+  document.getElementById('winnerLine').textContent = `🏆 ${G.players[winnerIdx].name} 승리! (루미큐브!)`;
   let winnerScore = 0;
-  const rows = players.map((p, i) => {
+  const rows = G.players.map((p, i) => {
     if (i === winnerIdx) return null;
     const minus = p.rack.reduce((s,t)=>s+tileValue(t),0);
     winnerScore += minus;
@@ -564,7 +1001,7 @@ function endGame(winnerIdx){
   });
   const tbl = document.getElementById('scoreTable');
   let html = '<tr><th>플레이어</th><th>점수</th></tr>';
-  html += `<tr><td>${players[winnerIdx].name}</td><td>+${winnerScore}</td></tr>`;
+  html += `<tr><td>${G.players[winnerIdx].name}</td><td>+${winnerScore}</td></tr>`;
   rows.forEach(r => { if (r) html += `<tr><td>${r.name}</td><td>${r.score}</td></tr>`; });
   tbl.innerHTML = html;
 }
