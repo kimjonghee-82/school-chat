@@ -632,14 +632,10 @@ function onTimerExpired(){
   clearTurnTimer();
   if (!G || G.winner !== null || !canAct()) return;
   const player = G.players[G.current];
-  // 무효 조합이면 턴 시작 상태로 되돌리기
+  // 무효 조합이면 턴 시작 상태로 되돌리기 (순서 보존)
   if (!tableValid()){
-    const startTableIds = new Set(turnTableSnapshot.flat().map(t=>t.id));
-    const keepRack = player.rack.filter(t => !startTableIds.has(t.id));
-    const keepRackIds = new Set(keepRack.map(t=>t.id));
-    const returningTiles = turnRackSnapshot.filter(t => !keepRackIds.has(t.id));
     G.table = deepCloneTable(turnTableSnapshot);
-    player.rack = keepRack.concat(returningTiles);
+    player.rack = turnRackSnapshot.map(t => ({...t}));
   }
   const placed = player.rack.length < turnRackSnapshot.length;
   let drew = false;
@@ -1040,15 +1036,12 @@ document.getElementById('btnEnd').addEventListener('click', () => {
 document.getElementById('btnDraw').addEventListener('click', () => {
   if (!canAct()) return;
   const player = G.players[G.current];
-  const startTableIds = new Set(turnTableSnapshot.flat().map(t=>t.id));
-  const keepRack = player.rack.filter(t => !startTableIds.has(t.id));
-  const keepRackIds = new Set(keepRack.map(t=>t.id));
-  const returningTiles = turnRackSnapshot.filter(t => !keepRackIds.has(t.id));
+  // 테이블을 턴 시작 상태로 되돌리고, rack도 턴 시작 순서 그대로 복원
   G.table = deepCloneTable(turnTableSnapshot);
-  player.rack = keepRack.concat(returningTiles);
+  player.rack = turnRackSnapshot.map(t => ({...t}));
   const drew = G.pool.length > 0;
   if (drew){
-    // 새 타일은 정렬 없이 맨 뒤로
+    // 새 타일은 기존 순서 뒤에 그대로 추가
     player.rack.push(G.pool.pop());
   } else {
     setMsg('풀에 타일이 없습니다. 되돌리기만 실행했습니다.');
