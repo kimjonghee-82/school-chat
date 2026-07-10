@@ -164,8 +164,6 @@
   #btnUndo:hover { background:#0d47a1; }
   #btnDraw { background:#ef6c00; color:#fff; }
   #btnDraw:hover { background:#e65100; }
-  #btnSkip { background:#546e7a; color:#fff; }
-  #btnSkip:hover { background:#37474f; }
   #msg { text-align:center; min-height:20px; font-size:0.85rem; color:#ffab91; margin-top:8px; }
 
   #gameOver { display:none; max-width:480px; margin:40px auto; background:#161b22; border-radius:16px; padding:28px; text-align:center; }
@@ -264,7 +262,6 @@
     <button id="btnEnd">턴 종료(등록)</button>
     <button id="btnUndo">한 단계 되돌리기</button>
     <button id="btnDraw">타일 뽑기 / 되돌리기</button>
-    <button id="btnSkip">타일 뽑기 없이 넘기기</button>
   </div>
   <div id="msg"></div>
 </div>
@@ -783,8 +780,6 @@ function render(){
   document.getElementById('btnEnd').disabled = !iAct;
   document.getElementById('btnDraw').disabled = !iAct;
   document.getElementById('btnUndo').disabled = !iAct || undoStack.length === 0;
-  // 풀이 비어있을 때만 "뽑기 없이 넘기기" 활성화
-  document.getElementById('btnSkip').disabled = !iAct || G.pool.length > 0;
 }
 
 // ============================================================
@@ -1013,20 +1008,6 @@ document.getElementById('btnUndo').addEventListener('click', () => {
   render();
 });
 
-document.getElementById('btnSkip').addEventListener('click', () => {
-  if (!canAct() || G.pool.length > 0) return;
-  // 풀이 비었을 때: 조합 되돌리기 후 턴 넘기기
-  if (!tableValid()){
-    const startTableIds = new Set(turnTableSnapshot.flat().map(t=>t.id));
-    const player = G.players[G.current];
-    const keepRack = player.rack.filter(t => !startTableIds.has(t.id));
-    const keepRackIds = new Set(keepRack.map(t=>t.id));
-    const returningTiles = turnRackSnapshot.filter(t => !keepRackIds.has(t.id));
-    G.table = deepCloneTable(turnTableSnapshot);
-    player.rack = keepRack.concat(returningTiles);
-  }
-  advanceTurn();
-});
 
 document.getElementById('btnAddTime').addEventListener('click', () => {
   if (!canAct()) return;
