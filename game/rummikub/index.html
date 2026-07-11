@@ -407,6 +407,40 @@ document.getElementById('btnJoinRoom').addEventListener('click', async () => {
   listenRoom();
 });
 
+// Firebase drops empty arrays (stores as null) and false values.
+// This restores the expected JS types so render() never crashes.
+function normalizeG(s) {
+  if (!s) return s;
+  // players: Firebase returns object with numeric keys if gaps exist, or array if sequential
+  if (s.players && !Array.isArray(s.players)) s.players = Object.values(s.players);
+  if (s.players) {
+    s.players = s.players.map(p => {
+      if (!p) return p;
+      // rack: same issue
+      if (p.rack && !Array.isArray(p.rack)) p.rack = Object.values(p.rack);
+      if (!p.rack) p.rack = [];
+      // restore joker:false (Firebase drops false booleans)
+      p.rack = p.rack.map(t => t && !('joker' in t) ? {...t, joker:false} : t).filter(Boolean);
+      if (p.melded === undefined) p.melded = false;
+      return p;
+    }).filter(Boolean);
+  }
+  // table: Firebase stores empty array [] as null
+  if (!s.table) s.table = [];
+  else if (!Array.isArray(s.table)) s.table = Object.values(s.table);
+  s.table = s.table.map(set => {
+    if (!set) return [];
+    if (!Array.isArray(set)) set = Object.values(set);
+    return set.map(t => t && !('joker' in t) ? {...t, joker:false} : t).filter(Boolean);
+  }).filter(Boolean);
+  // pool: may come as object with numeric keys
+  if (!s.pool) s.pool = [];
+  else if (!Array.isArray(s.pool)) s.pool = Object.values(s.pool);
+  s.pool = s.pool.map(t => t && !('joker' in t) ? {...t, joker:false} : t).filter(Boolean);
+  if (s.winner === undefined) s.winner = null;
+  return s;
+}
+
 function listenRoom(){
   document.getElementById('setup').style.display = 'none';
   document.getElementById('lobby').style.display = 'block';
@@ -423,13 +457,13 @@ function listenRoom(){
     } else if (!gameStarted){
       gameStarted = true;
       mode = 'online';
-      G = data.state;
+      G = normalizeG(data.state);
       lastTurnOwner = -2;
       gameOverShown = false;
       document.getElementById('lobby').style.display = 'none';
       enterGameScreen();
     } else {
-      G = data.state;
+      G = normalizeG(data.state);
       render();
     }
   });
