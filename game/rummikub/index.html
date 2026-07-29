@@ -635,6 +635,9 @@ function maybeStartTurn(){
     selected = null;
     dragRef = null;
     lockedIds = G.players[G.current].melded ? new Set() : new Set(G.table.flat().map(t=>t.id));
+    // 내 턴 시작 시 이전에 설정한 정렬 모드를 재적용 → 턴이 바뀌어도 정렬 유지
+    if (canAct() && sortMode) sortRack(G.players[G.current].rack);
+    // 정렬 적용 후 스냅샷 찍기 (타임아웃·되돌리기 시에도 정렬된 순서로 복원됨)
     turnTableSnapshot = deepCloneTable(G.table);
     turnRackSnapshot = G.players[G.current].rack.map(t=>({...t}));
     undoStack = [];
@@ -681,16 +684,25 @@ function onTimerExpired(){
   clearTurnTimer();
   if (!G || G.winner !== null || !canAct()) return;
   const player = G.players[G.current];
-  // 시간 초과 시 항상 이번 턴 변경 전체를 되돌림 (유효 여부 무관)
+  // 테이블을 턴 시작 상태로 복원
   G.table = deepCloneTable(turnTableSnapshot);
-  player.rack = turnRackSnapshot.map(t => ({...t}));
-  // 되돌렸으므로 타일을 낸 것이 없음 → 풀에서 강제 뽑기
+  // 현재 랙 순서를 유지하면서 테이블로 옮겼던 타일만 돌려받기 (btnDraw와 동일한 방식)
+  const currentRackIds = new Set(player.rack.map(t => t.id));
+  const returningTiles = turnRackSnapshot.filter(t => !currentRackIds.has(t.id));
+  player.rack = [...player.rack, ...returningTiles.map(t => ({...t}))];
+  // 풀에서 강제로 타일 1개 뽑기
   let drew = false;
   if (G.pool.length > 0){
     player.rack.push(G.pool.pop());
     drew = true;
   }
+  // 정렬 모드가 있으면 새로 추가된 타일도 정렬 위치에 맞게 재정렬
+  if (sortMode) sortRack(player.rack);
+  selected = null; dragRef = null;
   setMsg('⏰ 시간 초과! 이번 턴 변경이 취소되고 타일을 뽑았습니다.');
+  // 즉시 화면에 복원된 상태 표시
+  if (mode === 'online') syncTableLive();
+  render();
   setTimeout(() => advanceTurn(drew), 1200);
 }
 
