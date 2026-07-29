@@ -2208,13 +2208,10 @@ async function translateSel(rect, popClientX, popClientY) {
     crop.getContext('2d').drawImage(full,cx,cy,cw,ch,0,0,cw,ch);
     const b64=crop.toDataURL('image/jpeg',.92).split(',')[1];
 
-    // 1단계: 번역
-    const res=await fetch('https://api.groq.com/openai/v1/chat/completions',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},
-      body:JSON.stringify({model:'qwen/qwen3.6-27b',max_tokens:2048,temperature:0,
-        messages:[
-          {role:'system',content:`You are a professional Korean → ${LANG_FULL[targetLang]} translator.
+    // 1단계: 번역 (503 과부하 시 최대 3회 재시도)
+    const makeBody = (model) => JSON.stringify({model, max_tokens:2048, temperature:0,
+      messages:[
+        {role:'system',content:`You are a professional Korean → ${LANG_FULL[targetLang]} translator.
 CRITICAL RULE: The [TRANSLATED] tag MUST contain ONLY ${LANG_FULL[targetLang]} text. Do NOT use any other language. If the output is not in ${LANG_FULL[targetLang]}, you have failed.
 
 [Short word/phrase — 3 words or fewer]
@@ -2231,14 +2228,23 @@ CRITICAL RULE: The [TRANSLATED] tag MUST contain ONLY ${LANG_FULL[targetLang]} t
 - Output ONLY the two tags below. No greetings, explanations, or extra text.
 - [KOREAN] tag: recognized Korean source text only.
 - [TRANSLATED] tag: ${LANG_FULL[targetLang]} translation only. No other language allowed.`},
-          {role:'user',content:[
-            {type:'text',text:`이미지의 한국어 텍스트를 인식하고 ${LANG_FULL[targetLang]}로 번역하세요.\n\n형식:\n[KOREAN]인식한 한국어 원문[/KOREAN]\n[TRANSLATED]번역 결과[/TRANSLATED]`},
-            {type:'image_url',image_url:{url:`data:image/jpeg;base64,${b64}`}}
-          ]}
-        ]})
-    });
+        {role:'user',content:[
+          {type:'text',text:`이미지의 한국어 텍스트를 인식하고 ${LANG_FULL[targetLang]}로 번역하세요.\n\n형식:\n[KOREAN]인식한 한국어 원문[/KOREAN]\n[TRANSLATED]번역 결과[/TRANSLATED]`},
+          {type:'image_url',image_url:{url:`data:image/jpeg;base64,${b64}`}}
+        ]}
+      ]});
+    let res, json;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt > 0) await new Promise(r => setTimeout(r, attempt * 2000));
+      res = await fetch('https://api.groq.com/openai/v1/chat/completions',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},
+        body: makeBody('qwen/qwen3.6-27b')
+      });
+      if (res.status !== 503) break;
+    }
     if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(`[${res.status}] ${e.error?.message||''}`);}
-    const json=await res.json();
+    json=await res.json();
     const text=json.choices?.[0]?.message?.content||'';
     const kor=(text.match(/\[KOREAN\]([\s\S]*?)\[\/KOREAN\]/)||[])[1]?.trim()||'인식 실패';
     const rus=(text.match(/\[TRANSLATED\]([\s\S]*?)\[\/TRANSLATED\]/)||[])[1]?.trim()||'번역 실패';
