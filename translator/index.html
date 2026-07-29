@@ -1466,7 +1466,7 @@ async function renderPdfSlot(idx, fitToView) {
     const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
     await pdfPage.render({canvasContext: c.getContext('2d'), viewport: vp}).promise;
     const original = c.getContext('2d').getImageData(0, 0, c.width, c.height);
-    slots[i] = {original, width: c.width, height: c.height};
+    slots[i] = {original, width: c.width, height: c.height, pdfRef: slot.pdfRef, pageNum: slot.pageNum, scale};
   }
   try {
     await renderOne(idx);
@@ -1506,7 +1506,7 @@ async function prefetchAll() {
       const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
       await pdfPage.render({canvasContext: c.getContext('2d'), viewport: vp}).promise;
       const original = c.getContext('2d').getImageData(0, 0, c.width, c.height);
-      if (myId === _prefetchId) slots[i] = {original, width: c.width, height: c.height};
+      if (myId === _prefetchId) slots[i] = {original, width: c.width, height: c.height, pdfRef: slot.pdfRef, pageNum: slot.pageNum, scale};
     } catch(_) {}
     done++;
     bar.textContent = `📄 페이지 준비 중... ${done}/${total}`;
@@ -2202,69 +2202,81 @@ async function translateSel(rect, popClientX, popClientY) {
   popup.classList.add('visible');
 
   try {
-    const full=document.createElement('canvas'); full.width=page.width; full.height=page.height;
-    full.getContext('2d').putImageData(page.original,0,0);
-    // 이미지 최대 크기 제한 (토큰 절약)
-    const MAX_DIM = 800;
-    const scale = Math.min(1, MAX_DIM / Math.max(cw, ch));
-    const crop=document.createElement('canvas');
-    crop.width=Math.round(cw*scale); crop.height=Math.round(ch*scale);
-    crop.getContext('2d').drawImage(full,cx,cy,cw,ch,0,0,crop.width,crop.height);
-    const b64=crop.toDataURL('image/jpeg',.7).split(',')[1];
+    // 1단계: PDF 텍스트 레이어에서 선택 영역 텍스트 추출
+    let kor = '';
+    if (page.pdfRef) {
+      try {
+        const pdfPage = await page.pdfRef.getPage(page.pageNum);
+        const tc = await pdfPage.getTextContent();
+        const vp = pdfPage.getViewport({scale: page.scale || 1});
+        const items = tc.items.filter(item => {
+          if (!item.str.trim()) return false;
+          const tx = pdfjsLib.Util.transform(vp.transform, item.transform);
+          const ix = tx[4], iy = tx[5];
+          const iw = item.width * vp.scale, ih = Math.abs(item.height) * vp.scale;
+          return ix < cx+cw && ix+iw > cx && iy-ih < cy+ch && iy > cy;
+        });
+        kor = items.map(i => i.str).join(' ').trim();
+      } catch(_) {}
+    }
 
-    // 1단계: Gemini Flash로 번역 (빠르고 무료 한도 넉넉함)
-    const GEMINI_MODEL = 'gemini-2.0-flash-lite';
-    const geminiPrompt = `You are a professional Korean → ${LANG_FULL[targetLang]} translator.
-CRITICAL RULE: The [TRANSLATED] tag MUST contain ONLY ${LANG_FULL[targetLang]} text.
+    // PDF 텍스트 추출 실패 시 이미지 OCR 폴백
+    if (!kor) {
+      const full=document.createElement('canvas'); full.width=page.width; full.height=page.height;
+      full.getContext('2d').putImageData(page.original,0,0);
+      const MAX_DIM=800, imgScale=Math.min(1,MAX_DIM/Math.max(cw,ch));
+      const crop=document.createElement('canvas');
+      crop.width=Math.round(cw*imgScale); crop.height=Math.round(ch*imgScale);
+      crop.getContext('2d').drawImage(full,cx,cy,cw,ch,0,0,crop.width,crop.height);
+      const b64=crop.toDataURL('image/jpeg',.7).split(',')[1];
+      const vRes=await fetch('https://api.groq.com/openai/v1/chat/completions',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},
+        body:JSON.stringify({model:'qwen/qwen3.6-27b',max_tokens:512,temperature:0,
+          messages:[{role:'user',content:[
+            {type:'text',text:'이미지의 한국어 텍스트만 그대로 추출하세요. 다른 말 없이 텍스트만 출력.'},
+            {type:'image_url',image_url:{url:`data:image/jpeg;base64,${b64}`}}
+          ]}]})
+      });
+      if(vRes.ok){const vj=await vRes.json();kor=(vj.choices?.[0]?.message?.content||'').trim();}
+    }
+    if(!kor){document.getElementById('popKor').textContent='텍스트를 인식할 수 없습니다.';document.getElementById('popLoading').style.display='none';return;}
 
-[Short word/phrase — 3 words or fewer]
-- List the main meanings as a numbered list (max 5).
-- Each meaning: include part of speech and usage context.
-- Write ALL meanings in ${LANG_FULL[targetLang]} only.
-
-[Sentence/paragraph — 4 words or more]
-- Translate naturally into ${LANG_FULL[targetLang]}.
-- Use formal/textbook register.
-- Do NOT translate proper nouns, formulas, symbols, or units.
-
-Output ONLY two tags, no extra text:
-[KOREAN]인식한 한국어 원문[/KOREAN]
-[TRANSLATED]번역 결과[/TRANSLATED]
-
-이미지의 한국어 텍스트를 인식하고 ${LANG_FULL[targetLang]}로 번역하세요.`;
-
-    const gRes = await fetch(`https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,{
+    // 2단계: 번역 (Groq llama-3.3-70b, 텍스트만 전송)
+    const sysPrompt = `You are a professional Korean to ${LANG_FULL[targetLang]} translator.
+If 3 words or fewer: list main meanings as numbered list (max 5) with part of speech in ${LANG_FULL[targetLang]}.
+If 4+ words: translate naturally in formal register. Keep proper nouns and formulas as-is.
+Output ONLY: [TRANSLATED]result[/TRANSLATED]`;
+    const tRes=await fetch('https://api.groq.com/openai/v1/chat/completions',{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        contents:[{parts:[
-          {text: geminiPrompt},
-          {inline_data:{mime_type:'image/jpeg',data:b64}}
-        ]}],
-        generationConfig:{temperature:0, maxOutputTokens:2048}
-      })
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},
+      body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:1024,temperature:0,
+        messages:[
+          {role:'system',content:sysPrompt},
+          {role:'user',content:`Translate to ${LANG_FULL[targetLang]}:\n\n${kor}`}
+        ]})
     });
-    if(!gRes.ok){const e=await gRes.json().catch(()=>({}));throw new Error(`[${gRes.status}] ${e.error?.message||''}`);}
-    const gJson=await gRes.json();
-    const text=gJson.candidates?.[0]?.content?.parts?.[0]?.text||'';
-    const kor=(text.match(/\[KOREAN\]([\s\S]*?)\[\/KOREAN\]/)||[])[1]?.trim()||'인식 실패';
-    const rus=(text.match(/\[TRANSLATED\]([\s\S]*?)\[\/TRANSLATED\]/)||[])[1]?.trim()||'번역 실패';
+    if(!tRes.ok){const e=await tRes.json().catch(()=>({}));throw new Error(`[${tRes.status}] ${e.error?.message||''}`);}
+    const tJson=await tRes.json();
+    const tText=tJson.choices?.[0]?.message?.content||'';
+    const rus=(tText.match(/\[TRANSLATED\]([\s\S]*?)\[\/TRANSLATED\]/)||[])[1]?.trim()||tText.trim()||'번역 실패';
 
-    // 2단계: 발음 (Gemini Flash)
+    // 3단계: 발음
     let pronounc = '';
     if (rus && rus !== '번역 실패') {
       try {
-        const pRes=await fetch(`https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,{
+        const pRes=await fetch('https://api.groq.com/openai/v1/chat/completions',{
           method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({
-            contents:[{parts:[{text:`Convert this ${LANG_FULL[targetLang]} text to Korean phonetic pronunciation (한글 발음표기). Output ONLY Korean characters, no other script.\n\nRules:\n[Russian] а→아 б→브 в→브 г→그 д→드 е→예 ё→요 ж→줴 з→즈 и→이 к→크 л→르 м→므 н→느 о→오 п→프 р→르 с→스 т→트 у→우 х→흐 ц→츠 ч→취 ш→쉬 э→에 ю→유 я→야\n[English] Standard Korean loanword rules\n[Kazakh/Mongolian] Similar to Russian Cyrillic\n[Vietnamese] Phonetic approximation\n\nText: ${rus}`}]}],
-            generationConfig:{temperature:0, maxOutputTokens:256}
-          })
+          headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},
+          body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:128,temperature:0,
+            messages:[
+              {role:'system',content:`Convert foreign text to Korean phonetic pronunciation (한글 발음표기). Output ONLY Korean characters.\n[Russian] а→아 б→브 в→브 г→그 д→드 е→예 з→즈 и→이 к→크 л→르 м→므 н→느 о→오 п→프 р→르 с→스 т→트 у→우 х→흐 ц→츠 ч→취 ш→쉬 э→에 ю→유 я→야\n[English] Standard Korean loanword rules`},
+              {role:'user',content:`Pronounce in Korean 한글: ${rus}`}
+            ]})
         });
         if(pRes.ok){
-          const pJson=await pRes.json();
-          pronounc=(pJson.candidates?.[0]?.content?.parts?.[0]?.text||'').trim();
+          const pj=await pRes.json();
+          pronounc=(pj.choices?.[0]?.message?.content||'').trim();
           if(/[^가-힣ㄱ-ㆎ\s.,!?·~\-]/.test(pronounc)) pronounc='';
         }
       } catch(_) {}
@@ -2273,7 +2285,7 @@ Output ONLY two tags, no extra text:
     document.getElementById('popRus').textContent=rus;
     const pEl=document.getElementById('popPronunc');
     if(pronounc){pEl.textContent='🔤 '+pronounc;pEl.style.display='block';}else{pEl.style.display='none';}
-    if(kor !== '인식 실패') document.getElementById('popApply').classList.add('visible');
+    if(kor) document.getElementById('popApply').classList.add('visible');
   } catch(e) {
     document.getElementById('popKor').textContent='오류: '+e.message;
   } finally {
