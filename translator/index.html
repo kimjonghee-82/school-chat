@@ -2213,7 +2213,7 @@ async function translateSel(rect, popClientX, popClientY) {
     const b64=crop.toDataURL('image/jpeg',.7).split(',')[1];
 
     // 1단계: Gemini Flash로 번역 (빠르고 무료 한도 넉넉함)
-    const GEMINI_MODEL = 'gemini-1.5-flash';
+    const GEMINI_MODEL = 'gemini-2.0-flash-lite';
     const geminiPrompt = `You are a professional Korean → ${LANG_FULL[targetLang]} translator.
 CRITICAL RULE: The [TRANSLATED] tag MUST contain ONLY ${LANG_FULL[targetLang]} text.
 
@@ -2233,7 +2233,7 @@ Output ONLY two tags, no extra text:
 
 이미지의 한국어 텍스트를 인식하고 ${LANG_FULL[targetLang]}로 번역하세요.`;
 
-    const gRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,{
+    const gRes = await fetch(`https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
@@ -2254,7 +2254,7 @@ Output ONLY two tags, no extra text:
     let pronounc = '';
     if (rus && rus !== '번역 실패') {
       try {
-        const pRes=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,{
+        const pRes=await fetch(`https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,{
           method:'POST',
           headers:{'Content-Type':'application/json'},
           body:JSON.stringify({
