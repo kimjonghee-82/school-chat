@@ -2212,7 +2212,7 @@ async function translateSel(rect, popClientX, popClientY) {
     const res=await fetch('https://api.groq.com/openai/v1/chat/completions',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},
-      body:JSON.stringify({model:'qwen/qwen3-32b',max_tokens:2048,temperature:0,
+      body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:2048,temperature:0,
         messages:[
           {role:'system',content:`You are a professional Korean → ${LANG_FULL[targetLang]} translator.
 CRITICAL RULE: The [TRANSLATED] tag MUST contain ONLY ${LANG_FULL[targetLang]} text. Do NOT use any other language. If the output is not in ${LANG_FULL[targetLang]}, you have failed.
@@ -2250,7 +2250,7 @@ CRITICAL RULE: The [TRANSLATED] tag MUST contain ONLY ${LANG_FULL[targetLang]} t
         const res2=await fetch('https://api.groq.com/openai/v1/chat/completions',{
           method:'POST',
           headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},
-          body:JSON.stringify({model:'qwen/qwen3-32b',max_tokens:512,temperature:0,
+          body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:512,temperature:0,
             messages:[
               {role:'system',content:`You are a Korean phonetic transcription expert. Convert foreign text into Korean pronunciation (한글 발음표기). Output ONLY Korean characters — no Latin, Cyrillic, or any other script.
 
