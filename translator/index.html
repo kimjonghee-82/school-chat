@@ -2204,9 +2204,13 @@ async function translateSel(rect, popClientX, popClientY) {
   try {
     const full=document.createElement('canvas'); full.width=page.width; full.height=page.height;
     full.getContext('2d').putImageData(page.original,0,0);
-    const crop=document.createElement('canvas'); crop.width=cw; crop.height=ch;
-    crop.getContext('2d').drawImage(full,cx,cy,cw,ch,0,0,cw,ch);
-    const b64=crop.toDataURL('image/jpeg',.92).split(',')[1];
+    // 이미지 최대 크기 제한 (토큰 절약)
+    const MAX_DIM = 800;
+    const scale = Math.min(1, MAX_DIM / Math.max(cw, ch));
+    const crop=document.createElement('canvas');
+    crop.width=Math.round(cw*scale); crop.height=Math.round(ch*scale);
+    crop.getContext('2d').drawImage(full,cx,cy,cw,ch,0,0,crop.width,crop.height);
+    const b64=crop.toDataURL('image/jpeg',.7).split(',')[1];
 
     // 1단계: 번역 (503 과부하 시 최대 3회 재시도)
     const makeBody = (model) => JSON.stringify({model, max_tokens:2048, temperature:0,
@@ -2234,14 +2238,27 @@ CRITICAL RULE: The [TRANSLATED] tag MUST contain ONLY ${LANG_FULL[targetLang]} t
         ]}
       ]});
     let res, json;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      if (attempt > 0) await new Promise(r => setTimeout(r, attempt * 2000));
+    for (let attempt = 0; attempt < 4; attempt++) {
       res = await fetch('https://api.groq.com/openai/v1/chat/completions',{
         method:'POST',
         headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},
         body: makeBody('qwen/qwen3.6-27b')
       });
-      if (res.status !== 503) break;
+      if (res.ok) break;
+      if (res.status === 429 || res.status === 503) {
+        const errJson = await res.json().catch(()=>({}));
+        const msg = errJson.error?.message || '';
+        // 오류 메시지에서 대기 시간 추출 (예: "try again in 6.675s")
+        const waitMatch = msg.match(/try again in ([\d.]+)s/i);
+        const waitMs = waitMatch ? Math.ceil(parseFloat(waitMatch[1]) * 1000) + 500 : (attempt + 1) * 3000;
+        if (attempt < 3) {
+          document.getElementById('popRus').textContent = `잠시 대기 중... (${Math.ceil(waitMs/1000)}초)`;
+          await new Promise(r => setTimeout(r, waitMs));
+          continue;
+        }
+        throw new Error(`[${res.status}] ${msg}`);
+      }
+      break;
     }
     if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(`[${res.status}] ${e.error?.message||''}`);}
     json=await res.json();
