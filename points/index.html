@@ -167,10 +167,18 @@ body.mode-teacher{background:var(--bg);color:var(--text);}
 .bmood-btn.sel{border-color:var(--primary);background:#EEF2FF;color:var(--primary);}
 .book-search-box{border:2px dashed var(--primary-light);border-radius:var(--radius-sm);padding:14px;text-align:center;cursor:pointer;margin-bottom:12px;color:var(--primary);font-weight:600;font-size:14px;background:#EEF2FF;}
 .book-selected{background:linear-gradient(135deg,#EEF2FF,#F5F3FF);border:2px solid var(--primary-light);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;}
-.book-search-results{border:2px solid var(--border);border-radius:var(--radius-sm);background:#fff;overflow:hidden;max-height:180px;overflow-y:auto;}
-.bsearch-item{padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer;font-size:13px;transition:background .1s;}
-.bsearch-item:hover{background:var(--bg);}
+.book-search-results{border:2px solid var(--border);border-radius:var(--radius-sm);background:#fff;overflow:hidden;max-height:240px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.10);}
+.bsearch-item{padding:8px 12px;border-bottom:1px solid var(--border);cursor:pointer;font-size:13px;transition:background .1s;display:flex;align-items:center;gap:10px;}
+.bsearch-item:hover{background:#EEF2FF;}
 .bsearch-item:last-child{border-bottom:none;}
+.bsearch-thumb{width:32px;height:44px;border-radius:3px;object-fit:cover;flex-shrink:0;background:linear-gradient(135deg,#6366F1,#8B5CF6);display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff;}
+.bsearch-thumb img{width:100%;height:100%;object-fit:cover;border-radius:3px;}
+.bsearch-info{flex:1;min-width:0;}
+.bsearch-title{font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.bsearch-meta{font-size:11px;color:var(--text-light);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.bsearch-loading{padding:14px;text-align:center;color:var(--text-light);font-size:13px;}
+.bsearch-direct{padding:9px 12px;background:#F5F3FF;border-top:1px solid var(--border);cursor:pointer;font-size:12px;color:var(--primary);font-weight:600;display:flex;align-items:center;gap:6px;}
+.bsearch-direct:hover{background:#EEF2FF;}
 /* ── 독서 선반 (홈) ── */
 .book-shelf{display:flex;gap:10px;padding:14px 16px 10px;overflow-x:auto;-webkit-overflow-scrolling:touch;align-items:flex-end;}
 .book-shelf::-webkit-scrollbar{display:none;}
@@ -1034,10 +1042,10 @@ textarea.finput{resize:vertical;}
             <!-- 책 선택 -->
             <div class="fg">
                 <label>📚 책 선택 *</label>
-                <div id="stu-book-selected-area" class="book-search-box" onclick="document.getElementById('book-search-input').focus()">
-                    📚 책 검색 / 추천목록에서 선택
+                <div id="stu-book-selected-area" class="book-search-box" onclick="document.getElementById('stu-book-search-input').focus()">
+                    📚 책 제목을 검색하거나 직접 입력하세요
                 </div>
-                <input type="text" id="stu-book-search-input" class="finput" placeholder="책 제목을 검색하세요..." style="margin-bottom:6px" oninput="stu_searchBooks()" autocomplete="off">
+                <input type="text" id="stu-book-search-input" class="finput" placeholder="예: 아몬드, 해리포터, 어린왕자..." style="margin-bottom:6px" oninput="stu_searchBooks()" autocomplete="off">
                 <div id="stu-book-search-results" class="book-search-results" style="display:none"></div>
             </div>
             <!-- 읽은 날짜 -->
@@ -1910,7 +1918,7 @@ let stu_students=[],stu_missions=[],stu_roles=[],stu_storeItems=[],stu_bankDepos
     stu_savings=[],stu_stockPortfolio=[],stu_stockTxLog=[],stu_diary=[],stu_books=[];
 let stu_currentStudentId=null,stu_currentStudentName='',stu_curSavingType='1month',stu_selStockCode=null,
     stu_stockTradeMode='buy',stu_calcMode='free',stu_pickedMood=null,
-    stu_selBookStatus='done',stu_selBookMoods=new Set(),stu_selBookTitle=null,
+    stu_selBookStatus='done',stu_selBookMoods=new Set(),stu_selBookTitle=null,stu_selBookAuthor=null,stu_selBookCover=null,
     stu_curRecFilter='all';
 let _pc={};
 // 매일 자정에 주가 캐시 초기화 (탭을 오래 열어둔 경우 대비)
@@ -2361,10 +2369,12 @@ function stu_renderHomeBooks(){
         const bg=stu_bookColor(b.bookTitle);
         const si=statusIcon[b.status]||'📖';
         const shortTitle=b.bookTitle.length>12?b.bookTitle.substring(0,11)+'…':b.bookTitle;
+        const spineInner = b.bookCover
+            ? `<img src="${b.bookCover}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:4px 8px 8px 4px;" onerror="this.style.display='none'" loading="lazy"><span class="shelf-status-dot" style="position:relative;z-index:1">${si}</span>`
+            : `<span class="shelf-status-dot">${si}</span><div class="shelf-spine-title">${shortTitle}</div>`;
         return `<div class="shelf-book" onclick="stu_showBookDetail('${b.id}')" title="${b.bookTitle}">
             <div class="shelf-spine" style="background:${bg}">
-                <span class="shelf-status-dot">${si}</span>
-                <div class="shelf-spine-title">${shortTitle}</div>
+                ${spineInner}
             </div>
             <div class="shelf-book-label">${b.bookTitle}</div>
         </div>`;
@@ -2838,10 +2848,10 @@ function confirmSellStu(){
 
 /* ── 독서 카드 ── */
 function stu_openBookModal(){
-    stu_selBookTitle=null;stu_selBookStatus='done';stu_selBookMoods=new Set();
+    stu_selBookTitle=null;stu_selBookAuthor=null;stu_selBookCover=null;stu_selBookStatus='done';stu_selBookMoods=new Set();
     document.getElementById('stu-book-search-input').value='';
     document.getElementById('stu-book-search-results').style.display='none';
-    document.getElementById('stu-book-selected-area').innerHTML='📚 책 검색 / 추천목록에서 선택';
+    document.getElementById('stu-book-selected-area').innerHTML='📚 책 제목을 검색하거나 직접 입력하세요';
     document.getElementById('stu-book-selected-area').style.background='#EEF2FF';
     document.getElementById('stu-book-read-date').value=new Date().toISOString().split('T')[0];
     document.getElementById('stu-book-note').value='';
@@ -2850,40 +2860,104 @@ function stu_openBookModal(){
     stu_openModal('modal-book');
 }
 let _bookSearchTimer = null;
-function stu_searchBooks(){
-    const q=document.getElementById('stu-book-search-input').value.trim();
-    const res=document.getElementById('stu-book-search-results');
-    if(!q){res.style.display='none';return;}
-    // Show local matches immediately
-    const localMatches=stu_BOOK_LIST.filter(b=>b.toLowerCase().includes(q.toLowerCase())).slice(0,5);
-    const render=items=>{
-        const all=[...items];
-        if(!all.find(b=>b.toLowerCase()===q.toLowerCase()))all.push(q);
-        res.style.display='block';
-        res.innerHTML=all.map(b=>`<div class="bsearch-item" onclick="stu_selectBook('${b.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">📖 ${b}</div>`).join('');
-    };
-    render(localMatches);
-    // Debounce API call
-    clearTimeout(_bookSearchTimer);
-    _bookSearchTimer=setTimeout(async()=>{
-        try{
-            const url=`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=8&printType=books`;
-            const r=await fetch(url);const data=await r.json();
-            const apiBooks=(data.items||[]).map(it=>{
-                const v=it.volumeInfo;
-                return v.title+(v.authors?(' - '+v.authors[0]):'');
-            }).filter(Boolean);
-            const merged=[...new Set([...localMatches,...apiBooks])].slice(0,12);
-            render(merged);
-        }catch(e){/* keep local results */}
-    },400);
+let _bookSearchCache = {};
+
+function _bsThumb(cover){
+    if(cover) return `<div class="bsearch-thumb"><img src="${cover}" onerror="this.parentElement.innerHTML='📖'" loading="lazy"></div>`;
+    return `<div class="bsearch-thumb">📖</div>`;
 }
-function stu_selectBook(title){
-    stu_selBookTitle=title;
-    document.getElementById('stu-book-search-input').value='';
-    document.getElementById('stu-book-search-results').style.display='none';
-    document.getElementById('stu-book-selected-area').innerHTML='✅ <strong>'+title+'</strong>';
-    document.getElementById('stu-book-selected-area').style.background='#ECFDF5';
+function _bsItem(book){
+    const safe = t => (t||'').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+    return `<div class="bsearch-item" onclick="stu_selectBook('${safe(book.title)}','${safe(book.author||'')}','${safe(book.cover||'')}')">
+        ${_bsThumb(book.cover)}
+        <div class="bsearch-info">
+            <div class="bsearch-title">${book.title}</div>
+            ${book.author||book.publisher?`<div class="bsearch-meta">${[book.author,book.publisher].filter(Boolean).join(' · ')}</div>`:''}
+        </div>
+    </div>`;
+}
+
+function stu_searchBooks(){
+    const q = document.getElementById('stu-book-search-input').value.trim();
+    const res = document.getElementById('stu-book-search-results');
+    if(!q){ res.style.display='none'; return; }
+
+    // 1. 로컬 목록 즉시 표시
+    const localMatches = stu_BOOK_LIST
+        .filter(b => b.toLowerCase().includes(q.toLowerCase()))
+        .slice(0, 5)
+        .map(t => ({title: t, author:'', publisher:'', cover:''}));
+
+    const renderAll = (items) => {
+        const seen = new Set();
+        const deduped = items.filter(b => { if(seen.has(b.title)) return false; seen.add(b.title); return true; }).slice(0,12);
+        res.style.display = 'block';
+        let html = deduped.map(_bsItem).join('');
+        // 직접 입력 옵션 항상 하단에 표시
+        html += `<div class="bsearch-direct" onclick="stu_selectBook('${q.replace(/'/g,"\\'").replace(/"/g,'&quot;')}','','')">✏️ &nbsp;<strong>"${q}"</strong> 직접 입력</div>`;
+        res.innerHTML = html;
+    };
+
+    renderAll(localMatches);
+
+    clearTimeout(_bookSearchTimer);
+    _bookSearchTimer = setTimeout(async () => {
+        if(_bookSearchCache[q]){ renderAll([..._bookSearchCache[q], ...localMatches]); return; }
+
+        try {
+            // Google Books API — 한국어 우선
+            const gUrl = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=10&printType=books&langRestrict=ko&country=KR&orderBy=relevance`;
+            const gRes = await fetch(gUrl);
+            const gData = await gRes.json();
+            const gBooks = (gData.items||[]).map(it => {
+                const v = it.volumeInfo;
+                const cover = (v.imageLinks && (v.imageLinks.smallThumbnail || v.imageLinks.thumbnail)) || '';
+                return {
+                    title: v.title,
+                    author: (v.authors||[])[0] || '',
+                    publisher: v.publisher || '',
+                    cover: cover ? cover.replace('http://','https://') : ''
+                };
+            }).filter(b => b.title);
+
+            // Open Library — 한국어 포함 폭넓은 검색
+            const olUrl = `https://openlibrary.org/search.json?title=${encodeURIComponent(q)}&lang=kor&limit=8&fields=title,author_name,publisher,isbn`;
+            const olRes = await fetch(olUrl);
+            const olData = await olRes.json();
+            const olBooks = (olData.docs||[]).slice(0,8).map(doc => {
+                const isbn = (doc.isbn||[])[0];
+                const cover = isbn ? `https://covers.openlibrary.org/b/isbn/${isbn}-S.jpg` : '';
+                return {
+                    title: doc.title,
+                    author: (doc.author_name||[])[0] || '',
+                    publisher: (doc.publisher||[])[0] || '',
+                    cover: cover
+                };
+            }).filter(b => b.title);
+
+            const merged = [...gBooks, ...olBooks, ...localMatches];
+            _bookSearchCache[q] = merged;
+            renderAll(merged);
+        } catch(e) {
+            /* 네트워크 오류 시 로컬 결과 유지 */
+        }
+    }, 400);
+}
+
+function stu_selectBook(title, author, cover){
+    stu_selBookTitle = title;
+    stu_selBookAuthor = author || null;
+    stu_selBookCover = cover || null;
+    document.getElementById('stu-book-search-input').value = '';
+    document.getElementById('stu-book-search-results').style.display = 'none';
+    const area = document.getElementById('stu-book-selected-area');
+    const thumbHtml = cover
+        ? `<img src="${cover}" style="width:36px;height:50px;object-fit:cover;border-radius:3px;flex-shrink:0" onerror="this.style.display='none'">`
+        : '<span style="font-size:24px">📚</span>';
+    area.innerHTML = `<div style="display:flex;align-items:center;gap:10px">${thumbHtml}<div><div style="font-weight:700;font-size:14px">${title}</div>${author?`<div style="font-size:11px;color:#666">${author}</div>`:''}</div></div>`;
+    area.style.background = '#ECFDF5';
+    area.style.border = '2px solid #10B981';
+    area.style.cursor = 'default';
 }
 function stu_setBookStatus(status,el){
     stu_selBookStatus=status;
@@ -2898,7 +2972,7 @@ function stu_saveBookCard(){
     if(!stu_selBookTitle){alert('책을 선택해주세요');return;}
     const readDate=document.getElementById('stu-book-read-date').value;
     const note=document.getElementById('stu-book-note').value.trim();
-    stu_books.push({id:'book_'+Date.now(),studentId:stu_currentStudentId,bookTitle:stu_selBookTitle,readDate,status:stu_selBookStatus,moods:[...stu_selBookMoods],note,createdAt:new Date().toISOString()});
+    stu_books.push({id:'book_'+Date.now(),studentId:stu_currentStudentId,bookTitle:stu_selBookTitle,bookAuthor:stu_selBookAuthor||'',bookCover:stu_selBookCover||'',readDate,status:stu_selBookStatus,moods:[...stu_selBookMoods],note,createdAt:new Date().toISOString()});
     stu_saveBooks();stu_closeModal('modal-book');stu_renderHomeBooks();stu_renderRecords();alert('독서카드가 저장되었습니다 📚');
 }
 
