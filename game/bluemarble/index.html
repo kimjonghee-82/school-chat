@@ -109,58 +109,58 @@ body{font-family:'Noto Sans KR',sans-serif;background:#4caf50;min-height:100vh;o
 .back-link{color:#43a047;font-size:13px;cursor:pointer;text-decoration:underline;font-weight:700}
 
 /* ── GAME SCREEN ── */
-#game-screen{background:#5aaa55;padding:0;justify-content:flex-start;overflow:hidden auto}
-.game-wrap{width:100%;max-width:480px;margin:0 auto;padding:0 0 12px;min-height:100vh;display:flex;flex-direction:column}
+#game-screen{background:#52b04a;padding:0;justify-content:flex-start;overflow:hidden}
+.game-wrap{width:100%;max-width:500px;margin:0 auto;height:100vh;display:flex;flex-direction:column}
 
-.game-topbar{display:flex;align-items:center;gap:8px;padding:8px 10px;flex-shrink:0;background:rgba(0,0,0,.12)}
+.game-topbar{display:flex;align-items:center;gap:8px;padding:8px 10px;flex-shrink:0;background:rgba(0,0,0,.15)}
 .game-topbar .back-icon{font-size:20px;cursor:pointer;color:#fff;padding:4px 8px;background:rgba(0,0,0,.2);border-radius:8px}
 .game-title{color:#fff;font-size:15px;font-weight:900;flex:1;text-shadow:0 1px 3px rgba(0,0,0,.4)}
 .game-turn-badge{background:#fff;border-radius:20px;padding:4px 12px;font-size:11px;color:#2e7d32;font-weight:900}
 
-/* 보드 */
-.board{display:grid;grid-template-columns:repeat(7,1fr);grid-template-rows:repeat(7,1fr);gap:2px;flex-shrink:0;aspect-ratio:1/1;background:#5aaa55;padding:2px}
-.cell{background:#fffde7;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;text-align:center;position:relative;cursor:pointer;overflow:hidden;border-radius:5px;padding:0}
-.cell:active{filter:brightness(.92)}
-.cell-top-strip{width:100%;height:7px;flex-shrink:0}
-.cell-emoji{font-size:17px;line-height:1;margin:1px 0 0;filter:drop-shadow(0 1px 1px rgba(0,0,0,.12))}
-.cell-name{font-size:5.5px;font-weight:900;color:#333;line-height:1.1;word-break:keep-all;padding:0 1px}
-.cell-price{font-size:5px;color:#c62828;font-weight:900}
-.cell.corner{background:linear-gradient(135deg,#fff176,#ffee58);border-radius:5px}
-.cell.corner .cell-name{font-size:7px;color:#1b5e20;font-weight:900;margin-top:2px}
-.cell.key-cell{background:linear-gradient(135deg,#ffe0b2,#ffcc80)}
-.cell-owner-bar{position:absolute;bottom:0;left:0;right:0;height:4px;z-index:2}
-.player-token{position:absolute;width:18px;height:22px;z-index:3;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;pointer-events:none;filter:drop-shadow(0 2px 4px rgba(0,0,0,.5))}
-.player-token .token-body{width:16px;height:16px;border-radius:50%;border:2.5px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:900;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.6)}
-.player-token .token-shadow{width:10px;height:3px;background:rgba(0,0,0,.25);border-radius:50%;margin-top:1px}
-.player-token.active-player .token-body{animation:tokenBounce .55s ease-in-out infinite;box-shadow:0 0 0 3px rgba(255,255,255,.6),0 4px 10px rgba(0,0,0,.4)}
-.player-token.moving .token-body{animation:tokenPop .15s ease-out}
-@keyframes tokenBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
-@keyframes tokenPop{0%{transform:scale(1.5)}100%{transform:scale(1)}}
+/* 보드 - 화면 꽉 채움 */
+.board{display:grid;grid-template-columns:repeat(7,1fr);grid-template-rows:repeat(7,1fr);gap:2px;flex:1;min-height:0;background:#52b04a;padding:3px}
 
-/* 센터 패널 */
-.center-panel{background:linear-gradient(170deg,#37474f 0%,#263238 100%);border-radius:20px;border:none;flex-shrink:0;padding:10px 12px;margin:6px 6px 0;box-shadow:0 -2px 20px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.08)}
-.player-scores{display:flex;flex-direction:column;gap:3px;margin-bottom:8px}
-.score-row{display:flex;align-items:center;gap:8px;border-radius:10px;padding:5px 10px;background:rgba(255,255,255,.08)}
-.score-row.active-turn{background:linear-gradient(90deg,rgba(255,193,7,.3),rgba(255,193,7,.1));border-left:3px solid #ffc107}
-.score-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;border:2px solid rgba(255,255,255,.6)}
+/* 보드 중앙 패널 (5×5 center) */
+.board-center{grid-column:2/7;grid-row:2/7;background:linear-gradient(160deg,#2d3a40,#1c262b);border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:10px 8px;box-shadow:inset 0 2px 10px rgba(0,0,0,.5)}
+
+/* 칸 */
+.cell{background:#fffde7;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;text-align:center;position:relative;cursor:pointer;overflow:hidden;border-radius:6px}
+.cell:active{filter:brightness(.88)}
+.cell-top-strip{width:100%;height:8px;flex-shrink:0}
+.cell-emoji{font-size:20px;line-height:1;margin:2px 0 1px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.2))}
+.cell-name{font-size:7px;font-weight:900;color:#222;line-height:1.15;word-break:keep-all;padding:0 2px}
+.cell-price{font-size:6.5px;color:#c62828;font-weight:900}
+.cell.corner{background:linear-gradient(135deg,#fff176,#ffee58)}
+.cell.corner .cell-name{font-size:8.5px;color:#1b5e20;font-weight:900;margin-top:3px}
+.cell.key-cell{background:linear-gradient(135deg,#b3e5fc,#81d4fa)}
+.cell-owner-bar{position:absolute;bottom:0;left:0;right:0;height:5px;z-index:2}
+
+/* 플레이어 토큰 */
+.player-token{position:absolute;z-index:3;display:flex;flex-direction:column;align-items:center;pointer-events:none;filter:drop-shadow(0 3px 5px rgba(0,0,0,.55))}
+.player-token .token-body{width:22px;height:22px;border-radius:50%;border:3px solid #fff;box-shadow:0 3px 8px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.7)}
+.player-token .token-shadow{width:14px;height:4px;background:rgba(0,0,0,.3);border-radius:50%;margin-top:2px}
+.player-token.active-player .token-body{animation:tokenBounce .55s ease-in-out infinite;box-shadow:0 0 0 3px #fff,0 0 0 5px rgba(255,255,0,.6),0 4px 12px rgba(0,0,0,.4)}
+.player-token.moving .token-body{animation:tokenPop .18s ease-out}
+@keyframes tokenBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+@keyframes tokenPop{0%{transform:scale(1.6)}100%{transform:scale(1)}}
+
+/* 점수판 */
+.player-scores{display:flex;flex-direction:column;gap:4px;width:100%}
+.score-row{display:flex;align-items:center;gap:6px;border-radius:10px;padding:5px 8px;background:rgba(255,255,255,.1)}
+.score-row.active-turn{background:rgba(255,214,0,.25);border-left:3px solid #ffd600}
+.score-dot{width:13px;height:13px;border-radius:50%;flex-shrink:0;border:2.5px solid rgba(255,255,255,.7)}
 .score-name{color:#fff;font-size:12px;font-weight:900;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.score-money{display:flex;align-items:center;gap:3px}
-.score-money-icon{font-size:12px}
 .score-money-val{color:#ffd54f;font-size:12px;font-weight:900}
-.score-status{font-size:9px;color:#ff8a65;margin-left:4px;font-weight:700}
+.score-status{font-size:9px;color:#ff8a65;margin-left:3px;font-weight:700}
 
-.panel-mid{display:flex;align-items:center;gap:10px;margin-bottom:6px}
-.log-box{flex:1;background:rgba(0,0,0,.25);border-radius:12px;padding:7px 10px;height:52px;overflow-y:auto;font-size:10px;color:#90a4ae;line-height:1.5;border:1px solid rgba(255,255,255,.06)}
-.log-box .log-entry{animation:fadeIn .3s}
-@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
-
-.dice-wrap{display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0}
-.dice-btn{width:64px;height:64px;border-radius:50%;background:linear-gradient(145deg,#fff,#f5f5f5);border:none;box-shadow:0 6px 0 #9e9e9e,0 8px 16px rgba(0,0,0,.3);cursor:pointer;font-size:34px;display:flex;align-items:center;justify-content:center;transition:all .1s}
+/* 주사위 */
+.dice-wrap{display:flex;flex-direction:column;align-items:center;gap:4px}
+.dice-btn{width:68px;height:68px;border-radius:50%;background:linear-gradient(145deg,#fff,#f0f0f0);border:none;box-shadow:0 6px 0 #9e9e9e,0 8px 18px rgba(0,0,0,.35);cursor:pointer;font-size:36px;display:flex;align-items:center;justify-content:center;transition:all .1s}
 .dice-btn:active{transform:translateY(5px);box-shadow:0 1px 0 #9e9e9e}
-.dice-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:0 6px 0 #9e9e9e}
-.dice-label{font-size:9px;color:#78909c;font-weight:900;text-align:center}
-
-.turn-info{text-align:center;font-size:11px;color:#ffd54f;font-weight:900;margin-top:3px;text-shadow:0 1px 3px rgba(0,0,0,.3)}
+.dice-btn:disabled{opacity:.38;cursor:not-allowed;transform:none;box-shadow:0 6px 0 #9e9e9e}
+.dice-label{font-size:10px;color:#90a4ae;font-weight:900}
+.turn-info{font-size:11px;color:#ffd54f;font-weight:900;text-align:center;text-shadow:0 1px 4px rgba(0,0,0,.5)}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
 
 /* ── DEED MODAL ── */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;justify-content:center;align-items:center;z-index:200;backdrop-filter:blur(6px);padding:16px}
@@ -358,19 +358,18 @@ body{font-family:'Noto Sans KR',sans-serif;background:#4caf50;min-height:100vh;o
       <span class="game-turn-badge" id="turn-badge">1라운드</span>
     </div>
 
-    <div class="board" id="board"></div>
-
-    <div class="center-panel">
-      <div class="player-scores" id="player-scores"></div>
-      <div class="panel-mid">
-        <div class="log-box" id="log-box"></div>
+    <div class="board" id="board">
+      <!-- 보드 중앙 패널 (grid 2/7 × 2/7) -->
+      <div class="board-center">
+        <div class="player-scores" id="player-scores"></div>
         <div class="dice-wrap">
           <button class="dice-btn" id="dice-btn" onclick="takeTurn()">🎲</button>
           <div class="dice-label" id="dice-label">굴리기</div>
         </div>
+        <div class="turn-info" id="turn-info">게임 준비 중...</div>
       </div>
-      <div class="turn-info" id="turn-info">게임 준비 중...</div>
     </div>
+    <div id="log-box" style="display:none"></div>
   </div>
 </div>
 
@@ -424,25 +423,25 @@ const boardSpaces=[
   {id:0,type:'corner',name:'출발',emoji:'🏁'},
   {id:1,type:'property',name:'남지체육공원',price:10,toll:5,emoji:'🌸',color:'#ef9a9a',img:'img/namji_park.jpg',desc:'낙동강변의 아름다운 수변 공원. 봄에는 유채꽃이 가득합니다.'},
   {id:2,type:'property',name:'창녕박물관',price:15,toll:7,emoji:'🏛️',color:'#ef9a9a',img:'img/museum.jpg',desc:'비화가야의 역사와 유물을 한눈에 볼 수 있는 공립 박물관입니다.'},
-  {id:3,type:'key',name:'황금열쇠',emoji:'🗝️'},
+  {id:3,type:'key',name:'황금열쇠',emoji:'🃏'},
   {id:4,type:'property',name:'만년교',price:15,toll:7,emoji:'🌉',color:'#90caf9',img:'img/mannyeon_bridge.jpg',desc:'천년만년 무너지지 않는 조선시대 아치형 무지개다리, 대한민국 보물.'},
   {id:5,type:'property',name:'관룡사',price:20,toll:10,emoji:'🛕',color:'#90caf9',img:'img/gwanryongsa.jpg',desc:'화왕산 자락의 1,500년 역사를 가진 천년고찰.'},
   {id:6,type:'corner',name:'화왕산',emoji:'⛰️',desc:'무인도'},
   {id:7,type:'property',name:'창녕향교',price:25,toll:12,emoji:'🏫',color:'#a5d6a7',img:'img/changneyong_hyanggyo.jpg',desc:'전통적인 전학후묘 배치의 아름다운 향교.'},
   {id:8,type:'property',name:'교동고분군',price:30,toll:15,emoji:'🗿',color:'#a5d6a7',img:'img/gyodong_tomb.jpg',desc:'비화가야 왕릉급 무덤들. 봄엔 수양벚꽃이 장관.'},
-  {id:9,type:'key',name:'황금열쇠',emoji:'🗝️'},
+  {id:9,type:'key',name:'황금열쇠',emoji:'🃏'},
   {id:10,type:'property',name:'영산호국공원',price:35,toll:17,emoji:'🌳',color:'#ce93d8',img:'img/yeongsan_park.jpg',desc:'영산면의 아름다운 연지못. 수양벚꽃 명소.'},
   {id:11,type:'property',name:'비사벌문화제',price:40,toll:20,emoji:'🎊',color:'#ce93d8',img:'img/bisabeol_festival.jpg',desc:'매년 10월 창녕 최대의 지역 문화 대축제.'},
   {id:12,type:'corner',name:'창녕은행',emoji:'🏦',desc:'세금/복권'},
   {id:13,type:'property',name:'창녕양파장',price:45,toll:22,emoji:'🧅',color:'#ffcc80',img:'img/onion_market.jpg',desc:'전국 최대 양파 주산지 창녕의 핵심 공판장.'},
   {id:14,type:'property',name:'창녕마늘시장',price:50,toll:25,emoji:'🧄',color:'#ffcc80',img:'img/garlic_market.jpg',desc:'전국 마늘 가격 기준이 되는 마늘 공판장.'},
-  {id:15,type:'key',name:'황금열쇠',emoji:'🗝️'},
+  {id:15,type:'key',name:'황금열쇠',emoji:'🃏'},
   {id:16,type:'property',name:'산토끼노래동산',price:55,toll:27,emoji:'🐰',color:'#f48fb1',img:'img/santokki.jpg',desc:'국민동요 "산토끼" 발상지에 만들어진 가족 테마공원.'},
   {id:17,type:'property',name:'부곡하와이',price:60,toll:30,emoji:'🌊',color:'#f48fb1',img:'img/bugok_hawaii.jpg',desc:'대한민국 최초의 종합 워터파크. 추억의 명소.'},
   {id:18,type:'corner',name:'택시정류장',emoji:'🚕',desc:'이동'},
   {id:19,type:'property',name:'우포따오기',price:65,toll:32,emoji:'🦢',color:'#80cbc4',img:'img/upo_ibis.jpg',desc:'멸종위기 따오기를 복원하는 생태 연구시설.'},
   {id:20,type:'property',name:'유채꽃단지',price:70,toll:35,emoji:'🌼',color:'#80cbc4',img:'img/rapeseed.jpg',desc:'33만 평 전국 최대 규모의 봄꽃 명소.'},
-  {id:21,type:'key',name:'황금열쇠',emoji:'🗝️'},
+  {id:21,type:'key',name:'황금열쇠',emoji:'🃏'},
   {id:22,type:'property',name:'우포생태촌',price:80,toll:40,emoji:'🏕️',color:'#bcaaa4',img:'img/upo_village.jpg',desc:'우포늪 근처 자연 친화적 힐링 숙박시설.'},
   {id:23,type:'property',name:'우포늪',price:100,toll:50,emoji:'🌿',color:'#bcaaa4',img:'img/upo_marsh.jpg',desc:'1억4천만 년 전 형성된 대한민국 최대 자연 내륙 습지.'},
 ];
@@ -743,7 +742,7 @@ function updateUI(){
     let statusHtml='';
     if(p.isTrapped)statusHtml=`<span class="score-status">🔒${p.trapTurns}턴</span>`;
     else if(p.taxiNext)statusHtml=`<span class="score-status">🚕이동</span>`;
-    row.innerHTML=`<div class="score-dot" style="background:${p.color}"></div><div class="score-name">${p.name}${p.isAI?'🤖':''}</div><div class="score-money"><span class="score-money-icon">💰</span><span class="score-money-val">${p.money.toFixed(1)}만</span>${statusHtml}</div>`;
+    row.innerHTML=`<div class="score-dot" style="background:${p.color}"></div><div class="score-name">${p.name}${p.isAI?'🤖':''}</div><span class="score-money-val">💰${p.money.toFixed(1)}만</span>${statusHtml}`;
     scoresEl.appendChild(row);
   });
 
