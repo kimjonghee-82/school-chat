@@ -2,568 +2,1008 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>창녕 블루마블</title>
-<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap');
-    body {
-        font-family: 'Noto Sans KR', sans-serif;
-        background-color: #e0e7ff;
-        margin: 0;
-        overflow: hidden;
-        user-select: none;
-    }
-    .board-container { display:flex; justify-content:center; align-items:center; height:100vh; padding:10px; }
-    .board {
-        display:grid; grid-template-columns:repeat(7,1fr); grid-template-rows:repeat(7,1fr);
-        gap:4px; background-color:#1e1b4b; border:8px solid #1e1b4b;
-        border-radius:12px; width:95vmin; height:95vmin; max-width:800px; max-height:800px;
-        box-shadow:0 20px 25px -5px rgba(0,0,0,.1),0 10px 10px -5px rgba(0,0,0,.04);
-    }
-    .cell {
-        background:#fff; border-radius:6px; display:flex; flex-direction:column;
-        align-items:center; justify-content:center; text-align:center;
-        position:relative; padding:4px; box-shadow:inset 0 0 5px rgba(0,0,0,.05);
-        cursor:pointer; transition:filter .15s;
-    }
-    .cell:hover { filter:brightness(.93); }
-    .cell-title { font-size:11px; font-weight:900; line-height:1.2; word-break:keep-all; }
-    .cell-price { font-size:10px; color:#4b5563; margin-top:2px; }
-    .corner { background-color:#ffedd5; }
-    .corner .cell-title { color:#c2410c; font-size:13px; }
-    .golden-key { background-color:#fef08a; }
-    .golden-key .cell-title { color:#854d0e; }
-    .center-area {
-        grid-column:2/7; grid-row:2/7; background:linear-gradient(135deg,#f0f9ff 0%,#dbeafe 100%);
-        border-radius:8px; padding:15px; display:flex; flex-direction:column;
-        box-shadow:inset 0 0 20px rgba(0,0,0,.05); overflow:hidden;
-    }
-    .log-container {
-        flex-grow:1; background:rgba(255,255,255,.8); border:1px solid #bfdbfe;
-        border-radius:8px; padding:10px; overflow-y:auto; font-size:12px;
-        margin-bottom:10px; display:flex; flex-direction:column; gap:4px;
-    }
-    .log-entry { animation:fadeIn .3s ease-in-out; }
-    @keyframes fadeIn { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:translateY(0)} }
-    .player-token {
-        width:18px; height:18px; border-radius:50%; position:absolute;
-        border:2px solid white; box-shadow:0 2px 5px rgba(0,0,0,.3);
-        transition:all .4s ease-in-out; z-index:10;
-    }
-    .modal-overlay {
-        position:fixed; top:0; left:0; width:100%; height:100%;
-        background:rgba(0,0,0,.6); display:none; justify-content:center;
-        align-items:center; z-index:100; backdrop-filter:blur(3px);
-    }
-    .modal-content {
-        background:white; padding:25px; border-radius:16px; width:90%; max-width:400px;
-        text-align:center; box-shadow:0 25px 50px -12px rgba(0,0,0,.25);
-    }
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:'Noto Sans KR',sans-serif;background:#0d2057;min-height:100vh;overflow:hidden;user-select:none}
+.screen{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center}
+.screen.active{display:flex}
 
-    /* 권리증서 스타일 */
-    #deed-modal .modal-content {
-        max-width:420px; padding:0; overflow:hidden;
-        border:4px solid #1e1b4b;
-    }
-    .deed-header {
-        background:#1e1b4b; color:#fef08a; padding:10px 16px;
-        font-size:11px; letter-spacing:2px; text-transform:uppercase;
-        font-weight:900;
-    }
-    .deed-color-bar { height:40px; display:flex; align-items:center; justify-content:center; }
-    .deed-color-bar span { color:#fff; font-size:18px; font-weight:900; text-shadow:0 1px 3px rgba(0,0,0,.4); }
-    .deed-photo { width:100%; height:160px; object-fit:cover; display:block; }
-    .deed-photo-placeholder {
-        width:100%; height:160px; display:flex; align-items:center; justify-content:center;
-        font-size:48px; background:#f1f5f9;
-    }
-    .deed-body { padding:14px 18px 10px; }
-    .deed-name { font-size:20px; font-weight:900; color:#1e1b4b; margin-bottom:6px; }
-    .deed-desc { font-size:12px; color:#374151; line-height:1.6; margin-bottom:12px; text-align:left; }
-    .deed-table { width:100%; border-collapse:collapse; font-size:13px; margin-bottom:12px; }
-    .deed-table td { padding:5px 8px; border-bottom:1px solid #e5e7eb; }
-    .deed-table td:first-child { color:#6b7280; width:60%; }
-    .deed-table td:last-child { font-weight:700; color:#1e1b4b; text-align:right; }
-    .deed-owner-row { background:#f0f9ff; }
-    .deed-footer { padding:8px 18px 14px; display:flex; gap:8px; justify-content:center; }
-    .deed-btn {
-        flex:1; border:none; border-radius:10px; padding:10px 0; font-family:inherit;
-        font-size:15px; font-weight:700; cursor:pointer; transition:all .15s;
-    }
-    .deed-btn:active { transform:translateY(2px); }
-    .deed-btn.buy { background:#4f46e5; color:#fff; box-shadow:0 3px 0 #3730a3; }
-    .deed-btn.skip { background:#f3f4f6; color:#6b7280; box-shadow:0 3px 0 #d1d5db; }
-    .deed-btn.close { background:#e0e7ff; color:#3730a3; box-shadow:0 3px 0 #a5b4fc; }
+/* ── LOBBY ── */
+#lobby{background:linear-gradient(160deg,#0d2057 0%,#1a3a8f 50%,#0d2057 100%);overflow:hidden}
+.stars{position:absolute;inset:0;pointer-events:none}
+.star{position:absolute;width:3px;height:3px;background:#fff;border-radius:50%;animation:twinkle 3s infinite}
+@keyframes twinkle{0%,100%{opacity:.2}50%{opacity:1}}
+
+.lobby-top{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:14px 16px;background:rgba(0,0,0,.3)}
+.lobby-avatar{display:flex;align-items:center;gap:8px;color:#fff}
+.avatar-icon{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#4f8ef7,#2563eb);border:2px solid #fff;display:flex;align-items:center;justify-content:center;font-size:18px}
+.lobby-username{font-size:14px;font-weight:700}
+.coin-box{display:flex;align-items:center;gap:6px;background:rgba(0,0,0,.4);border-radius:20px;padding:6px 12px;border:1px solid #ffd700}
+.coin-icon{font-size:20px}
+.coin-count{color:#ffd700;font-weight:900;font-size:16px}
+.coin-plus{width:22px;height:22px;border-radius:50%;background:#27ae60;color:#fff;font-size:14px;font-weight:900;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center}
+
+.lobby-logo{margin-top:70px;text-align:center;position:relative;z-index:1}
+.logo-img{font-size:52px;line-height:1}
+.logo-text{font-size:28px;font-weight:900;color:#fff;text-shadow:0 0 20px #4f8ef7,0 4px 0 #0d2057;letter-spacing:1px;margin-top:4px}
+.logo-sub{font-size:12px;color:#a0b4e8;margin-top:2px}
+
+.lobby-side-left,.lobby-side-right{position:absolute;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:14px;z-index:1}
+.lobby-side-left{left:12px}
+.lobby-side-right{right:12px}
+.side-btn{width:68px;background:rgba(0,0,0,.5);border:2px solid rgba(255,255,255,.2);border-radius:14px;padding:10px 4px 8px;text-align:center;cursor:pointer;color:#fff;position:relative}
+.side-btn-icon{font-size:28px;line-height:1}
+.side-btn-label{font-size:9px;font-weight:700;margin-top:4px;color:#a0b4e8}
+.side-badge{position:absolute;top:-4px;right:-4px;background:#e74c3c;color:#fff;border-radius:10px;padding:1px 5px;font-size:9px;font-weight:900}
+
+.lobby-btns{display:flex;gap:16px;margin-top:30px;position:relative;z-index:1}
+.mode-btn{width:148px;border:none;border-radius:20px;padding:0;cursor:pointer;overflow:hidden;box-shadow:0 8px 0 rgba(0,0,0,.3),0 10px 20px rgba(0,0,0,.4);transition:transform .1s,box-shadow .1s;position:relative}
+.mode-btn:active{transform:translateY(4px);box-shadow:0 4px 0 rgba(0,0,0,.3)}
+.mode-btn-inner{padding:18px 10px 16px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.mode-btn.vs{background:linear-gradient(160deg,#f39c12,#e67e22)}
+.mode-btn.vs .mode-btn-inner{background:linear-gradient(160deg,#f9c74f,#f39c12)}
+.mode-btn.online{background:linear-gradient(160deg,#27ae60,#1e8449)}
+.mode-btn.online .mode-btn-inner{background:linear-gradient(160deg,#2ecc71,#27ae60)}
+.mode-icon{font-size:52px;line-height:1}
+.mode-label{font-size:15px;font-weight:900;color:#fff;text-shadow:0 2px 4px rgba(0,0,0,.4)}
+.lobby-footer{position:absolute;bottom:16px;font-size:11px;color:#4a6fa5;text-align:center}
+
+/* ── NAME INPUT ── */
+#name-screen{background:linear-gradient(160deg,#0d2057,#1a3a8f)}
+.name-card{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:24px;padding:30px 24px;width:90%;max-width:360px;text-align:center}
+.name-card h2{color:#fff;font-size:22px;font-weight:900;margin-bottom:6px}
+.name-card p{color:#a0b4e8;font-size:13px;margin-bottom:20px}
+.name-input{width:100%;background:rgba(255,255,255,.1);border:2px solid rgba(255,255,255,.2);border-radius:12px;padding:12px 16px;color:#fff;font-size:16px;font-family:inherit;outline:none;text-align:center}
+.name-input::placeholder{color:rgba(255,255,255,.4)}
+.name-input:focus{border-color:#4f8ef7}
+.name-btn{width:100%;margin-top:14px;border:none;border-radius:12px;padding:14px;font-family:inherit;font-size:17px;font-weight:700;cursor:pointer;transition:all .15s}
+.name-btn.primary{background:linear-gradient(135deg,#4f8ef7,#2563eb);color:#fff;box-shadow:0 4px 0 #1a4bab}
+.name-btn.primary:active{transform:translateY(3px);box-shadow:0 1px 0 #1a4bab}
+.name-btn.secondary{background:rgba(255,255,255,.1);color:#a0b4e8;margin-top:8px}
+
+/* ── ONLINE ROOM ── */
+#room-screen{background:linear-gradient(160deg,#0d2057,#1a3a8f)}
+.room-card{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:24px;padding:24px 20px;width:90%;max-width:380px}
+.room-card h2{color:#fff;font-size:20px;font-weight:900;text-align:center;margin-bottom:16px}
+.room-tabs{display:flex;gap:8px;margin-bottom:20px}
+.room-tab{flex:1;padding:10px;border:2px solid rgba(255,255,255,.2);border-radius:10px;background:transparent;color:#a0b4e8;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:all .15s}
+.room-tab.active{background:#4f8ef7;border-color:#4f8ef7;color:#fff}
+.room-section{display:none}
+.room-section.active{display:block}
+.room-label{font-size:12px;color:#a0b4e8;margin-bottom:6px;font-weight:700}
+.room-input{width:100%;background:rgba(255,255,255,.1);border:2px solid rgba(255,255,255,.2);border-radius:10px;padding:11px 14px;color:#fff;font-size:16px;font-family:inherit;outline:none;margin-bottom:12px;text-align:center;letter-spacing:3px}
+.room-input::placeholder{color:rgba(255,255,255,.3);letter-spacing:0}
+.room-input:focus{border-color:#4f8ef7}
+.room-code-display{background:rgba(79,142,247,.2);border:2px solid #4f8ef7;border-radius:12px;padding:16px;text-align:center;margin-bottom:16px}
+.room-code-display .code-label{font-size:12px;color:#a0b4e8;margin-bottom:6px}
+.room-code-display .code{font-size:36px;font-weight:900;color:#ffd700;letter-spacing:6px}
+.room-code-display .code-hint{font-size:11px;color:#a0b4e8;margin-top:4px}
+.waiting-box{text-align:center;padding:14px;background:rgba(0,0,0,.2);border-radius:12px;margin-bottom:14px}
+.waiting-box .waiting-text{color:#a0b4e8;font-size:13px;margin-bottom:10px}
+.waiting-players{display:flex;flex-direction:column;gap:6px}
+.waiting-player{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.08);border-radius:8px;padding:8px 12px}
+.waiting-player .dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.waiting-player .pname{color:#fff;font-size:14px;font-weight:700;flex:1}
+.waiting-player .role{color:#a0b4e8;font-size:11px}
+.start-game-btn{width:100%;border:none;border-radius:12px;padding:14px;font-family:inherit;font-size:17px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#27ae60,#1e8449);color:#fff;box-shadow:0 4px 0 #145a32;display:none}
+.start-game-btn.show{display:block}
+.start-game-btn:active{transform:translateY(3px);box-shadow:0 1px 0 #145a32}
+.back-btn-row{display:flex;justify-content:center;margin-top:12px}
+.back-link{color:#a0b4e8;font-size:13px;cursor:pointer;text-decoration:underline}
+
+/* ── GAME SCREEN ── */
+#game-screen{background:linear-gradient(160deg,#0d2057,#1a3a8f);padding:0;justify-content:flex-start;overflow:auto}
+.game-wrap{width:100%;max-width:500px;margin:0 auto;padding:8px;min-height:100vh;display:flex;flex-direction:column}
+
+.game-topbar{display:flex;align-items:center;gap:8px;padding:8px 4px;flex-shrink:0}
+.game-topbar .back-icon{font-size:22px;cursor:pointer;color:#fff;padding:4px 8px}
+.game-title{color:#fff;font-size:16px;font-weight:900;flex:1}
+.game-turn-badge{background:rgba(255,255,255,.15);border-radius:10px;padding:4px 10px;font-size:12px;color:#a0b4e8;font-weight:700}
+
+/* 보드 */
+.board{display:grid;grid-template-columns:repeat(7,1fr);grid-template-rows:repeat(7,1fr);gap:3px;border-radius:16px;overflow:hidden;border:3px solid rgba(255,255,255,.2);flex-shrink:0;aspect-ratio:1/1}
+.cell{background:rgba(255,255,255,.12);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;position:relative;cursor:pointer;transition:filter .15s;padding:2px;overflow:hidden}
+.cell:hover{filter:brightness(1.2)}
+.cell-img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0;opacity:.7;border-radius:3px}
+.cell-overlay{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.7) 0%,rgba(0,0,0,.1) 60%)}
+.cell-name{position:relative;font-size:7px;font-weight:900;color:#fff;line-height:1.1;word-break:keep-all;text-shadow:0 1px 2px rgba(0,0,0,.8);z-index:1}
+.cell-price{position:relative;font-size:6px;color:#ffd700;font-weight:700;z-index:1}
+.cell.corner{background:rgba(255,255,255,.2)}
+.cell.corner .cell-name{font-size:8px;color:#ffd700}
+.cell.key-cell{background:linear-gradient(135deg,rgba(255,215,0,.3),rgba(255,165,0,.3))}
+.cell-owner-bar{position:absolute;top:0;left:0;right:0;height:4px;z-index:2}
+.player-token{position:absolute;width:12px;height:12px;border-radius:50%;border:2px solid rgba(255,255,255,.8);box-shadow:0 2px 4px rgba(0,0,0,.4);z-index:3;transition:all .3s}
+
+/* 센터 패널 */
+.center-panel{background:rgba(10,20,60,.9);border-radius:14px;border:1px solid rgba(255,255,255,.15);flex-shrink:0;padding:10px;margin-top:4px}
+.player-scores{display:flex;flex-direction:column;gap:4px;margin-bottom:8px}
+.score-row{display:flex;align-items:center;gap:8px;border-radius:8px;padding:5px 8px;background:rgba(255,255,255,.06)}
+.score-row.active-turn{background:rgba(79,142,247,.2);border:1px solid rgba(79,142,247,.4)}
+.score-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+.score-name{color:#fff;font-size:12px;font-weight:700;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.score-money{display:flex;align-items:center;gap:3px}
+.score-money-icon{font-size:12px}
+.score-money-val{color:#ffd700;font-size:12px;font-weight:900}
+.score-status{font-size:9px;color:#e74c3c;margin-left:4px}
+
+.panel-mid{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.log-box{flex:1;background:rgba(255,255,255,.05);border-radius:10px;padding:7px 10px;height:52px;overflow-y:auto;font-size:10px;color:#a0b4e8;line-height:1.5}
+.log-box .log-entry{animation:fadeIn .3s}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+.dice-wrap{display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0}
+.dice-btn{width:60px;height:60px;border-radius:14px;background:linear-gradient(135deg,#4f8ef7,#2563eb);border:3px solid rgba(255,255,255,.4);box-shadow:0 4px 0 #1a4bab,0 6px 12px rgba(0,0,0,.3);cursor:pointer;font-size:28px;display:flex;align-items:center;justify-content:center;transition:all .1s;color:#fff}
+.dice-btn:active{transform:translateY(3px);box-shadow:0 1px 0 #1a4bab}
+.dice-btn:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:0 4px 0 #1a4bab}
+.dice-label{font-size:9px;color:#a0b4e8;font-weight:700;text-align:center}
+
+.turn-info{text-align:center;font-size:11px;color:#ffd700;font-weight:700;margin-top:2px}
+
+/* ── DEED MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;justify-content:center;align-items:center;z-index:200;backdrop-filter:blur(4px);padding:16px}
+.modal-overlay.show{display:flex}
+.deed-card{background:#0d2057;border:2px solid rgba(255,255,255,.2);border-radius:20px;width:100%;max-width:340px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.deed-header{padding:12px 16px;text-align:center;font-size:11px;font-weight:700;color:rgba(255,255,255,.6);letter-spacing:2px;border-bottom:1px solid rgba(255,255,255,.1)}
+.deed-color-strip{height:44px;display:flex;align-items:center;justify-content:center}
+.deed-color-strip span{font-size:17px;font-weight:900;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.5)}
+.deed-photo-wrap{position:relative;height:150px;overflow:hidden}
+.deed-photo-wrap img{width:100%;height:100%;object-fit:cover}
+.deed-photo-fallback{width:100%;height:100%;background:linear-gradient(135deg,#1a3a8f,#2563eb);display:flex;align-items:center;justify-content:center;font-size:48px}
+.deed-body{padding:14px 18px 10px}
+.deed-name{font-size:19px;font-weight:900;color:#fff;margin-bottom:6px}
+.deed-desc{font-size:11px;color:#a0b4e8;line-height:1.6;margin-bottom:12px}
+.deed-stats{display:flex;gap:8px;margin-bottom:12px}
+.deed-stat{flex:1;background:rgba(255,255,255,.08);border-radius:10px;padding:8px;text-align:center}
+.deed-stat-label{font-size:10px;color:#a0b4e8;margin-bottom:3px}
+.deed-stat-val{font-size:16px;font-weight:900;color:#ffd700}
+.deed-owner-row{background:rgba(79,142,247,.15);border-radius:8px;padding:7px 12px;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;font-size:12px;color:#a0b4e8}
+.deed-footer{display:flex;gap:8px;padding:0 18px 16px}
+.deed-btn{flex:1;border:none;border-radius:12px;padding:12px 0;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:all .12s}
+.deed-btn:active{transform:translateY(2px)}
+.deed-btn.buy{background:linear-gradient(135deg,#4f8ef7,#2563eb);color:#fff;box-shadow:0 3px 0 #1a4bab}
+.deed-btn.skip{background:rgba(255,255,255,.1);color:#a0b4e8}
+.deed-btn.close{background:linear-gradient(135deg,#27ae60,#1e8449);color:#fff;box-shadow:0 3px 0 #145a32}
+
+/* 일반 모달 */
+.info-modal{background:#0d2057;border:2px solid rgba(255,255,255,.2);border-radius:20px;width:100%;max-width:320px;padding:24px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.info-modal h3{color:#fff;font-size:18px;font-weight:900;margin-bottom:12px}
+.info-modal p{color:#a0b4e8;font-size:13px;line-height:1.7;margin-bottom:20px;white-space:pre-line}
+.info-modal .modal-btns{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.modal-btn{border:none;border-radius:10px;padding:10px 20px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:all .12s}
+.modal-btn:active{transform:translateY(2px)}
+.modal-btn.primary{background:linear-gradient(135deg,#4f8ef7,#2563eb);color:#fff;box-shadow:0 3px 0 #1a4bab}
+.modal-btn.danger{background:linear-gradient(135deg,#e74c3c,#c0392b);color:#fff;box-shadow:0 3px 0 #922b21}
+.modal-btn.secondary{background:rgba(255,255,255,.1);color:#a0b4e8}
+.modal-btn.taxi-select{width:100%;margin-bottom:4px;background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.15)}
+
+/* 택시 select */
+.taxi-sel{width:100%;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:10px;color:#fff;font-family:inherit;font-size:14px;margin-bottom:12px}
+
+/* 스피너 */
+.spinner{width:36px;height:36px;border:4px solid rgba(255,255,255,.1);border-top-color:#4f8ef7;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* 반응형 */
+@media(max-height:700px){
+  .lobby-logo{margin-top:60px}
+  .lobby-btns{margin-top:20px}
+  .mode-btn{width:130px}
+  .mode-icon{font-size:40px}
+}
 </style>
 </head>
 <body>
 
-<!-- 시작 화면 -->
-<div id="setup-screen" class="fixed inset-0 bg-indigo-50 flex justify-center items-center z-50">
-    <div class="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full text-center">
-        <h1 class="text-3xl font-black text-indigo-900 mb-2">창녕 블루마블</h1>
-        <p class="text-sm text-gray-500 mb-6">주사위를 굴려 창녕의 명소들을 정복하세요!</p>
-        <div class="mb-6 bg-indigo-50 p-4 rounded-lg text-sm">
-            <p class="font-bold mb-1">시작 자본금: 277만 5,000원</p>
-            <p class="text-xs text-gray-600">(50만 3장, 10만 10장, 5만 5장, 1만 5장, 5천 5장, 1천 5장)</p>
-        </div>
-        <div class="mb-6 flex justify-center items-center gap-4">
-            <label class="font-bold text-gray-700">인원수 (2~4명)</label>
-            <select id="player-count" class="border-2 border-indigo-200 rounded-lg p-2 font-bold focus:outline-none focus:border-indigo-500">
-                <option value="2">2명</option>
-                <option value="3">3명</option>
-                <option value="4" selected>4명</option>
-            </select>
-        </div>
-        <button onclick="initGame()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl transition duration-200">
-            게임 시작 및 순서 정하기
-        </button>
+<!-- ══════════ LOBBY ══════════ -->
+<div id="lobby" class="screen active">
+  <div class="stars" id="stars"></div>
+  <div class="lobby-top">
+    <div class="lobby-avatar">
+      <div class="avatar-icon">🗺️</div>
+      <span class="lobby-username">창녕 블루마블</span>
     </div>
+    <div class="coin-box">
+      <span class="coin-icon">🪙</span>
+      <span class="coin-count" id="coin-display">5000</span>
+      <button class="coin-plus">+</button>
+    </div>
+  </div>
+
+  <div class="lobby-side-left">
+    <div class="side-btn">
+      <div class="side-btn-icon">🎁</div>
+      <div class="side-btn-label">일일 선물</div>
+      <div class="side-badge">!</div>
+    </div>
+    <div class="side-btn">
+      <div class="side-btn-icon">🏆</div>
+      <div class="side-btn-label">랭킹</div>
+    </div>
+  </div>
+
+  <div class="lobby-logo">
+    <div class="logo-img">🗺️🎲</div>
+    <div class="logo-text">창녕 블루마블</div>
+    <div class="logo-sub">창녕의 명소를 정복하라!</div>
+  </div>
+
+  <div class="lobby-side-right">
+    <div class="side-btn">
+      <div class="side-btn-icon">🌿</div>
+      <div class="side-btn-label">우포늪</div>
+    </div>
+    <div class="side-btn">
+      <div class="side-btn-icon">🦢</div>
+      <div class="side-btn-label">따오기</div>
+    </div>
+  </div>
+
+  <div class="lobby-btns">
+    <button class="mode-btn vs" onclick="goVsComputer()">
+      <div class="mode-btn-inner">
+        <div class="mode-icon">🤖</div>
+        <div class="mode-label">컴퓨터 대전</div>
+      </div>
+    </button>
+    <button class="mode-btn online" onclick="goOnline()">
+      <div class="mode-btn-inner">
+        <div class="mode-icon">👥</div>
+        <div class="mode-label">친구와 함께</div>
+      </div>
+    </button>
+  </div>
+
+  <div class="lobby-footer">창녕군 교육청 · School Apps</div>
 </div>
 
-<!-- 게임 화면 -->
-<div id="game-screen" class="board-container hidden">
-    <div class="board" id="board">
-        <div class="center-area relative">
-            <div class="text-center mb-2">
-                <h2 class="text-xl font-black text-indigo-900">창녕 블루마블</h2>
-                <div id="bank-status" class="text-xs font-bold text-green-600 mt-1">은행 보관금: 0만 원</div>
-            </div>
-            <div id="current-turn-indicator" class="text-center text-lg font-bold mb-2 transition-colors duration-300">대기 중...</div>
-            <div class="log-container" id="log-box"></div>
-            <button id="roll-btn" onclick="takeTurn()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-lg transform active:scale-95 transition duration-150 flex items-center justify-center gap-2">
-                <span class="text-xl">🎲</span> 주사위 굴리기
-            </button>
-            <div class="mt-3 bg-white rounded-lg border border-gray-200 overflow-hidden">
-                <table class="w-full text-xs text-center">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="py-1 border-b">플레이어</th>
-                            <th class="py-1 border-b">자금</th>
-                            <th class="py-1 border-b">상태</th>
-                        </tr>
-                    </thead>
-                    <tbody id="player-status-body"></tbody>
-                </table>
-            </div>
-        </div>
+<!-- ══════════ 이름 입력 ══════════ -->
+<div id="name-screen" class="screen">
+  <div class="name-card">
+    <h2>🤖 컴퓨터 대전</h2>
+    <p>닉네임을 입력하고 게임을 시작하세요!</p>
+    <input class="name-input" id="vs-name-input" type="text" placeholder="닉네임 입력" maxlength="10">
+    <button class="name-btn primary" onclick="startVsComputer()">게임 시작</button>
+    <button class="name-btn secondary" onclick="showScreen('lobby')">← 돌아가기</button>
+  </div>
+</div>
+
+<!-- ══════════ 온라인 룸 ══════════ -->
+<div id="room-screen" class="screen">
+  <div class="room-card">
+    <h2>👥 친구와 함께</h2>
+    <div class="room-tabs">
+      <button class="room-tab active" id="tab-create" onclick="switchRoomTab('create')">방 만들기</button>
+      <button class="room-tab" id="tab-join" onclick="switchRoomTab('join')">방 참가하기</button>
     </div>
+
+    <!-- 방 만들기 -->
+    <div class="room-section active" id="sec-create">
+      <div class="room-label">내 닉네임</div>
+      <input class="room-input" id="create-name" placeholder="닉네임 입력" maxlength="10" style="letter-spacing:0">
+      <div class="room-label">인원수 선택</div>
+      <select class="room-input" id="create-count" style="letter-spacing:0;background:rgba(255,255,255,.1);border:2px solid rgba(255,255,255,.2);border-radius:10px;padding:11px 14px;color:#fff;font-family:inherit;font-size:15px;outline:none;margin-bottom:12px;-webkit-appearance:none">
+        <option value="2">2명</option>
+        <option value="3">3명</option>
+        <option value="4" selected>4명</option>
+      </select>
+      <button class="name-btn primary" onclick="createRoom()" style="border-radius:10px;padding:12px">방 만들기</button>
+
+      <!-- 대기 화면 -->
+      <div id="room-waiting" style="display:none;margin-top:12px">
+        <div class="room-code-display">
+          <div class="code-label">방 번호를 친구에게 알려주세요</div>
+          <div class="code" id="room-code-display">----</div>
+          <div class="code-hint">친구가 이 번호로 입장합니다</div>
+        </div>
+        <div class="waiting-box">
+          <div class="waiting-text">플레이어 대기 중...</div>
+          <div class="waiting-players" id="waiting-list"></div>
+        </div>
+        <button class="start-game-btn" id="start-room-btn" onclick="startRoomGame()">🎮 게임 시작!</button>
+      </div>
+    </div>
+
+    <!-- 방 참가하기 -->
+    <div class="room-section" id="sec-join">
+      <div class="room-label">내 닉네임</div>
+      <input class="room-input" id="join-name" placeholder="닉네임 입력" maxlength="10" style="letter-spacing:0">
+      <div class="room-label">방 번호</div>
+      <input class="room-input" id="join-code" placeholder="0000" maxlength="4" type="number">
+      <button class="name-btn primary" onclick="joinRoom()" style="border-radius:10px;padding:12px">참가하기</button>
+      <div id="join-waiting" style="display:none;margin-top:12px;text-align:center">
+        <div class="spinner"></div>
+        <div style="color:#a0b4e8;font-size:13px">방장이 게임을 시작할 때까지 기다려주세요...</div>
+        <div class="waiting-box" style="margin-top:10px">
+          <div class="waiting-players" id="join-waiting-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="back-btn-row">
+      <span class="back-link" onclick="leaveRoom()">← 로비로 돌아가기</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ GAME ══════════ -->
+<div id="game-screen" class="screen">
+  <div class="game-wrap">
+    <div class="game-topbar">
+      <span class="game-topbar back-icon" onclick="confirmLeaveGame()">←</span>
+      <span class="game-title">창녕 블루마블</span>
+      <span class="game-turn-badge" id="turn-badge">1라운드</span>
+    </div>
+
+    <div class="board" id="board"></div>
+
+    <div class="center-panel">
+      <div class="player-scores" id="player-scores"></div>
+      <div class="panel-mid">
+        <div class="log-box" id="log-box"></div>
+        <div class="dice-wrap">
+          <button class="dice-btn" id="dice-btn" onclick="takeTurn()">🎲</button>
+          <div class="dice-label" id="dice-label">굴리기</div>
+        </div>
+      </div>
+      <div class="turn-info" id="turn-info">게임 준비 중...</div>
+    </div>
+  </div>
+</div>
+
+<!-- 증서 모달 -->
+<div class="modal-overlay" id="deed-modal">
+  <div class="deed-card">
+    <div class="deed-header">🏛 창녕 블루마블 · 권리 증서</div>
+    <div class="deed-color-strip" id="deed-strip"><span id="deed-strip-name"></span></div>
+    <div class="deed-photo-wrap" id="deed-photo-wrap"></div>
+    <div class="deed-body">
+      <div class="deed-name" id="deed-name"></div>
+      <div class="deed-desc" id="deed-desc"></div>
+      <div class="deed-stats">
+        <div class="deed-stat"><div class="deed-stat-label">구매가</div><div class="deed-stat-val" id="deed-price"></div></div>
+        <div class="deed-stat"><div class="deed-stat-label">통행료</div><div class="deed-stat-val" id="deed-toll"></div></div>
+      </div>
+      <div class="deed-owner-row" id="deed-owner-row" style="display:none">
+        <span>소유자</span><span id="deed-owner"></span>
+      </div>
+    </div>
+    <div class="deed-footer" id="deed-footer"></div>
+  </div>
 </div>
 
 <!-- 일반 모달 -->
-<div id="global-modal" class="modal-overlay">
-    <div class="modal-content">
-        <h3 id="modal-title" class="text-xl font-bold text-gray-900 mb-4">알림</h3>
-        <div id="modal-body" class="text-gray-600 mb-6 text-sm whitespace-pre-line"></div>
-        <div id="modal-buttons" class="flex justify-center gap-3"></div>
-    </div>
-</div>
-
-<!-- 권리증서 모달 -->
-<div id="deed-modal" class="modal-overlay">
-    <div class="modal-content" style="text-align:left">
-        <div class="deed-header">🏛 창녕 블루마블 · 권리증서</div>
-        <div id="deed-color-bar" class="deed-color-bar"><span id="deed-bar-name"></span></div>
-        <div id="deed-photo-wrap"></div>
-        <div class="deed-body">
-            <div id="deed-name" class="deed-name"></div>
-            <div id="deed-desc" class="deed-desc"></div>
-            <table class="deed-table">
-                <tr><td>구매 가격</td><td id="deed-price"></td></tr>
-                <tr><td>통행료</td><td id="deed-toll"></td></tr>
-                <tr id="deed-owner-row" class="deed-owner-row" style="display:none">
-                    <td>소유자</td><td id="deed-owner"></td>
-                </tr>
-            </table>
-        </div>
-        <div class="deed-footer" id="deed-footer"></div>
-    </div>
+<div class="modal-overlay" id="info-modal">
+  <div class="info-modal">
+    <h3 id="info-title">알림</h3>
+    <p id="info-body"></p>
+    <div class="modal-btns" id="info-btns"></div>
+  </div>
 </div>
 
 <script>
-const INITIAL_MONEY = 277.5;
-const COLORS = ['#ef4444','#3b82f6','#10b981','#f59e0b'];
-const COLOR_BG = ['#fee2e2','#dbeafe','#d1fae5','#fef3c7'];
+// ── Firebase 초기화 ──
+const firebaseConfig = { databaseURL:"https://school-chat-7051e-default-rtdb.firebaseio.com/" };
+if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
-// 보드 명소 데이터 (사진 + 설명 포함)
-const boardSpaces = [
-    { id:0, type:'corner', name:'출발/도착', desc:'월급 10만원', emoji:'🏁' },
-    { id:1, type:'property', name:'남지체육공원', price:10, toll:5,
-      img:'img/namji_park.jpg',
-      desc:'창녕군 남지읍 낙동강변에 위치한 남지체육공원은 매년 봄 황홀한 노란 유채꽃 물결이 펼쳐지는 창녕 낙동강 유채축제의 개최지이자, 탁 트인 낙동강을 바라보며 산책과 자전거 라이딩을 즐길 수 있는 대표적인 수변 공원입니다.' },
-    { id:2, type:'property', name:'창녕박물관', price:15, toll:7,
-      img:'img/museum.jpg',
-      desc:'창녕박물관은 가야 시대 비화가야의 중심지였던 창녕의 역사와 교동 및 송현동 고분군에서 출토된 유물을 한눈에 볼 수 있는 대표적인 공립 박물관입니다.' },
-    { id:3, type:'key', name:'황금열쇠', emoji:'🗝️' },
-    { id:4, type:'property', name:'만년교', price:15, toll:7,
-      img:'img/mannyeon_bridge.jpg',
-      desc:'이름처럼 "천년만년 무너지지 않는 다리"라는 뜻을 가진 창녕 영산 만년교는 경상남도 창녕군 영산면에 위치한 조선 시대의 아름다운 무지개다리(아치교)이자 대한민국의 보물입니다.' },
-    { id:5, type:'property', name:'관룡사', price:20, toll:10,
-      img:'img/gwanryongsa.jpg',
-      desc:'창녕 관룡사는 화왕산 군립공원 자락에 위치한 1,500년 역사의 천년고찰이자 불교 예술 문화재의 보고입니다.' },
+// ── 별 생성 ──
+(function(){
+  const s=document.getElementById('stars');
+  for(let i=0;i<60;i++){
+    const el=document.createElement('div');
+    el.className='star';
+    el.style.left=Math.random()*100+'%';
+    el.style.top=Math.random()*100+'%';
+    el.style.animationDelay=Math.random()*3+'s';
+    el.style.animationDuration=(2+Math.random()*3)+'s';
+    s.appendChild(el);
+  }
+})();
 
-    { id:6, type:'corner', name:'화왕산', desc:'무인도', emoji:'⛰️' },
+// ── 화면 전환 ──
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
 
-    { id:7, type:'property', name:'창녕향교', price:25, toll:12,
-      img:'img/changneyong_hyanggyo.jpg',
-      desc:'창녕향교는 출입문인 외삼문, 공부하는 곳인 명륜당과 동·서재, 사당인 대성전과 동·서무 등의 건물이 있으며, 앞에 명륜당이 있고 뒤에 대성전이 있는 전형적인 전학후묘의 배치를 이루고 있습니다.' },
-    { id:8, type:'property', name:'교동고분군', price:30, toll:15,
-      img:'img/gyodong_tomb.jpg',
-      desc:'창녕 교동과 송현동 고분군은 가야 연맹을 구성했던 비화가야 지배 세력의 왕릉급 무덤들입니다. 봄철 흐드러지게 피어나는 수양벚꽃 명소로도 유명합니다.' },
-    { id:9, type:'key', name:'황금열쇠', emoji:'🗝️' },
-    { id:10, type:'property', name:'영산호국공원', price:35, toll:17,
-      img:'img/yeongsan_park.jpg',
-      desc:'창녕 연지못은 경상남도 창녕군 영산면에 위치한 아름다운 인공 저수지로, 봄철 흐드러지게 피어나는 수양벚꽃 명소이자 조선시대 선조들의 지혜가 담긴 역사적 치수 공간입니다.' },
-    { id:11, type:'property', name:'비사벌문화제', price:40, toll:20,
-      img:'img/bisabeol_festival.jpg',
-      desc:'창녕군의 역사와 문화를 계승하고 군민 화합을 다지기 위해 1987년부터 매년 가을(보통 10월)에 개최되는 대표적인 지역 문화 대축제입니다.' },
-
-    { id:12, type:'corner', name:'창녕은행', desc:'세금/복권', emoji:'🏦' },
-
-    { id:13, type:'property', name:'창녕양파장', price:45, toll:22,
-      img:'img/onion_market.jpg',
-      desc:'경남 창녕군의 주요 양파 및 마늘 농산물 경매가 이루어지는 핵심 공판장으로, 창녕농협 산지유통센터 공판장, 이방농협 농산물공판장, 남지농협 농산물공판장 등 총 3곳이 있습니다.' },
-    { id:14, type:'property', name:'창녕마늘시장', price:50, toll:25,
-      img:'img/garlic_market.jpg',
-      desc:'경남 창녕군의 마늘공판장은 전국 최대 마늘 주산지인 창녕의 핵심 농산물 거래소로, 매년 전국 마늘 가격 형성의 기준 역할을 합니다.' },
-    { id:15, type:'key', name:'황금열쇠', emoji:'🗝️' },
-    { id:16, type:'property', name:'산토끼노래동산', price:55, toll:27,
-      img:'img/santokki.jpg',
-      desc:'경남 창녕 산토끼 노래동산은 국민 동요 "산토끼"의 발상지인 창녕군 이방면에 조성된 가족형 친환경 체험 테마공원입니다.' },
-    { id:17, type:'property', name:'부곡하와이', price:60, toll:30,
-      img:'img/bugok_hawaii.jpg',
-      desc:'부곡하와이는 경상남도 창녕군 부곡면에 위치했던 대한민국 최초의 종합 워터파크 겸 리조트였으나, 2017년 5월 28일 경영 악화로 인해 공식 폐업했습니다.' },
-
-    { id:18, type:'corner', name:'택시 정류장', desc:'이동', emoji:'🚕' },
-
-    { id:19, type:'property', name:'우포따오기', price:65, toll:32,
-      img:'img/upo_ibis.jpg',
-      desc:'경남 창녕에 위치한 우포따오기 복원센터는 멸종 위기 야생생물인 따오기를 인공 번식하고 야생으로 방사하기 위해 설립된 생태 복원 연구시설입니다.' },
-    { id:20, type:'property', name:'유채꽃단지', price:70, toll:35,
-      img:'img/rapeseed.jpg',
-      desc:'창녕 남지 유채꽃밭은 단일 면적 110만㎡(약 33만 평)로 전국 최대 규모를 자랑하는 경상남도의 대표적인 봄꽃 명소입니다.' },
-    { id:21, type:'key', name:'황금열쇠', emoji:'🗝️' },
-    { id:22, type:'property', name:'우포생태촌', price:80, toll:40,
-      img:'img/upo_village.jpg',
-      desc:'우포생태촌 유스호스텔은 경상남도 창녕군 이방면에 위치한 자연 친화적인 힐링 숙박시설입니다.' },
-    { id:23, type:'property', name:'우포늪', price:100, toll:50,
-      img:'img/upo_marsh.jpg',
-      desc:'창녕 우포늪은 약 1억 4천만 년 전 형성된 대한민국 최대 규모의 자연 내륙 습지입니다.' },
+// ── 보드 데이터 ──
+const COLORS=['#ef4444','#3b82f6','#10b981','#f59e0b','#8b5cf6'];
+const boardSpaces=[
+  {id:0,type:'corner',name:'출발',emoji:'🏁'},
+  {id:1,type:'property',name:'남지체육공원',price:10,toll:5,img:'img/namji_park.jpg',desc:'낙동강변의 아름다운 수변 공원. 봄에는 유채꽃이 가득합니다.'},
+  {id:2,type:'property',name:'창녕박물관',price:15,toll:7,img:'img/museum.jpg',desc:'비화가야의 역사와 유물을 한눈에 볼 수 있는 공립 박물관입니다.'},
+  {id:3,type:'key',name:'황금열쇠',emoji:'🗝️'},
+  {id:4,type:'property',name:'만년교',price:15,toll:7,img:'img/mannyeon_bridge.jpg',desc:'천년만년 무너지지 않는 조선시대 아치형 무지개다리, 대한민국 보물.'},
+  {id:5,type:'property',name:'관룡사',price:20,toll:10,img:'img/gwanryongsa.jpg',desc:'화왕산 자락의 1,500년 역사를 가진 천년고찰.'},
+  {id:6,type:'corner',name:'화왕산',emoji:'⛰️',desc:'무인도'},
+  {id:7,type:'property',name:'창녕향교',price:25,toll:12,img:'img/changneyong_hyanggyo.jpg',desc:'전통적인 전학후묘 배치의 아름다운 향교.'},
+  {id:8,type:'property',name:'교동고분군',price:30,toll:15,img:'img/gyodong_tomb.jpg',desc:'비화가야 왕릉급 무덤들. 봄엔 수양벚꽃이 장관.'},
+  {id:9,type:'key',name:'황금열쇠',emoji:'🗝️'},
+  {id:10,type:'property',name:'영산호국공원',price:35,toll:17,img:'img/yeongsan_park.jpg',desc:'영산면의 아름다운 연지못. 수양벚꽃 명소.'},
+  {id:11,type:'property',name:'비사벌문화제',price:40,toll:20,img:'img/bisabeol_festival.jpg',desc:'매년 10월 창녕 최대의 지역 문화 대축제.'},
+  {id:12,type:'corner',name:'창녕은행',emoji:'🏦',desc:'세금/복권'},
+  {id:13,type:'property',name:'창녕양파장',price:45,toll:22,img:'img/onion_market.jpg',desc:'전국 최대 양파 주산지 창녕의 핵심 공판장.'},
+  {id:14,type:'property',name:'창녕마늘시장',price:50,toll:25,img:'img/garlic_market.jpg',desc:'전국 마늘 가격 기준이 되는 마늘 공판장.'},
+  {id:15,type:'key',name:'황금열쇠',emoji:'🗝️'},
+  {id:16,type:'property',name:'산토끼노래동산',price:55,toll:27,img:'img/santokki.jpg',desc:'국민동요 "산토끼" 발상지에 만들어진 가족 테마공원.'},
+  {id:17,type:'property',name:'부곡하와이',price:60,toll:30,img:'img/bugok_hawaii.jpg',desc:'대한민국 최초의 종합 워터파크. 추억의 명소.'},
+  {id:18,type:'corner',name:'택시정류장',emoji:'🚕',desc:'이동'},
+  {id:19,type:'property',name:'우포따오기',price:65,toll:32,img:'img/upo_ibis.jpg',desc:'멸종위기 따오기를 복원하는 생태 연구시설.'},
+  {id:20,type:'property',name:'유채꽃단지',price:70,toll:35,img:'img/rapeseed.jpg',desc:'33만 평 전국 최대 규모의 봄꽃 명소.'},
+  {id:21,type:'key',name:'황금열쇠',emoji:'🗝️'},
+  {id:22,type:'property',name:'우포생태촌',price:80,toll:40,img:'img/upo_village.jpg',desc:'우포늪 근처 자연 친화적 힐링 숙박시설.'},
+  {id:23,type:'property',name:'우포늪',price:100,toll:50,img:'img/upo_marsh.jpg',desc:'1억4천만 년 전 형성된 대한민국 최대 자연 내륙 습지.'},
 ];
 
-const goldenKeys = [
-    { text:"땅 한 개를 팝니다.\n(가장 싼 땅 매각. 없으면 패스)", action:(p)=>{
-        let owned=boardSpaces.filter(b=>b.owner===p.id);
-        if(owned.length>0){owned.sort((a,b)=>a.price-b.price);let t=owned[0];t.owner=null;p.money+=t.price;addLog(`[황금열쇠] ${t.name}을(를) 팔고 ${t.price}만 원을 받았습니다.`);}
-        else{addLog(`[황금열쇠] 소유한 땅이 없어 넘어갑니다.`);}
-    }},
-    { text:"은행한테 10만 원을 받으세요.", action:(p)=>{p.money+=10;} },
-    { text:"유채꽃밭에서 유채꽃을 심으세요.\n(심는값: 5만원 지불)", action:(p)=>{p.money-=5;} },
-    { text:"우포늪 생태관광에 참여합니다.\n(10만 원 지불)", action:(p)=>{p.money-=10;} },
-    { text:"부곡하와이 온천욕으로 피로를 풉니다.\n(다음 1턴 쉬기)", action:(p)=>{p.trapTurns=1;p.isTrapped=true;} },
-    { text:"산토끼 노래동산 입장료를 냅니다.\n(3만 원 지불)", action:(p)=>{p.money-=3;} },
-    { text:"창녕 박물관 역사 퀴즈 1등!\n(5만 원 획득)", action:(p)=>{p.money+=5;} },
-    { text:"관룡사 불전함에 정성을 표합니다.\n(5만 원 지불)", action:(p)=>{p.money-=5;} },
-    { text:"영산 쇠머리대기 축제 상금 획득!\n(10만 원 획득)", action:(p)=>{p.money+=10;} },
-    { text:"창녕 양파, 마늘 농사 대풍년!\n(20만 원 획득)", action:(p)=>{p.money+=20;} },
-    { text:"교동 고분군 발굴 작업 지원금을 냅니다.\n(10만 원 지불)", action:(p)=>{p.money-=10;} },
-    { text:"화왕산 억새밭 환경 보전비 납부.\n(5만 원 지불)", action:(p)=>{p.money-=5;} },
-    { text:"남지 철교 보수 공사 성금.\n(5만 원 지불)", action:(p)=>{p.money-=5;} },
-    { text:"따오기 복원센터 후원금을 냅니다.\n(10만 원 지불)", action:(p)=>{p.money-=10;} },
-    { text:"출발지로 즉시 이동합니다.\n(도착 보너스 10만 원 획득)", action:(p)=>{p.position=0;p.money+=10;updateTokens();} },
-    { text:"창녕 우시장에서 건강한 송아지 구매.\n(20만 원 지불)", action:(p)=>{p.money-=20;} },
-    { text:"비사벌 문화제 경품 당첨!\n(15만 원 획득)", action:(p)=>{p.money+=15;} },
-    { text:"우포생태촌 숙박비를 결제합니다.\n(5만 원 지불)", action:(p)=>{p.money-=5;} },
-    { text:"뒤로 3칸 이동합니다.", action:(p)=>{p.position=(p.position-3+24)%24;updateTokens();return'MOVE';} },
-    { text:"창녕사랑상품권에 당첨되었습니다!\n(10만 원 획득)", action:(p)=>{p.money+=10;} }
+const goldenKeys=[
+  {text:"가장 싼 땅을 팝니다.\n(없으면 패스)",action:(p)=>{let owned=boardSpaces.filter(b=>b.owner===p.id);if(owned.length>0){owned.sort((a,b)=>a.price-b.price);let t=owned[0];t.owner=null;p.money+=t.price;addLog(`💰 ${t.name} 매각 +${t.price}만`);}else{addLog('소유 땅 없어 패스');}}},
+  {text:"은행에서 10만 원을 받으세요.",action:(p)=>{p.money+=10;addLog('🏦 은행 +10만');}},
+  {text:"유채꽃밭 씨앗값.\n(5만 원 지불)",action:(p)=>{p.money-=5;addLog('🌻 유채꽃 씨앗값 -5만');}},
+  {text:"우포늪 생태관광 참여.\n(10만 원 지불)",action:(p)=>{p.money-=10;addLog('🌿 우포늪 관광비 -10만');}},
+  {text:"부곡온천 피로 회복.\n(다음 1턴 쉬기)",action:(p)=>{p.trapTurns=1;p.isTrapped=true;addLog('♨️ 부곡온천 휴식 1턴 쉼');}},
+  {text:"산토끼동산 입장료.\n(3만 원 지불)",action:(p)=>{p.money-=3;addLog('🐰 산토끼동산 -3만');}},
+  {text:"박물관 역사 퀴즈 1등!\n(5만 원 획득)",action:(p)=>{p.money+=5;addLog('🏛 퀴즈 1등 +5만');}},
+  {text:"관룡사 불전함 헌금.\n(5만 원 지불)",action:(p)=>{p.money-=5;addLog('🙏 관룡사 헌금 -5만');}},
+  {text:"영산 쇠머리대기 상금 획득!\n(10만 원 획득)",action:(p)=>{p.money+=10;addLog('🎊 축제 상금 +10만');}},
+  {text:"창녕 양파·마늘 대풍년!\n(20만 원 획득)",action:(p)=>{p.money+=20;addLog('🧅 대풍년 +20만');}},
+  {text:"교동고분군 발굴 지원금.\n(10만 원 지불)",action:(p)=>{p.money-=10;addLog('⛏ 발굴 지원금 -10만');}},
+  {text:"화왕산 환경 보전비.\n(5만 원 지불)",action:(p)=>{p.money-=5;addLog('⛰ 환경 보전비 -5만');}},
+  {text:"남지 철교 성금.\n(5만 원 지불)",action:(p)=>{p.money-=5;addLog('🌉 철교 성금 -5만');}},
+  {text:"따오기 복원 후원금.\n(10만 원 지불)",action:(p)=>{p.money-=10;addLog('🦢 따오기 후원 -10만');}},
+  {text:"출발지로 즉시 이동!\n(월급 10만 원 획득)",action:(p)=>{p.position=0;p.money+=10;updateTokens();addLog('🏁 출발지 이동 +10만');}},
+  {text:"창녕 우시장 송아지 구매.\n(20만 원 지불)",action:(p)=>{p.money-=20;addLog('🐄 송아지 -20만');}},
+  {text:"비사벌 문화제 경품 당첨!\n(15만 원 획득)",action:(p)=>{p.money+=15;addLog('🎁 경품 당첨 +15만');}},
+  {text:"우포생태촌 숙박비.\n(5만 원 지불)",action:(p)=>{p.money-=5;addLog('🏕 숙박비 -5만');}},
+  {text:"뒤로 3칸 이동합니다.",action:(p)=>{p.position=(p.position-3+24)%24;updateTokens();return'MOVE';}},
+  {text:"창녕사랑상품권 당첨!\n(10만 원 획득)",action:(p)=>{p.money+=10;addLog('🎟 상품권 +10만');}}
 ];
 
+// ── 게임 상태 ──
 let players=[], turnIndex=0, bankPot=0, keyDeck=[];
+let gameMode='vs'; // 'vs' | 'online'
+let myPlayerId=null, roomRef=null, roomCode=null, isHost=false;
+let waitingRef=null;
 
-function initGame(){
-    const pCount=parseInt(document.getElementById('player-count').value);
-    keyDeck=[...Array(20).keys()].sort(()=>Math.random()-.5);
-    let tempPlayers=[];
-    for(let i=0;i<pCount;i++){
-        tempPlayers.push({id:i,name:`플레이어 ${i+1}`,color:COLORS[i],colorBg:COLOR_BG[i],
-            money:INITIAL_MONEY,position:0,isTrapped:false,trapTurns:0,taxiNext:false});
-    }
-    document.getElementById('setup-screen').classList.add('hidden');
-    resolveTieBreaker(tempPlayers,(sortedPlayers)=>{
-        players=sortedPlayers;
-        document.getElementById('game-screen').classList.remove('hidden');
-        buildBoard();
-        updateUI();
-        addLog(`=== 게임 시작 ===`);
-        addLog(`순서: ${players.map(p=>`<span style="color:${p.color};font-weight:bold">${p.name}</span>`).join(' ➔ ')}`);
-        startTurn();
+// ── 모드 선택 ──
+function goVsComputer(){showScreen('name-screen');}
+function goOnline(){showScreen('room-screen');}
+
+// ── 컴퓨터 대전 시작 ──
+function startVsComputer(){
+  const name=document.getElementById('vs-name-input').value.trim()||'플레이어';
+  gameMode='vs';
+  players=[
+    {id:0,name:name,color:COLORS[0],money:277.5,position:0,isTrapped:false,trapTurns:0,taxiNext:false,isAI:false},
+    {id:1,name:'컴퓨터',color:COLORS[1],money:277.5,position:0,isTrapped:false,trapTurns:0,taxiNext:false,isAI:true},
+  ];
+  myPlayerId=0;
+  boardSpaces.forEach(s=>{delete s.owner;});
+  keyDeck=[...Array(20).keys()].sort(()=>Math.random()-.5);
+  turnIndex=0;
+  bankPot=0;
+  buildBoard();
+  updateUI();
+  showScreen('game-screen');
+  addLog('=== 게임 시작 ===');
+  addLog(`${players[0].name} vs 컴퓨터`);
+}
+
+// ── 온라인 룸 ──
+function switchRoomTab(tab){
+  document.querySelectorAll('.room-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.room-section').forEach(s=>s.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+  document.getElementById('sec-'+tab).classList.add('active');
+}
+
+function generateRoomCode(){return String(Math.floor(1000+Math.random()*9000));}
+
+function createRoom(){
+  const name=document.getElementById('create-name').value.trim();
+  if(!name){alert('닉네임을 입력해주세요!');return;}
+  const count=parseInt(document.getElementById('create-count').value);
+  roomCode=generateRoomCode();
+  isHost=true;
+  gameMode='online';
+
+  roomRef=db.ref('bluemarble/rooms/'+roomCode);
+  roomRef.set({
+    host:name, maxPlayers:count, status:'waiting',
+    players:{0:{name,color:COLORS[0],money:277.5,position:0,isTrapped:false,trapTurns:0,taxiNext:false}},
+    turn:0, bankPot:0
+  });
+  myPlayerId=0;
+
+  document.getElementById('room-code-display').textContent=roomCode;
+  document.querySelector('#sec-create .name-btn').style.display='none';
+  document.getElementById('room-waiting').style.display='block';
+
+  // 대기 중 플레이어 목록 감지
+  roomRef.child('players').on('value', snap=>{
+    const pls=snap.val()||{};
+    const list=document.getElementById('waiting-list');
+    list.innerHTML='';
+    Object.entries(pls).forEach(([id,p])=>{
+      const div=document.createElement('div');
+      div.className='waiting-player';
+      div.innerHTML=`<div class="dot" style="background:${p.color||COLORS[id]}"></div><div class="pname">${p.name}</div><div class="role">${id==='0'?'방장':'참가자'}</div>`;
+      list.appendChild(div);
     });
+    const pCount=Object.keys(pls).length;
+    const startBtn=document.getElementById('start-room-btn');
+    if(pCount>=2){startBtn.classList.add('show');startBtn.textContent=`🎮 게임 시작! (${pCount}명)`;}
+    else{startBtn.classList.remove('show');}
+  });
 }
 
-function rollSingleDice(){ return Math.floor(Math.random()*6)+1; }
+function joinRoom(){
+  const name=document.getElementById('join-name').value.trim();
+  const code=document.getElementById('join-code').value.trim();
+  if(!name){alert('닉네임을 입력해주세요!');return;}
+  if(!code||code.length!==4){alert('방 번호 4자리를 입력해주세요!');return;}
 
-function resolveTieBreaker(group,callback){
-    if(group.length===1){callback(group);return;}
-    let results=[];
-    let msg=`주사위를 굴립니다:<br>`;
-    group.forEach(p=>{const r=rollSingleDice();results.push({player:p,roll:r});msg+=`<span style="color:${p.color}">${p.name}</span>: ${r}<br>`;});
-    showModal("순서 정하기",msg,[{text:"확인",action:()=>{
-        let grouped={};
-        results.forEach(x=>{if(!grouped[x.roll])grouped[x.roll]=[];grouped[x.roll].push(x.player);});
-        let sortedRolls=Object.keys(grouped).map(Number).sort((a,b)=>b-a);
-        let finalSorted=[];
-        function processGroup(idx){
-            if(idx>=sortedRolls.length){callback(finalSorted);return;}
-            let cur=grouped[sortedRolls[idx]];
-            if(cur.length>1){
-                showModal("동점자 발생",`주사위 ${sortedRolls[idx]}이(가) 중복되었습니다. 다시 굴립니다!`,[{text:"굴리기",action:()=>{
-                    resolveTieBreaker(cur,(sub)=>{finalSorted=finalSorted.concat(sub);processGroup(idx+1);});
-                }}]);
-            } else {finalSorted.push(cur[0]);processGroup(idx+1);}
-        }
-        processGroup(0);
-    }}]);
+  const ref=db.ref('bluemarble/rooms/'+code);
+  ref.once('value').then(snap=>{
+    if(!snap.exists()){alert('존재하지 않는 방입니다!');return;}
+    const room=snap.val();
+    if(room.status!=='waiting'){alert('이미 시작된 게임입니다!');return;}
+    const pls=room.players||{};
+    const pCount=Object.keys(pls).length;
+    if(pCount>=room.maxPlayers){alert('방이 가득 찼습니다!');return;}
+
+    roomCode=code; gameMode='online'; isHost=false;
+    myPlayerId=pCount;
+    roomRef=ref;
+    ref.child('players/'+pCount).set({name,color:COLORS[pCount],money:277.5,position:0,isTrapped:false,trapTurns:0,taxiNext:false});
+
+    document.querySelector('#sec-join .name-btn').style.display='none';
+    document.getElementById('join-waiting').style.display='block';
+
+    // 대기 목록
+    ref.child('players').on('value', snap2=>{
+      const pls2=snap2.val()||{};
+      const list2=document.getElementById('join-waiting-list');
+      list2.innerHTML='';
+      Object.entries(pls2).forEach(([id,p])=>{
+        const div=document.createElement('div');
+        div.className='waiting-player';
+        div.innerHTML=`<div class="dot" style="background:${p.color||COLORS[id]}"></div><div class="pname">${p.name}</div><div class="role">${id==='0'?'방장':'참가자'}</div>`;
+        list2.appendChild(div);
+      });
+    });
+
+    // 게임 시작 감지
+    ref.child('status').on('value', snap3=>{
+      if(snap3.val()==='playing') loadRoomGame();
+    });
+  });
 }
 
+function startRoomGame(){
+  if(!roomRef)return;
+  roomRef.once('value').then(snap=>{
+    const room=snap.val();
+    const pls=room.players||{};
+    if(Object.keys(pls).length<2){alert('최소 2명이 필요합니다!');return;}
+    // 황금열쇠 순서 생성
+    const kd=[...Array(20).keys()].sort(()=>Math.random()-.5);
+    boardSpaces.forEach(s=>{delete s.owner;});
+    roomRef.update({status:'playing',turn:0,bankPot:0,keyDeck:kd,boardOwners:{}});
+  });
+}
+
+function loadRoomGame(){
+  if(!roomRef)return;
+  roomRef.off();
+  roomRef.once('value').then(snap=>{
+    const room=snap.val();
+    const pls=room.players||{};
+    players=Object.entries(pls).map(([id,p])=>({...p,id:parseInt(id),isAI:false}));
+    turnIndex=room.turn||0;
+    bankPot=room.bankPot||0;
+    keyDeck=room.keyDeck||[...Array(20).keys()];
+    boardSpaces.forEach(s=>{
+      s.owner=(room.boardOwners&&room.boardOwners[s.id]!=null)?room.boardOwners[s.id]:null;
+    });
+    buildBoard();updateUI();
+    showScreen('game-screen');
+    addLog('=== 온라인 게임 시작 ===');
+    // 실시간 상태 감지
+    roomRef.child('gameState').on('value', syncGameState);
+  });
+}
+
+function syncGameState(snap){
+  if(!snap.exists())return;
+  const state=snap.val();
+  if(state.players){
+    state.players.forEach((p,i)=>{if(players[i])Object.assign(players[i],p);});
+  }
+  if(state.boardOwners){
+    boardSpaces.forEach(s=>{s.owner=state.boardOwners[s.id]!=null?state.boardOwners[s.id]:null;});
+  }
+  if(state.turn!=null)turnIndex=state.turn;
+  if(state.bankPot!=null)bankPot=state.bankPot;
+  if(state.keyDeck)keyDeck=state.keyDeck;
+  buildBoard();updateUI();
+  if(state.log)addLog(state.log);
+}
+
+function pushGameState(log){
+  if(gameMode!=='online'||!roomRef)return;
+  const owners={};
+  boardSpaces.forEach(s=>{if(s.owner!=null)owners[s.id]=s.owner;});
+  roomRef.child('gameState').set({
+    players:players.map(p=>({name:p.name,color:p.color,money:p.money,position:p.position,isTrapped:p.isTrapped,trapTurns:p.trapTurns||0,taxiNext:p.taxiNext})),
+    boardOwners:owners, turn:turnIndex, bankPot, keyDeck, log:log||''
+  });
+}
+
+function leaveRoom(){
+  if(roomRef){roomRef.off();if(isHost)roomRef.remove();}
+  roomCode=null;roomRef=null;isHost=false;myPlayerId=null;
+  document.getElementById('room-waiting').style.display='none';
+  document.getElementById('join-waiting').style.display='none';
+  document.querySelector('#sec-create .name-btn').style.display='block';
+  document.querySelector('#sec-join .name-btn').style.display='block';
+  document.getElementById('create-name').value='';
+  document.getElementById('join-name').value='';
+  document.getElementById('join-code').value='';
+  showScreen('lobby');
+}
+
+// ── 보드 빌드 ──
 function buildBoard(){
-    const boardEl=document.getElementById('board');
-    boardSpaces.forEach((space,i)=>{
-        const cell=document.createElement('div');
-        cell.id=`cell-${i}`;
-        let row,col;
-        if(i>=0&&i<=6){row=7;col=7-i;}
-        else if(i>=7&&i<=11){row=7-(i-6);col=1;}
-        else if(i>=12&&i<=18){row=1;col=1+(i-12);}
-        else if(i>=19&&i<=23){row=1+(i-18);col=7;}
-        cell.style.gridRow=row;
-        cell.style.gridColumn=col;
-        let typeClass=space.type==='corner'?'corner':space.type==='key'?'golden-key':'';
-        cell.className=`cell ${typeClass}`;
-        let html=`<div class="cell-title">${space.name}</div>`;
-        if(space.price)html+=`<div class="cell-price">${space.price}만</div>`;
-        if(space.desc&&space.type==='corner')html+=`<div class="cell-price">${space.desc}</div>`;
-        cell.innerHTML=html;
-        // 클릭 시 증서 보기 (소유된 땅만)
-        if(space.type==='property'){
-            cell.addEventListener('click',()=>{ if(space.owner!=null) showDeedInfo(space); });
-        }
-        boardEl.appendChild(cell);
-    });
-}
+  const boardEl=document.getElementById('board');
+  boardEl.innerHTML='';
+  boardSpaces.forEach((space,i)=>{
+    const cell=document.createElement('div');
+    cell.id=`cell-${i}`;
+    let row,col;
+    if(i>=0&&i<=6){row=7;col=7-i;}
+    else if(i>=7&&i<=11){row=7-(i-6);col=1;}
+    else if(i>=12&&i<=18){row=1;col=1+(i-12);}
+    else if(i>=19&&i<=23){row=1+(i-18);col=7;}
+    cell.style.gridRow=row;cell.style.gridColumn=col;
 
-// ── 권리증서 표시 ──
-function showDeed(space, mode, onBuy, onSkip){
-    const owner = space.owner!=null ? players.find(x=>x.id===space.owner) : null;
-    const cp = players[turnIndex];
+    if(space.type==='corner')cell.className='cell corner';
+    else if(space.type==='key')cell.className='cell key-cell';
+    else cell.className='cell';
 
-    // 색상 바
-    const colorBar=document.getElementById('deed-color-bar');
-    colorBar.style.background = owner ? owner.color : cp.color;
-    document.getElementById('deed-bar-name').textContent = space.name;
+    // 소유자 색상 바
+    if(space.owner!=null){
+      const owner=players.find(x=>x.id===space.owner);
+      const bar=document.createElement('div');
+      bar.className='cell-owner-bar';
+      bar.style.background=owner?owner.color:'#aaa';
+      cell.appendChild(bar);
+    }
 
-    // 사진
-    const photoWrap=document.getElementById('deed-photo-wrap');
+    // 사진 배경
     if(space.img){
-        photoWrap.innerHTML=`<img src="${space.img}" class="deed-photo" onerror="this.parentNode.innerHTML='<div class=\\'deed-photo-placeholder\\'>🏛️</div>'">`;
-    } else {
-        photoWrap.innerHTML=`<div class="deed-photo-placeholder">🏛️</div>`;
+      const img=document.createElement('img');
+      img.className='cell-img';img.src=space.img;img.alt='';
+      cell.appendChild(img);
+      const ov=document.createElement('div');ov.className='cell-overlay';cell.appendChild(ov);
     }
 
-    document.getElementById('deed-name').textContent=space.name;
-    document.getElementById('deed-desc').textContent=space.desc||'';
-    document.getElementById('deed-price').textContent=`${space.price}만 원`;
-    document.getElementById('deed-toll').textContent=`${space.toll}만 원`;
+    const nameDiv=document.createElement('div');
+    nameDiv.className='cell-name';
+    nameDiv.textContent=space.type==='key'?'🗝️':space.emoji||space.name;
+    cell.appendChild(nameDiv);
 
-    const ownerRow=document.getElementById('deed-owner-row');
-    const ownerCell=document.getElementById('deed-owner');
-    if(owner){
-        ownerRow.style.display='';
-        ownerCell.innerHTML=`<span style="color:${owner.color};font-weight:900">${owner.name}</span>`;
-    } else {
-        ownerRow.style.display='none';
+    if(space.price){
+      const priceDiv=document.createElement('div');
+      priceDiv.className='cell-price';priceDiv.textContent=space.price+'만';
+      cell.appendChild(priceDiv);
     }
 
-    const footer=document.getElementById('deed-footer');
-    footer.innerHTML='';
-
-    if(mode==='buy'){
-        const buyBtn=document.createElement('button');
-        buyBtn.className='deed-btn buy';
-        buyBtn.textContent=`구매 (${space.price}만 원)`;
-        buyBtn.onclick=()=>{document.getElementById('deed-modal').style.display='none';onBuy();};
-        const skipBtn=document.createElement('button');
-        skipBtn.className='deed-btn skip';
-        skipBtn.textContent='넘어가기';
-        skipBtn.onclick=()=>{document.getElementById('deed-modal').style.display='none';onSkip();};
-        footer.appendChild(buyBtn);
-        footer.appendChild(skipBtn);
-    } else {
-        const closeBtn=document.createElement('button');
-        closeBtn.className='deed-btn close';
-        closeBtn.textContent='닫기';
-        closeBtn.onclick=()=>{document.getElementById('deed-modal').style.display='none';};
-        footer.appendChild(closeBtn);
+    if(space.type==='property'){
+      cell.addEventListener('click',()=>{if(space.owner!=null)showDeed(space,'info',null,null);});
     }
-
-    document.getElementById('deed-modal').style.display='flex';
+    boardEl.appendChild(cell);
+  });
+  updateTokens();
 }
 
-function showDeedInfo(space){
-    showDeed(space,'info',null,null);
-}
-
-function addLog(msg){
-    const logBox=document.getElementById('log-box');
-    const div=document.createElement('div');
-    div.className='log-entry';div.innerHTML=msg;
-    logBox.appendChild(div);logBox.scrollTop=logBox.scrollHeight;
-}
-
-function showModal(title,bodyText,buttons){
-    document.getElementById('modal-title').innerHTML=title;
-    document.getElementById('modal-body').innerHTML=bodyText;
-    const btnContainer=document.getElementById('modal-buttons');
-    btnContainer.innerHTML='';
-    buttons.forEach(b=>{
-        const btn=document.createElement('button');
-        btn.innerHTML=b.text;
-        btn.className=b.colorClass||"bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg transition";
-        btn.onclick=()=>{document.getElementById('global-modal').style.display='none';if(b.action)b.action();};
-        btnContainer.appendChild(btn);
-    });
-    document.getElementById('global-modal').style.display='flex';
-}
-
+// ── UI 업데이트 ──
 function updateUI(){
-    const cp=players[turnIndex];
-    document.getElementById('current-turn-indicator').innerHTML=`<span style="color:${cp.color}">${cp.name}</span>의 턴`;
-    document.getElementById('bank-status').innerText=`은행 보관금: ${bankPot}만 원`;
-    let tbody='';
-    players.forEach((p,i)=>{
-        let activeClass=i===turnIndex?'bg-indigo-50 font-bold':'';
-        let status=p.isTrapped?`갇힘(${p.trapTurns})`:p.taxiNext?'택시 대기':'';
-        tbody+=`<tr class="${activeClass}"><td class="py-2" style="color:${p.color}">${p.name}</td><td>${p.money.toFixed(1)}만</td><td class="text-xs text-red-500">${status}</td></tr>`;
-    });
-    document.getElementById('player-status-body').innerHTML=tbody;
-    boardSpaces.forEach((s,i)=>{
-        const cell=document.getElementById(`cell-${i}`);
-        if(!cell)return;
-        if(s.owner!=null){
-            const owner=players.find(x=>x.id===s.owner);
-            cell.style.border=`4px solid ${owner.color}`;
-            cell.title=`소유자: ${owner.name} (클릭하여 증서 보기)`;
-        } else {
-            cell.style.border='none';
-            cell.title='';
-        }
-    });
-    updateTokens();
+  const cp=players[turnIndex];
+  if(!cp)return;
+  document.getElementById('turn-badge').textContent=`${cp.name}의 턴`;
+  document.getElementById('turn-info').innerHTML=`<span style="color:${cp.color}">▶ ${cp.name}</span>의 차례`;
+
+  // 점수판
+  const scoresEl=document.getElementById('player-scores');
+  scoresEl.innerHTML='';
+  players.forEach((p,i)=>{
+    const row=document.createElement('div');
+    row.className='score-row'+(i===turnIndex?' active-turn':'');
+    let statusHtml='';
+    if(p.isTrapped)statusHtml=`<span class="score-status">🔒${p.trapTurns}턴</span>`;
+    else if(p.taxiNext)statusHtml=`<span class="score-status">🚕이동</span>`;
+    row.innerHTML=`<div class="score-dot" style="background:${p.color}"></div><div class="score-name">${p.name}${p.isAI?'🤖':''}</div><div class="score-money"><span class="score-money-icon">💰</span><span class="score-money-val">${p.money.toFixed(1)}만</span>${statusHtml}</div>`;
+    scoresEl.appendChild(row);
+  });
+
+  // 주사위 버튼 활성/비활성
+  const diceBtn=document.getElementById('dice-btn');
+  const isMyTurn=(gameMode==='vs'&&!players[turnIndex].isAI)||(gameMode==='online'&&turnIndex===myPlayerId);
+  diceBtn.disabled=!isMyTurn;
+  document.getElementById('dice-label').textContent=isMyTurn?'굴리기':'대기중';
 }
 
 function updateTokens(){
-    document.querySelectorAll('.player-token').forEach(e=>e.remove());
-    players.forEach((p,index)=>{
-        const cell=document.getElementById(`cell-${p.position}`);
-        if(!cell)return;
-        const token=document.createElement('div');
-        token.className='player-token';
-        token.style.backgroundColor=p.color;
-        const offsetX=(index%2)*12-6;
-        const offsetY=Math.floor(index/2)*12-6;
-        token.style.transform=`translate(${offsetX}px,${offsetY}px)`;
-        cell.appendChild(token);
-    });
+  document.querySelectorAll('.player-token').forEach(e=>e.remove());
+  players.forEach((p,index)=>{
+    const cell=document.getElementById(`cell-${p.position}`);
+    if(!cell)return;
+    const token=document.createElement('div');
+    token.className='player-token';
+    token.style.backgroundColor=p.color;
+    const offsetX=(index%2)*14-7;
+    const offsetY=Math.floor(index/2)*14-7;
+    token.style.transform=`translate(${offsetX}px,${offsetY}px)`;
+    cell.appendChild(token);
+  });
 }
 
-function startTurn(){ updateUI(); }
+// ── 로그 ──
+function addLog(msg){
+  const logBox=document.getElementById('log-box');
+  const div=document.createElement('div');div.className='log-entry';div.innerHTML=msg;
+  logBox.appendChild(div);logBox.scrollTop=logBox.scrollHeight;
+}
 
+// ── 증서 모달 ──
+function showDeed(space,mode,onBuy,onSkip){
+  const owner=space.owner!=null?players.find(x=>x.id===space.owner):null;
+  const cp=players[turnIndex];
+  const strip=document.getElementById('deed-strip');
+  strip.style.background=owner?owner.color:cp.color;
+  document.getElementById('deed-strip-name').textContent=space.name;
+
+  const photoWrap=document.getElementById('deed-photo-wrap');
+  if(space.img){
+    photoWrap.innerHTML=`<img src="${space.img}" style="width:100%;height:150px;object-fit:cover" onerror="this.parentNode.innerHTML='<div class=\\'deed-photo-fallback\\'>🏛️</div>'">`;
+  }else{
+    photoWrap.innerHTML=`<div class="deed-photo-fallback">${space.emoji||'🏛️'}</div>`;
+  }
+
+  document.getElementById('deed-name').textContent=space.name;
+  document.getElementById('deed-desc').textContent=space.desc||'';
+  document.getElementById('deed-price').textContent=space.price+'만원';
+  document.getElementById('deed-toll').textContent=space.toll+'만원';
+
+  const ownerRow=document.getElementById('deed-owner-row');
+  if(owner){ownerRow.style.display='flex';document.getElementById('deed-owner').innerHTML=`<strong style="color:${owner.color}">${owner.name}</strong>`;}
+  else{ownerRow.style.display='none';}
+
+  const footer=document.getElementById('deed-footer');
+  footer.innerHTML='';
+  if(mode==='buy'){
+    const b=document.createElement('button');b.className='deed-btn buy';b.textContent=`구매 ${space.price}만원`;
+    b.onclick=()=>{closeModal('deed-modal');onBuy();};
+    const s=document.createElement('button');s.className='deed-btn skip';s.textContent='넘어가기';
+    s.onclick=()=>{closeModal('deed-modal');onSkip();};
+    footer.appendChild(b);footer.appendChild(s);
+  }else{
+    const c=document.createElement('button');c.className='deed-btn close';c.textContent='확인';
+    c.onclick=()=>closeModal('deed-modal');
+    footer.appendChild(c);
+  }
+  document.getElementById('deed-modal').classList.add('show');
+}
+
+// ── 일반 모달 ──
+function showModal(title,body,buttons){
+  document.getElementById('info-title').innerHTML=title;
+  document.getElementById('info-body').innerHTML=body;
+  const btns=document.getElementById('info-btns');btns.innerHTML='';
+  buttons.forEach(b=>{
+    const btn=document.createElement('button');
+    btn.className='modal-btn '+(b.cls||'primary');btn.innerHTML=b.text;
+    btn.onclick=()=>{closeModal('info-modal');if(b.action)b.action();};
+    btns.appendChild(btn);
+  });
+  document.getElementById('info-modal').classList.add('show');
+}
+function closeModal(id){document.getElementById(id).classList.remove('show');}
+
+// ── 턴 처리 ──
 function takeTurn(){
-    const p=players[turnIndex];
-    if(p.taxiNext){handleTaxiDestination(p);return;}
-    const d1=rollSingleDice(),d2=rollSingleDice();
-    const isDouble=(d1===d2),sum=d1+d2;
-    let rollMsg=`${p.name} 주사위: ${d1}, ${d2} = ${sum}`;
-    if(isDouble)rollMsg+=` <span class="text-red-500 font-bold">(더블!)</span>`;
-    addLog(`----------------`);addLog(rollMsg);
-    if(p.isTrapped){
-        if(isDouble){addLog(`더블이 나와 즉시 화왕산을 탈출합니다!`);p.isTrapped=false;p.trapTurns=0;movePlayer(p,sum,false);}
-        else{p.trapTurns--;addLog(`탈출 실패. (남은 턴: ${p.trapTurns})`);if(p.trapTurns<=0)p.isTrapped=false;endTurn(false);}
-        return;
-    }
-    movePlayer(p,sum,isDouble);
+  const p=players[turnIndex];
+  if(gameMode==='online'&&turnIndex!==myPlayerId)return;
+
+  if(p.taxiNext){handleTaxiDestination(p);return;}
+  const d1=Math.floor(Math.random()*6)+1,d2=Math.floor(Math.random()*6)+1;
+  const isDouble=(d1===d2),sum=d1+d2;
+  addLog(`🎲 ${p.name}: ${d1}+${d2}=${sum}${isDouble?' <b style="color:#ffd700">더블!</b>':''}`);
+
+  if(p.isTrapped){
+    if(isDouble){addLog('💨 더블! 화왕산 탈출!');p.isTrapped=false;p.trapTurns=0;movePlayer(p,sum,false);}
+    else{p.trapTurns--;addLog(`⛰ 탈출 실패 (남은 ${p.trapTurns}턴)`);if(p.trapTurns<=0)p.isTrapped=false;endTurn(false);}
+    return;
+  }
+  movePlayer(p,sum,isDouble);
 }
 
 function handleTaxiDestination(p){
-    let options=`<select id="taxi-select" class="w-full border p-2 mt-2 rounded">`;
-    boardSpaces.forEach(s=>{options+=`<option value="${s.id}">${s.name}</option>`;});
-    options+=`</select>`;
-    showModal("택시 탑승",`원하는 목적지를 선택하세요.${options}`,[{text:"이동하기",action:()=>{
-        const dest=parseInt(document.getElementById('taxi-select').value);
-        p.taxiNext=false;p.position=dest;
-        addLog(`[택시] ${p.name} 님이 ${boardSpaces[dest].name}(으)로 이동했습니다!`);
-        updateTokens();handleLanding(p,false);
-    }}]);
+  let opts='<select class="taxi-sel" id="taxi-sel">';
+  boardSpaces.forEach(s=>{opts+=`<option value="${s.id}">${s.name}</option>`;});
+  opts+='</select>';
+  showModal('🚕 택시 목적지',`어디로 이동할까요?${opts}`,[{text:'이동하기',action:()=>{
+    const dest=parseInt(document.getElementById('taxi-sel').value);
+    p.taxiNext=false;p.position=dest;
+    addLog(`🚕 ${p.name} → ${boardSpaces[dest].name}`);
+    updateTokens();handleLanding(p,false);
+  }}]);
 }
 
 function movePlayer(p,amount,isDouble){
-    p.position+=amount;
-    if(p.position>=24){p.position-=24;p.money+=10;addLog(`출발지를 지나며 월급 10만 원을 받았습니다.`);}
-    updateTokens();handleLanding(p,isDouble);
+  p.position+=amount;
+  if(p.position>=24){p.position-=24;p.money+=10;addLog('🏁 출발 통과 월급 +10만');}
+  updateTokens();handleLanding(p,isDouble);
 }
 
 function handleLanding(p,isDouble){
-    const space=boardSpaces[p.position];
-    addLog(`▶ <strong>${space.name}</strong> 도착`);
-    if(space.type==='corner'){
-        if(space.id===6){p.isTrapped=true;p.trapTurns=3;addLog(`[조난] 화왕산에 고립되었습니다. (3턴 쉼)`);endTurn(false);}
-        else if(space.id===12){
-            if(bankPot>0){p.money+=10;bankPot-=10;if(bankPot<0)bankPot=0;addLog(`[은행] 모인 돈 중 10만 원을 받았습니다!`);}
-            else{p.money-=10;bankPot+=10;addLog(`[은행] 은행에 10만 원을 지불했습니다.`);}
-            endTurn(isDouble);
-        } else if(space.id===18){p.money-=10;p.taxiNext=true;addLog(`[택시] 10만 원을 지불했습니다. 다음 턴에 원하는 곳으로 이동합니다!`);endTurn(isDouble);}
-        else{endTurn(isDouble);}
-        return;
-    }
-    if(space.type==='key'){
-        const cardIdx=keyDeck.shift();
-        const card=goldenKeys[cardIdx];
-        keyDeck.push(cardIdx);
-        showModal("황금열쇠",card.text,[{text:"확인",action:()=>{
-            addLog(`[황금열쇠] ${card.text.replace('\n',' ')}`);
-            const result=card.action(p);
-            if(result==='MOVE'){handleLanding(p,isDouble);}else{endTurn(isDouble);}
-        }}]);
-        return;
-    }
-    if(space.type==='property'){
-        if(space.owner==null){
-            if(p.money>=space.price){
-                // 증서와 함께 구매 확인
-                showDeed(space,'buy',
-                    ()=>{ p.money-=space.price;space.owner=p.id;addLog(`<strong>${space.name}</strong> 구매 완료! (-${space.price}만 원)`);updateUI();endTurn(isDouble); },
-                    ()=>{ addLog(`구매를 포기했습니다.`);endTurn(isDouble); }
-                );
-            } else {
-                addLog(`자금이 부족하여 ${space.name}을(를) 살 수 없습니다.`);endTurn(isDouble);
-            }
-        } else if(space.owner!==p.id){
-            p.money-=space.toll;
-            const owner=players.find(x=>x.id===space.owner);
-            owner.money+=space.toll;
-            addLog(`[통행료] ${owner.name}에게 <strong>${space.toll}만 원</strong>을 지불했습니다.`);
-            endTurn(isDouble);
-        } else {
-            addLog(`내 땅에서 휴식을 취합니다.`);endTurn(isDouble);
-        }
-    }
+  const space=boardSpaces[p.position];
+  addLog(`📍 <b>${space.name}</b> 도착`);
+  if(space.type==='corner'){
+    if(space.id===6){p.isTrapped=true;p.trapTurns=3;addLog('⛰ 화왕산 고립! 3턴 쉼');endTurn(false);}
+    else if(space.id===12){
+      if(bankPot>0){p.money+=10;bankPot-=10;if(bankPot<0)bankPot=0;addLog('🏦 은행 보관금 +10만');}
+      else{p.money-=10;bankPot+=10;addLog('🏦 세금 -10만');}
+      endTurn(isDouble);
+    }else if(space.id===18){p.money-=10;p.taxiNext=true;addLog('🚕 택시 탑승! 다음 턴에 이동');endTurn(isDouble);}
+    else{endTurn(isDouble);}
+    return;
+  }
+  if(space.type==='key'){
+    const cardIdx=keyDeck.shift();
+    const card=goldenKeys[cardIdx];keyDeck.push(cardIdx);
+    showModal('🗝️ 황금열쇠',card.text,[{text:'확인',action:()=>{
+      const result=card.action(p);
+      if(result==='MOVE')handleLanding(p,isDouble);else endTurn(isDouble);
+      if(gameMode==='online')pushGameState('황금열쇠: '+card.text.split('\n')[0]);
+    }}]);
+    return;
+  }
+  if(space.type==='property'){
+    if(space.owner==null){
+      if(p.money>=space.price){
+        showDeed(space,'buy',
+          ()=>{p.money-=space.price;space.owner=p.id;addLog(`🏷 ${space.name} 구매! -${space.price}만`);updateUI();buildBoard();if(gameMode==='online')pushGameState(p.name+'이 '+space.name+' 구매');endTurn(isDouble);},
+          ()=>{addLog('구매 패스');endTurn(isDouble);}
+        );
+      }else{addLog('💸 자금 부족, 구매 불가');endTurn(isDouble);}
+    }else if(space.owner!==p.id){
+      const owner=players.find(x=>x.id===space.owner);
+      p.money-=space.toll;owner.money+=space.toll;
+      addLog(`💸 ${owner.name}에게 통행료 ${space.toll}만`);
+      endTurn(isDouble);
+    }else{addLog('🏠 내 땅에서 휴식');endTurn(isDouble);}
+  }
 }
 
 function endTurn(isDouble){
-    if(players[turnIndex].money<0){addLog(`<strong class="text-red-500">경고: ${players[turnIndex].name}의 자금이 마이너스입니다! 파산 위기!</strong>`);}
-    if(isDouble&&!players[turnIndex].isTrapped){addLog(`<span class="text-red-500 font-bold">[더블 당첨] 주사위를 한 번 더 굴립니다!</span>`);}
-    else{turnIndex=(turnIndex+1)%players.length;}
-    startTurn();
+  if(players[turnIndex].money<0)addLog(`<span style="color:#ef4444">⚠️ ${players[turnIndex].name} 파산 위기!</span>`);
+  if(isDouble&&!players[turnIndex].isTrapped){addLog('<span style="color:#ffd700">🎲 더블! 한 번 더!</span>');}
+  else{turnIndex=(turnIndex+1)%players.length;}
+  if(gameMode==='online')pushGameState('');
+  updateUI();
+  // AI 자동 진행
+  if(gameMode==='vs'&&players[turnIndex]&&players[turnIndex].isAI){
+    setTimeout(()=>aiTurn(),1200);
+  }
+}
+
+function aiTurn(){
+  const p=players[turnIndex];
+  if(!p||!p.isAI)return;
+  // 단순 AI: 항상 주사위 굴림
+  takeTurn();
+}
+
+// 증서 모달에서 AI 땅 구매 처리 (AI는 자동 결정)
+const origShowDeed=showDeed;
+// AI가 현재 플레이어일 때는 자동 처리됨 (showDeed가 호출되기 전에 handleLanding에서 AI 체크)
+// handleLanding에 AI 자동 구매 로직 추가
+const _origHandleLanding=handleLanding;
+// (이미 위에서 정의됨 - AI는 자동으로 구매 여부 결정)
+
+function confirmLeaveGame(){
+  showModal('게임 나가기','정말 로비로 돌아가시겠습니까?',[
+    {text:'나가기',cls:'danger',action:()=>{if(roomRef)roomRef.off();showScreen('lobby');}},
+    {text:'취소',cls:'secondary'}
+  ]);
+}
+
+// AI 땅 구매 자동화를 위해 handleLanding 재정의
+// (AI인 경우 showDeed 대신 자동 결정)
+const __handleLanding=handleLanding;
+// property landing에서 AI 자동 처리
+function handleLandingFixed(p,isDouble){
+  const space=boardSpaces[p.position];
+  addLog(`📍 <b>${space.name}</b> 도착`);
+  if(space.type==='corner'){
+    if(space.id===6){p.isTrapped=true;p.trapTurns=3;addLog('⛰ 화왕산 고립! 3턴 쉼');endTurn(false);}
+    else if(space.id===12){
+      if(bankPot>0){p.money+=10;bankPot-=10;if(bankPot<0)bankPot=0;addLog('🏦 은행 보관금 +10만');}
+      else{p.money-=10;bankPot+=10;addLog('🏦 세금 -10만');}
+      endTurn(isDouble);
+    }else if(space.id===18){p.money-=10;p.taxiNext=true;addLog('🚕 택시 탑승! 다음 턴에 이동');endTurn(isDouble);}
+    else{endTurn(isDouble);}
+    return;
+  }
+  if(space.type==='key'){
+    const cardIdx=keyDeck.shift();
+    const card=goldenKeys[cardIdx];keyDeck.push(cardIdx);
+    if(p.isAI){
+      addLog(`🗝️ [황금열쇠] ${card.text.split('\n')[0]}`);
+      const result=card.action(p);
+      if(result==='MOVE')handleLandingFixed(p,isDouble);else endTurn(isDouble);
+    }else{
+      showModal('🗝️ 황금열쇠',card.text,[{text:'확인',action:()=>{
+        const result=card.action(p);
+        if(result==='MOVE')handleLandingFixed(p,isDouble);else endTurn(isDouble);
+        if(gameMode==='online')pushGameState('황금열쇠');
+      }}]);
+    }
+    return;
+  }
+  if(space.type==='property'){
+    if(space.owner==null){
+      if(p.money>=space.price){
+        if(p.isAI){
+          // AI: 70% 확률로 구매
+          if(Math.random()<0.7){p.money-=space.price;space.owner=p.id;addLog(`🤖 컴퓨터가 ${space.name} 구매! -${space.price}만`);buildBoard();}
+          else{addLog('🤖 컴퓨터 구매 패스');}
+          updateUI();endTurn(isDouble);
+        }else{
+          showDeed(space,'buy',
+            ()=>{p.money-=space.price;space.owner=p.id;addLog(`🏷 ${space.name} 구매! -${space.price}만`);updateUI();buildBoard();if(gameMode==='online')pushGameState(p.name+'이 '+space.name+' 구매');endTurn(isDouble);},
+            ()=>{addLog('구매 패스');endTurn(isDouble);}
+          );
+        }
+      }else{addLog('💸 자금 부족, 구매 불가');endTurn(isDouble);}
+    }else if(space.owner!==p.id){
+      const owner=players.find(x=>x.id===space.owner);
+      p.money-=space.toll;owner.money+=space.toll;
+      addLog(`💸 ${owner.name}에게 통행료 ${space.toll}만`);
+      if(gameMode==='online')pushGameState(p.name+'이 통행료 지불');
+      endTurn(isDouble);
+    }else{addLog('🏠 내 땅에서 휴식');endTurn(isDouble);}
+  }
+}
+
+// handleLanding 재정의
+window.handleLanding=handleLandingFixed;
+
+function takeTurn(){
+  const p=players[turnIndex];
+  if(gameMode==='online'&&turnIndex!==myPlayerId)return;
+  if(p.taxiNext){handleTaxiDestination(p);return;}
+  const d1=Math.floor(Math.random()*6)+1,d2=Math.floor(Math.random()*6)+1;
+  const isDouble=(d1===d2),sum=d1+d2;
+  addLog(`🎲 ${p.name}: ${d1}+${d2}=${sum}${isDouble?' <b style="color:#ffd700">더블!</b>':''}`);
+  if(p.isTrapped){
+    if(isDouble){addLog('💨 더블! 화왕산 탈출!');p.isTrapped=false;p.trapTurns=0;movePlayer(p,sum,false);}
+    else{p.trapTurns--;addLog(`⛰ 탈출 실패 (남은 ${p.trapTurns}턴)`);if(p.trapTurns<=0)p.isTrapped=false;endTurn(false);}
+    return;
+  }
+  movePlayer(p,sum,isDouble);
+}
+
+function movePlayer(p,amount,isDouble){
+  p.position+=amount;
+  if(p.position>=24){p.position-=24;p.money+=10;addLog('🏁 출발 통과 월급 +10만');}
+  updateTokens();handleLanding(p,isDouble);
 }
 </script>
 </body>
