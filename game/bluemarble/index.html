@@ -9,191 +9,208 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-body{font-family:'Noto Sans KR',sans-serif;background:#0d2057;min-height:100vh;overflow:hidden;user-select:none}
+body{font-family:'Noto Sans KR',sans-serif;background:#4caf50;min-height:100vh;overflow:hidden;user-select:none}
 .screen{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center}
 .screen.active{display:flex}
 
 /* ── LOBBY ── */
-#lobby{background:linear-gradient(160deg,#0d2057 0%,#1a3a8f 50%,#0d2057 100%);overflow:hidden}
-.stars{position:absolute;inset:0;pointer-events:none}
-.star{position:absolute;width:3px;height:3px;background:#fff;border-radius:50%;animation:twinkle 3s infinite}
-@keyframes twinkle{0%,100%{opacity:.2}50%{opacity:1}}
+#lobby{background:linear-gradient(180deg,#87d4f5 0%,#4fc3f7 30%,#66bb6a 60%,#43a047 100%);overflow:hidden}
 
-.lobby-top{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:14px 16px;background:rgba(0,0,0,.3)}
-.lobby-avatar{display:flex;align-items:center;gap:8px;color:#fff}
-.avatar-icon{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#4f8ef7,#2563eb);border:2px solid #fff;display:flex;align-items:center;justify-content:center;font-size:18px}
-.lobby-username{font-size:14px;font-weight:700}
-.coin-box{display:flex;align-items:center;gap:6px;background:rgba(0,0,0,.4);border-radius:20px;padding:6px 12px;border:1px solid #ffd700}
-.coin-icon{font-size:20px}
-.coin-count{color:#ffd700;font-weight:900;font-size:16px}
-.coin-plus{width:22px;height:22px;border-radius:50%;background:#27ae60;color:#fff;font-size:14px;font-weight:900;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center}
+/* 구름 */
+.cloud{position:absolute;border-radius:50px;opacity:.85}
+.cloud::before,.cloud::after{content:'';position:absolute;background:inherit;border-radius:50%}
+.cloud-1{width:90px;height:30px;background:#fff;top:12%;left:5%;animation:drift 8s ease-in-out infinite}
+.cloud-1::before{width:50px;height:40px;top:-18px;left:12px}
+.cloud-1::after{width:35px;height:30px;top:-12px;left:40px}
+.cloud-2{width:70px;height:24px;background:#e8f5e9;top:18%;right:8%;animation:drift 11s ease-in-out infinite reverse}
+.cloud-2::before{width:40px;height:32px;top:-14px;left:10px}
+.cloud-2::after{width:28px;height:24px;top:-10px;left:32px}
+@keyframes drift{0%,100%{transform:translateX(0)}50%{transform:translateX(12px)}}
 
-.lobby-logo{margin-top:70px;text-align:center;position:relative;z-index:1}
-.logo-img{font-size:52px;line-height:1}
-.logo-text{font-size:28px;font-weight:900;color:#fff;text-shadow:0 0 20px #4f8ef7,0 4px 0 #0d2057;letter-spacing:1px;margin-top:4px}
-.logo-sub{font-size:12px;color:#a0b4e8;margin-top:2px}
+.lobby-top{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:rgba(255,255,255,.25);backdrop-filter:blur(4px)}
+.lobby-avatar{display:flex;align-items:center;gap:8px}
+.avatar-icon{width:36px;height:36px;border-radius:50%;background:#ff7043;border:3px solid #fff;display:flex;align-items:center;justify-content:center;font-size:17px;box-shadow:0 2px 6px rgba(0,0,0,.2)}
+.lobby-username{font-size:14px;font-weight:900;color:#1b5e20}
+.coin-box{display:flex;align-items:center;gap:5px;background:#fff;border-radius:20px;padding:5px 11px;border:2px solid #ffd700;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.coin-icon{font-size:18px}
+.coin-count{color:#e65100;font-weight:900;font-size:15px}
+.coin-plus{width:20px;height:20px;border-radius:50%;background:#ff6f00;color:#fff;font-size:13px;font-weight:900;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 4px rgba(0,0,0,.2)}
 
-.lobby-side-left,.lobby-side-right{position:absolute;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:14px;z-index:1}
-.lobby-side-left{left:12px}
-.lobby-side-right{right:12px}
-.side-btn{width:68px;background:rgba(0,0,0,.5);border:2px solid rgba(255,255,255,.2);border-radius:14px;padding:10px 4px 8px;text-align:center;cursor:pointer;color:#fff;position:relative}
-.side-btn-icon{font-size:28px;line-height:1}
-.side-btn-label{font-size:9px;font-weight:700;margin-top:4px;color:#a0b4e8}
-.side-badge{position:absolute;top:-4px;right:-4px;background:#e74c3c;color:#fff;border-radius:10px;padding:1px 5px;font-size:9px;font-weight:900}
+.lobby-logo{margin-top:68px;text-align:center;position:relative;z-index:1}
+.logo-img{font-size:56px;line-height:1;filter:drop-shadow(0 4px 8px rgba(0,0,0,.2))}
+.logo-text{font-size:26px;font-weight:900;color:#fff;text-shadow:0 3px 0 #1b5e20,0 0 20px rgba(0,0,0,.2);letter-spacing:1px;margin-top:6px}
+.logo-sub{font-size:12px;color:#c8e6c9;margin-top:3px;font-weight:700}
 
-.lobby-btns{display:flex;gap:16px;margin-top:30px;position:relative;z-index:1}
-.mode-btn{width:148px;border:none;border-radius:20px;padding:0;cursor:pointer;overflow:hidden;box-shadow:0 8px 0 rgba(0,0,0,.3),0 10px 20px rgba(0,0,0,.4);transition:transform .1s,box-shadow .1s;position:relative}
-.mode-btn:active{transform:translateY(4px);box-shadow:0 4px 0 rgba(0,0,0,.3)}
-.mode-btn-inner{padding:18px 10px 16px;display:flex;flex-direction:column;align-items:center;gap:10px}
-.mode-btn.vs{background:linear-gradient(160deg,#f39c12,#e67e22)}
-.mode-btn.vs .mode-btn-inner{background:linear-gradient(160deg,#f9c74f,#f39c12)}
-.mode-btn.online{background:linear-gradient(160deg,#27ae60,#1e8449)}
-.mode-btn.online .mode-btn-inner{background:linear-gradient(160deg,#2ecc71,#27ae60)}
-.mode-icon{font-size:52px;line-height:1}
-.mode-label{font-size:15px;font-weight:900;color:#fff;text-shadow:0 2px 4px rgba(0,0,0,.4)}
-.lobby-footer{position:absolute;bottom:16px;font-size:11px;color:#4a6fa5;text-align:center}
+.lobby-side-left,.lobby-side-right{position:absolute;top:46%;transform:translateY(-50%);display:flex;flex-direction:column;gap:12px;z-index:1}
+.lobby-side-left{left:8px}
+.lobby-side-right{right:8px}
+.side-btn{width:62px;background:#fff;border:3px solid #e8f5e9;border-radius:16px;padding:8px 4px 7px;text-align:center;cursor:pointer;position:relative;box-shadow:0 4px 0 #a5d6a7,0 6px 12px rgba(0,0,0,.12);transition:transform .1s,box-shadow .1s}
+.side-btn:active{transform:translateY(3px);box-shadow:0 1px 0 #a5d6a7}
+.side-btn-icon{font-size:26px;line-height:1}
+.side-btn-label{font-size:9px;font-weight:900;margin-top:3px;color:#388e3c}
+.side-badge{position:absolute;top:-5px;right:-5px;background:#f44336;color:#fff;border-radius:10px;padding:1px 5px;font-size:9px;font-weight:900;border:2px solid #fff}
+
+.lobby-btns{display:flex;gap:14px;margin-top:28px;position:relative;z-index:1}
+.mode-btn{width:142px;border:none;border-radius:22px;padding:0;cursor:pointer;overflow:hidden;transition:transform .1s,box-shadow .1s;position:relative}
+.mode-btn:active{transform:translateY(5px)}
+.mode-btn.vs{background:#ef6c00;box-shadow:0 7px 0 #bf360c,0 10px 20px rgba(0,0,0,.2)}
+.mode-btn.vs:active{box-shadow:0 2px 0 #bf360c}
+.mode-btn.online{background:#1565c0;box-shadow:0 7px 0 #0d47a1,0 10px 20px rgba(0,0,0,.2)}
+.mode-btn.online:active{box-shadow:0 2px 0 #0d47a1}
+.mode-btn-inner{padding:16px 10px 14px;display:flex;flex-direction:column;align-items:center;gap:8px;border-radius:22px 22px 18px 18px;margin:0 0 2px}
+.mode-btn.vs .mode-btn-inner{background:linear-gradient(160deg,#ffb74d,#ff9800)}
+.mode-btn.online .mode-btn-inner{background:linear-gradient(160deg,#64b5f6,#2196f3)}
+.mode-icon{font-size:46px;line-height:1;filter:drop-shadow(0 3px 4px rgba(0,0,0,.2))}
+.mode-label{font-size:14px;font-weight:900;color:#fff;text-shadow:0 2px 4px rgba(0,0,0,.3)}
+.lobby-footer{position:absolute;bottom:14px;font-size:11px;color:#a5d6a7;text-align:center;font-weight:700}
 
 /* ── NAME INPUT ── */
-#name-screen{background:linear-gradient(160deg,#0d2057,#1a3a8f)}
-.name-card{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:24px;padding:30px 24px;width:90%;max-width:360px;text-align:center}
-.name-card h2{color:#fff;font-size:22px;font-weight:900;margin-bottom:6px}
-.name-card p{color:#a0b4e8;font-size:13px;margin-bottom:20px}
-.name-input{width:100%;background:rgba(255,255,255,.1);border:2px solid rgba(255,255,255,.2);border-radius:12px;padding:12px 16px;color:#fff;font-size:16px;font-family:inherit;outline:none;text-align:center}
-.name-input::placeholder{color:rgba(255,255,255,.4)}
-.name-input:focus{border-color:#4f8ef7}
-.name-btn{width:100%;margin-top:14px;border:none;border-radius:12px;padding:14px;font-family:inherit;font-size:17px;font-weight:700;cursor:pointer;transition:all .15s}
-.name-btn.primary{background:linear-gradient(135deg,#4f8ef7,#2563eb);color:#fff;box-shadow:0 4px 0 #1a4bab}
-.name-btn.primary:active{transform:translateY(3px);box-shadow:0 1px 0 #1a4bab}
-.name-btn.secondary{background:rgba(255,255,255,.1);color:#a0b4e8;margin-top:8px}
+#name-screen{background:linear-gradient(180deg,#87d4f5,#66bb6a)}
+.name-card{background:#fff;border-radius:28px;padding:28px 24px;width:88%;max-width:360px;text-align:center;box-shadow:0 8px 0 #c8e6c9,0 12px 30px rgba(0,0,0,.15)}
+.name-card h2{color:#1b5e20;font-size:22px;font-weight:900;margin-bottom:6px}
+.name-card p{color:#66bb6a;font-size:13px;margin-bottom:20px;font-weight:700}
+.name-input{width:100%;background:#f1f8e9;border:3px solid #a5d6a7;border-radius:14px;padding:12px 16px;color:#1b5e20;font-size:16px;font-family:inherit;outline:none;text-align:center;font-weight:700}
+.name-input::placeholder{color:#a5d6a7}
+.name-input:focus{border-color:#43a047}
+.name-btn{width:100%;margin-top:12px;border:none;border-radius:14px;padding:14px;font-family:inherit;font-size:16px;font-weight:900;cursor:pointer;transition:all .12s}
+.name-btn.primary{background:#ff9800;color:#fff;box-shadow:0 5px 0 #e65100}
+.name-btn.primary:active{transform:translateY(4px);box-shadow:0 1px 0 #e65100}
+.name-btn.secondary{background:#f5f5f5;color:#9e9e9e;margin-top:8px;box-shadow:0 3px 0 #e0e0e0}
+.name-btn.secondary:active{transform:translateY(2px);box-shadow:0 1px 0 #e0e0e0}
 
 /* ── ONLINE ROOM ── */
-#room-screen{background:linear-gradient(160deg,#0d2057,#1a3a8f)}
-.room-card{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:24px;padding:24px 20px;width:90%;max-width:380px}
-.room-card h2{color:#fff;font-size:20px;font-weight:900;text-align:center;margin-bottom:16px}
-.room-tabs{display:flex;gap:8px;margin-bottom:20px}
-.room-tab{flex:1;padding:10px;border:2px solid rgba(255,255,255,.2);border-radius:10px;background:transparent;color:#a0b4e8;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:all .15s}
-.room-tab.active{background:#4f8ef7;border-color:#4f8ef7;color:#fff}
+#room-screen{background:linear-gradient(180deg,#87d4f5,#66bb6a)}
+.room-card{background:#fff;border-radius:28px;padding:22px 20px;width:90%;max-width:380px;box-shadow:0 8px 0 #c8e6c9,0 12px 30px rgba(0,0,0,.15)}
+.room-card h2{color:#1b5e20;font-size:20px;font-weight:900;text-align:center;margin-bottom:16px}
+.room-tabs{display:flex;gap:8px;margin-bottom:18px}
+.room-tab{flex:1;padding:9px;border:3px solid #c8e6c9;border-radius:12px;background:#f1f8e9;color:#66bb6a;font-family:inherit;font-size:13px;font-weight:900;cursor:pointer;transition:all .12s}
+.room-tab.active{background:#43a047;border-color:#2e7d32;color:#fff;box-shadow:0 3px 0 #1b5e20}
 .room-section{display:none}
 .room-section.active{display:block}
-.room-label{font-size:12px;color:#a0b4e8;margin-bottom:6px;font-weight:700}
-.room-input{width:100%;background:rgba(255,255,255,.1);border:2px solid rgba(255,255,255,.2);border-radius:10px;padding:11px 14px;color:#fff;font-size:16px;font-family:inherit;outline:none;margin-bottom:12px;text-align:center;letter-spacing:3px}
-.room-input::placeholder{color:rgba(255,255,255,.3);letter-spacing:0}
-.room-input:focus{border-color:#4f8ef7}
-.room-code-display{background:rgba(79,142,247,.2);border:2px solid #4f8ef7;border-radius:12px;padding:16px;text-align:center;margin-bottom:16px}
-.room-code-display .code-label{font-size:12px;color:#a0b4e8;margin-bottom:6px}
-.room-code-display .code{font-size:36px;font-weight:900;color:#ffd700;letter-spacing:6px}
-.room-code-display .code-hint{font-size:11px;color:#a0b4e8;margin-top:4px}
-.waiting-box{text-align:center;padding:14px;background:rgba(0,0,0,.2);border-radius:12px;margin-bottom:14px}
-.waiting-box .waiting-text{color:#a0b4e8;font-size:13px;margin-bottom:10px}
+.room-label{font-size:12px;color:#43a047;margin-bottom:6px;font-weight:900}
+.room-input{width:100%;background:#f1f8e9;border:3px solid #a5d6a7;border-radius:12px;padding:11px 14px;color:#1b5e20;font-size:16px;font-family:inherit;outline:none;margin-bottom:12px;text-align:center;letter-spacing:3px;font-weight:700}
+.room-input::placeholder{color:#a5d6a7;letter-spacing:0}
+.room-input:focus{border-color:#43a047}
+.room-code-display{background:#e8f5e9;border:3px solid #66bb6a;border-radius:14px;padding:14px;text-align:center;margin-bottom:14px}
+.room-code-display .code-label{font-size:12px;color:#43a047;margin-bottom:5px;font-weight:900}
+.room-code-display .code{font-size:34px;font-weight:900;color:#ff6f00;letter-spacing:6px}
+.room-code-display .code-hint{font-size:11px;color:#66bb6a;margin-top:3px;font-weight:700}
+.waiting-box{text-align:center;padding:12px;background:#f1f8e9;border-radius:12px;margin-bottom:12px}
+.waiting-box .waiting-text{color:#43a047;font-size:13px;margin-bottom:8px;font-weight:700}
 .waiting-players{display:flex;flex-direction:column;gap:6px}
-.waiting-player{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.08);border-radius:8px;padding:8px 12px}
+.waiting-player{display:flex;align-items:center;gap:8px;background:#fff;border-radius:10px;padding:7px 12px;border:2px solid #c8e6c9}
 .waiting-player .dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
-.waiting-player .pname{color:#fff;font-size:14px;font-weight:700;flex:1}
-.waiting-player .role{color:#a0b4e8;font-size:11px}
-.start-game-btn{width:100%;border:none;border-radius:12px;padding:14px;font-family:inherit;font-size:17px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#27ae60,#1e8449);color:#fff;box-shadow:0 4px 0 #145a32;display:none}
+.waiting-player .pname{color:#1b5e20;font-size:14px;font-weight:900;flex:1}
+.waiting-player .role{color:#66bb6a;font-size:11px;font-weight:700}
+.start-game-btn{width:100%;border:none;border-radius:14px;padding:14px;font-family:inherit;font-size:16px;font-weight:900;cursor:pointer;background:#ff9800;color:#fff;box-shadow:0 5px 0 #e65100;display:none}
 .start-game-btn.show{display:block}
-.start-game-btn:active{transform:translateY(3px);box-shadow:0 1px 0 #145a32}
-.back-btn-row{display:flex;justify-content:center;margin-top:12px}
-.back-link{color:#a0b4e8;font-size:13px;cursor:pointer;text-decoration:underline}
+.start-game-btn:active{transform:translateY(4px);box-shadow:0 1px 0 #e65100}
+.back-btn-row{display:flex;justify-content:center;margin-top:10px}
+.back-link{color:#43a047;font-size:13px;cursor:pointer;text-decoration:underline;font-weight:700}
 
 /* ── GAME SCREEN ── */
-#game-screen{background:linear-gradient(160deg,#0d2057,#1a3a8f);padding:0;justify-content:flex-start;overflow:auto}
-.game-wrap{width:100%;max-width:500px;margin:0 auto;padding:8px;min-height:100vh;display:flex;flex-direction:column}
+#game-screen{background:#4caf50;padding:0;justify-content:flex-start;overflow:auto}
+.game-wrap{width:100%;max-width:500px;margin:0 auto;padding:6px 6px 10px;min-height:100vh;display:flex;flex-direction:column}
 
-.game-topbar{display:flex;align-items:center;gap:8px;padding:8px 4px;flex-shrink:0}
-.game-topbar .back-icon{font-size:22px;cursor:pointer;color:#fff;padding:4px 8px}
-.game-title{color:#fff;font-size:16px;font-weight:900;flex:1}
-.game-turn-badge{background:rgba(255,255,255,.15);border-radius:10px;padding:4px 10px;font-size:12px;color:#a0b4e8;font-weight:700}
+.game-topbar{display:flex;align-items:center;gap:8px;padding:7px 4px;flex-shrink:0}
+.game-topbar .back-icon{font-size:20px;cursor:pointer;color:#fff;padding:4px 8px;background:rgba(0,0,0,.15);border-radius:8px}
+.game-title{color:#fff;font-size:15px;font-weight:900;flex:1;text-shadow:0 1px 3px rgba(0,0,0,.3)}
+.game-turn-badge{background:#fff;border-radius:12px;padding:4px 10px;font-size:11px;color:#1b5e20;font-weight:900;box-shadow:0 2px 6px rgba(0,0,0,.15)}
 
 /* 보드 */
-.board{display:grid;grid-template-columns:repeat(7,1fr);grid-template-rows:repeat(7,1fr);gap:3px;border-radius:16px;overflow:hidden;border:3px solid rgba(255,255,255,.2);flex-shrink:0;aspect-ratio:1/1}
-.cell{background:rgba(255,255,255,.12);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;position:relative;cursor:pointer;transition:filter .15s;padding:2px;overflow:hidden}
-.cell:hover{filter:brightness(1.2)}
-.cell-img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0;opacity:.7;border-radius:3px}
-.cell-overlay{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.7) 0%,rgba(0,0,0,.1) 60%)}
-.cell-name{position:relative;font-size:7px;font-weight:900;color:#fff;line-height:1.1;word-break:keep-all;text-shadow:0 1px 2px rgba(0,0,0,.8);z-index:1}
-.cell-price{position:relative;font-size:6px;color:#ffd700;font-weight:700;z-index:1}
-.cell.corner{background:rgba(255,255,255,.2)}
-.cell.corner .cell-name{font-size:8px;color:#ffd700}
-.cell.key-cell{background:linear-gradient(135deg,rgba(255,215,0,.3),rgba(255,165,0,.3))}
-.cell-owner-bar{position:absolute;top:0;left:0;right:0;height:4px;z-index:2}
-.player-token{position:absolute;width:12px;height:12px;border-radius:50%;border:2px solid rgba(255,255,255,.8);box-shadow:0 2px 4px rgba(0,0,0,.4);z-index:3;transition:all .3s}
+.board{display:grid;grid-template-columns:repeat(7,1fr);grid-template-rows:repeat(7,1fr);gap:3px;border-radius:16px;overflow:hidden;border:4px solid #fff;flex-shrink:0;aspect-ratio:1/1;box-shadow:0 4px 20px rgba(0,0,0,.2)}
+.cell{background:#fff9e6;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;position:relative;cursor:pointer;transition:filter .12s;padding:2px;overflow:hidden;border:1px solid #e0e0e0}
+.cell:hover{filter:brightness(1.08)}
+.cell-emoji{font-size:16px;line-height:1;margin-bottom:1px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.15))}
+.cell-name{font-size:6.5px;font-weight:900;color:#424242;line-height:1.1;word-break:keep-all}
+.cell-price{font-size:6px;color:#e65100;font-weight:900;margin-top:1px}
+.cell.corner{background:linear-gradient(135deg,#fff9c4,#fff59d)}
+.cell.corner .cell-name{font-size:8px;color:#1b5e20;font-weight:900}
+.cell.key-cell{background:linear-gradient(135deg,#fff8e1,#ffecb3)}
+.cell-owner-bar{position:absolute;top:0;left:0;right:0;height:5px;border-radius:0 0 3px 3px;z-index:2}
+.player-token{position:absolute;width:18px;height:22px;z-index:3;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;pointer-events:none;transition:filter .2s;filter:drop-shadow(0 2px 3px rgba(0,0,0,.4))}
+.player-token .token-body{width:16px;height:16px;border-radius:50%;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:900;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.5)}
+.player-token .token-shadow{width:10px;height:4px;background:rgba(0,0,0,.2);border-radius:50%;margin-top:1px}
+.player-token.active-player .token-body{animation:tokenBounce .6s ease-in-out infinite;box-shadow:0 4px 10px rgba(0,0,0,.4)}
+.player-token.moving .token-body{animation:tokenPop .15s ease-out}
+@keyframes tokenBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes tokenPop{0%{transform:scale(1.4)}100%{transform:scale(1)}}
 
 /* 센터 패널 */
-.center-panel{background:rgba(10,20,60,.9);border-radius:14px;border:1px solid rgba(255,255,255,.15);flex-shrink:0;padding:10px;margin-top:4px}
+.center-panel{background:linear-gradient(180deg,#37474f,#263238);border-radius:18px;border:3px solid #fff;flex-shrink:0;padding:10px;margin-top:5px;box-shadow:0 4px 20px rgba(0,0,0,.3)}
 .player-scores{display:flex;flex-direction:column;gap:4px;margin-bottom:8px}
-.score-row{display:flex;align-items:center;gap:8px;border-radius:8px;padding:5px 8px;background:rgba(255,255,255,.06)}
-.score-row.active-turn{background:rgba(79,142,247,.2);border:1px solid rgba(79,142,247,.4)}
-.score-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
-.score-name{color:#fff;font-size:12px;font-weight:700;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.score-row{display:flex;align-items:center;gap:8px;border-radius:10px;padding:5px 9px;background:rgba(255,255,255,.1)}
+.score-row.active-turn{background:rgba(255,193,7,.25);border:2px solid #ffc107}
+.score-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;border:2px solid rgba(255,255,255,.5)}
+.score-name{color:#fff;font-size:12px;font-weight:900;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .score-money{display:flex;align-items:center;gap:3px}
 .score-money-icon{font-size:12px}
-.score-money-val{color:#ffd700;font-size:12px;font-weight:900}
-.score-status{font-size:9px;color:#e74c3c;margin-left:4px}
+.score-money-val{color:#ffd54f;font-size:12px;font-weight:900}
+.score-status{font-size:9px;color:#ff8a65;margin-left:4px;font-weight:700}
 
 .panel-mid{display:flex;align-items:center;gap:10px;margin-bottom:8px}
-.log-box{flex:1;background:rgba(255,255,255,.05);border-radius:10px;padding:7px 10px;height:52px;overflow-y:auto;font-size:10px;color:#a0b4e8;line-height:1.5}
+.log-box{flex:1;background:rgba(0,0,0,.2);border-radius:12px;padding:7px 10px;height:54px;overflow-y:auto;font-size:10px;color:#b0bec5;line-height:1.5}
 .log-box .log-entry{animation:fadeIn .3s}
 @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
 
 .dice-wrap{display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0}
-.dice-btn{width:60px;height:60px;border-radius:14px;background:linear-gradient(135deg,#4f8ef7,#2563eb);border:3px solid rgba(255,255,255,.4);box-shadow:0 4px 0 #1a4bab,0 6px 12px rgba(0,0,0,.3);cursor:pointer;font-size:28px;display:flex;align-items:center;justify-content:center;transition:all .1s;color:#fff}
-.dice-btn:active{transform:translateY(3px);box-shadow:0 1px 0 #1a4bab}
-.dice-btn:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:0 4px 0 #1a4bab}
-.dice-label{font-size:9px;color:#a0b4e8;font-weight:700;text-align:center}
+.dice-btn{width:62px;height:62px;border-radius:16px;background:#fff;border:none;box-shadow:0 5px 0 #bdbdbd,0 7px 14px rgba(0,0,0,.2);cursor:pointer;font-size:32px;display:flex;align-items:center;justify-content:center;transition:all .1s}
+.dice-btn:active{transform:translateY(4px);box-shadow:0 1px 0 #bdbdbd}
+.dice-btn:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:0 5px 0 #bdbdbd}
+.dice-label{font-size:9px;color:#b0bec5;font-weight:900;text-align:center}
 
-.turn-info{text-align:center;font-size:11px;color:#ffd700;font-weight:700;margin-top:2px}
+.turn-info{text-align:center;font-size:11px;color:#ffd54f;font-weight:900;margin-top:2px}
 
 /* ── DEED MODAL ── */
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;justify-content:center;align-items:center;z-index:200;backdrop-filter:blur(4px);padding:16px}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;justify-content:center;align-items:center;z-index:200;backdrop-filter:blur(6px);padding:16px}
 .modal-overlay.show{display:flex}
-.deed-card{background:#0d2057;border:2px solid rgba(255,255,255,.2);border-radius:20px;width:100%;max-width:340px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.5)}
-.deed-header{padding:12px 16px;text-align:center;font-size:11px;font-weight:700;color:rgba(255,255,255,.6);letter-spacing:2px;border-bottom:1px solid rgba(255,255,255,.1)}
-.deed-color-strip{height:44px;display:flex;align-items:center;justify-content:center}
-.deed-color-strip span{font-size:17px;font-weight:900;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.5)}
-.deed-photo-wrap{position:relative;height:150px;overflow:hidden}
+.deed-card{background:#fff;border-radius:24px;width:100%;max-width:340px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+.deed-header{padding:11px 16px;text-align:center;font-size:11px;font-weight:900;color:#fff;letter-spacing:2px;background:#1b5e20}
+.deed-color-strip{height:46px;display:flex;align-items:center;justify-content:center}
+.deed-color-strip span{font-size:17px;font-weight:900;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.4)}
+.deed-photo-wrap{position:relative;height:150px;overflow:hidden;background:#e8f5e9}
 .deed-photo-wrap img{width:100%;height:100%;object-fit:cover}
-.deed-photo-fallback{width:100%;height:100%;background:linear-gradient(135deg,#1a3a8f,#2563eb);display:flex;align-items:center;justify-content:center;font-size:48px}
-.deed-body{padding:14px 18px 10px}
-.deed-name{font-size:19px;font-weight:900;color:#fff;margin-bottom:6px}
-.deed-desc{font-size:11px;color:#a0b4e8;line-height:1.6;margin-bottom:12px}
+.deed-photo-fallback{width:100%;height:100%;background:linear-gradient(135deg,#c8e6c9,#a5d6a7);display:flex;align-items:center;justify-content:center;font-size:48px}
+.deed-body{padding:14px 18px 10px;background:#fff}
+.deed-name{font-size:19px;font-weight:900;color:#1b5e20;margin-bottom:5px}
+.deed-desc{font-size:11px;color:#555;line-height:1.6;margin-bottom:12px}
 .deed-stats{display:flex;gap:8px;margin-bottom:12px}
-.deed-stat{flex:1;background:rgba(255,255,255,.08);border-radius:10px;padding:8px;text-align:center}
-.deed-stat-label{font-size:10px;color:#a0b4e8;margin-bottom:3px}
-.deed-stat-val{font-size:16px;font-weight:900;color:#ffd700}
-.deed-owner-row{background:rgba(79,142,247,.15);border-radius:8px;padding:7px 12px;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;font-size:12px;color:#a0b4e8}
-.deed-footer{display:flex;gap:8px;padding:0 18px 16px}
-.deed-btn{flex:1;border:none;border-radius:12px;padding:12px 0;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:all .12s}
-.deed-btn:active{transform:translateY(2px)}
-.deed-btn.buy{background:linear-gradient(135deg,#4f8ef7,#2563eb);color:#fff;box-shadow:0 3px 0 #1a4bab}
-.deed-btn.skip{background:rgba(255,255,255,.1);color:#a0b4e8}
-.deed-btn.close{background:linear-gradient(135deg,#27ae60,#1e8449);color:#fff;box-shadow:0 3px 0 #145a32}
+.deed-stat{flex:1;background:#f9fbe7;border:2px solid #c5e1a5;border-radius:12px;padding:8px;text-align:center}
+.deed-stat-label{font-size:10px;color:#689f38;margin-bottom:3px;font-weight:700}
+.deed-stat-val{font-size:16px;font-weight:900;color:#e65100}
+.deed-owner-row{background:#fff9c4;border:2px solid #f9a825;border-radius:10px;padding:7px 12px;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;font-size:12px;color:#f57f17;font-weight:700}
+.deed-footer{display:flex;gap:8px;padding:0 18px 16px;background:#fff}
+.deed-btn{flex:1;border:none;border-radius:14px;padding:12px 0;font-family:inherit;font-size:14px;font-weight:900;cursor:pointer;transition:all .12s}
+.deed-btn:active{transform:translateY(3px)}
+.deed-btn.buy{background:#ff9800;color:#fff;box-shadow:0 4px 0 #e65100}
+.deed-btn.skip{background:#eeeeee;color:#757575;box-shadow:0 4px 0 #bdbdbd}
+.deed-btn.close{background:#43a047;color:#fff;box-shadow:0 4px 0 #2e7d32}
 
 /* 일반 모달 */
-.info-modal{background:#0d2057;border:2px solid rgba(255,255,255,.2);border-radius:20px;width:100%;max-width:320px;padding:24px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.5)}
-.info-modal h3{color:#fff;font-size:18px;font-weight:900;margin-bottom:12px}
-.info-modal p{color:#a0b4e8;font-size:13px;line-height:1.7;margin-bottom:20px;white-space:pre-line}
+.info-modal{background:#fff;border-radius:24px;width:100%;max-width:320px;padding:24px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.info-modal h3{color:#1b5e20;font-size:18px;font-weight:900;margin-bottom:12px}
+.info-modal p{color:#555;font-size:13px;line-height:1.7;margin-bottom:20px;white-space:pre-line}
 .info-modal .modal-btns{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
-.modal-btn{border:none;border-radius:10px;padding:10px 20px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:all .12s}
+.modal-btn{border:none;border-radius:12px;padding:10px 20px;font-family:inherit;font-size:14px;font-weight:900;cursor:pointer;transition:all .12s}
 .modal-btn:active{transform:translateY(2px)}
-.modal-btn.primary{background:linear-gradient(135deg,#4f8ef7,#2563eb);color:#fff;box-shadow:0 3px 0 #1a4bab}
-.modal-btn.danger{background:linear-gradient(135deg,#e74c3c,#c0392b);color:#fff;box-shadow:0 3px 0 #922b21}
-.modal-btn.secondary{background:rgba(255,255,255,.1);color:#a0b4e8}
-.modal-btn.taxi-select{width:100%;margin-bottom:4px;background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.15)}
+.modal-btn.primary{background:#ff9800;color:#fff;box-shadow:0 4px 0 #e65100}
+.modal-btn.danger{background:#f44336;color:#fff;box-shadow:0 4px 0 #c62828}
+.modal-btn.secondary{background:#eeeeee;color:#757575;box-shadow:0 3px 0 #bdbdbd}
+.modal-btn.taxi-select{width:100%;margin-bottom:4px;background:#f1f8e9;color:#1b5e20;border:2px solid #a5d6a7}
 
 /* 택시 select */
-.taxi-sel{width:100%;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:10px;color:#fff;font-family:inherit;font-size:14px;margin-bottom:12px}
+.taxi-sel{width:100%;background:#f1f8e9;border:2px solid #a5d6a7;border-radius:10px;padding:10px;color:#1b5e20;font-family:inherit;font-size:14px;margin-bottom:12px;font-weight:700}
 
 /* 스피너 */
-.spinner{width:36px;height:36px;border:4px solid rgba(255,255,255,.1);border-top-color:#4f8ef7;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
+.spinner{width:36px;height:36px;border:4px solid #c8e6c9;border-top-color:#43a047;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
 @keyframes spin{to{transform:rotate(360deg)}}
 
 /* 반응형 */
 @media(max-height:700px){
-  .lobby-logo{margin-top:60px}
-  .lobby-btns{margin-top:20px}
-  .mode-btn{width:130px}
-  .mode-icon{font-size:40px}
+  .lobby-logo{margin-top:56px}
+  .lobby-btns{margin-top:18px}
+  .mode-btn{width:128px}
+  .mode-icon{font-size:38px}
 }
 </style>
 </head>
@@ -201,7 +218,8 @@ body{font-family:'Noto Sans KR',sans-serif;background:#0d2057;min-height:100vh;o
 
 <!-- ══════════ LOBBY ══════════ -->
 <div id="lobby" class="screen active">
-  <div class="stars" id="stars"></div>
+  <div class="cloud cloud-1"></div>
+  <div class="cloud cloud-2"></div>
   <div class="lobby-top">
     <div class="lobby-avatar">
       <div class="avatar-icon">🗺️</div>
@@ -391,19 +409,7 @@ const firebaseConfig = { databaseURL:"https://school-chat-7051e-default-rtdb.fir
 if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// ── 별 생성 ──
-(function(){
-  const s=document.getElementById('stars');
-  for(let i=0;i<60;i++){
-    const el=document.createElement('div');
-    el.className='star';
-    el.style.left=Math.random()*100+'%';
-    el.style.top=Math.random()*100+'%';
-    el.style.animationDelay=Math.random()*3+'s';
-    el.style.animationDuration=(2+Math.random()*3)+'s';
-    s.appendChild(el);
-  }
-})();
+// (구름은 CSS로 처리)
 
 // ── 화면 전환 ──
 function showScreen(id){
@@ -415,29 +421,29 @@ function showScreen(id){
 const COLORS=['#ef4444','#3b82f6','#10b981','#f59e0b','#8b5cf6'];
 const boardSpaces=[
   {id:0,type:'corner',name:'출발',emoji:'🏁'},
-  {id:1,type:'property',name:'남지체육공원',price:10,toll:5,img:'img/namji_park.jpg',desc:'낙동강변의 아름다운 수변 공원. 봄에는 유채꽃이 가득합니다.'},
-  {id:2,type:'property',name:'창녕박물관',price:15,toll:7,img:'img/museum.jpg',desc:'비화가야의 역사와 유물을 한눈에 볼 수 있는 공립 박물관입니다.'},
+  {id:1,type:'property',name:'남지체육공원',price:10,toll:5,emoji:'🌸',color:'#ef9a9a',img:'img/namji_park.jpg',desc:'낙동강변의 아름다운 수변 공원. 봄에는 유채꽃이 가득합니다.'},
+  {id:2,type:'property',name:'창녕박물관',price:15,toll:7,emoji:'🏛️',color:'#ef9a9a',img:'img/museum.jpg',desc:'비화가야의 역사와 유물을 한눈에 볼 수 있는 공립 박물관입니다.'},
   {id:3,type:'key',name:'황금열쇠',emoji:'🗝️'},
-  {id:4,type:'property',name:'만년교',price:15,toll:7,img:'img/mannyeon_bridge.jpg',desc:'천년만년 무너지지 않는 조선시대 아치형 무지개다리, 대한민국 보물.'},
-  {id:5,type:'property',name:'관룡사',price:20,toll:10,img:'img/gwanryongsa.jpg',desc:'화왕산 자락의 1,500년 역사를 가진 천년고찰.'},
+  {id:4,type:'property',name:'만년교',price:15,toll:7,emoji:'🌉',color:'#90caf9',img:'img/mannyeon_bridge.jpg',desc:'천년만년 무너지지 않는 조선시대 아치형 무지개다리, 대한민국 보물.'},
+  {id:5,type:'property',name:'관룡사',price:20,toll:10,emoji:'🛕',color:'#90caf9',img:'img/gwanryongsa.jpg',desc:'화왕산 자락의 1,500년 역사를 가진 천년고찰.'},
   {id:6,type:'corner',name:'화왕산',emoji:'⛰️',desc:'무인도'},
-  {id:7,type:'property',name:'창녕향교',price:25,toll:12,img:'img/changneyong_hyanggyo.jpg',desc:'전통적인 전학후묘 배치의 아름다운 향교.'},
-  {id:8,type:'property',name:'교동고분군',price:30,toll:15,img:'img/gyodong_tomb.jpg',desc:'비화가야 왕릉급 무덤들. 봄엔 수양벚꽃이 장관.'},
+  {id:7,type:'property',name:'창녕향교',price:25,toll:12,emoji:'🏫',color:'#a5d6a7',img:'img/changneyong_hyanggyo.jpg',desc:'전통적인 전학후묘 배치의 아름다운 향교.'},
+  {id:8,type:'property',name:'교동고분군',price:30,toll:15,emoji:'🗿',color:'#a5d6a7',img:'img/gyodong_tomb.jpg',desc:'비화가야 왕릉급 무덤들. 봄엔 수양벚꽃이 장관.'},
   {id:9,type:'key',name:'황금열쇠',emoji:'🗝️'},
-  {id:10,type:'property',name:'영산호국공원',price:35,toll:17,img:'img/yeongsan_park.jpg',desc:'영산면의 아름다운 연지못. 수양벚꽃 명소.'},
-  {id:11,type:'property',name:'비사벌문화제',price:40,toll:20,img:'img/bisabeol_festival.jpg',desc:'매년 10월 창녕 최대의 지역 문화 대축제.'},
+  {id:10,type:'property',name:'영산호국공원',price:35,toll:17,emoji:'🌳',color:'#ce93d8',img:'img/yeongsan_park.jpg',desc:'영산면의 아름다운 연지못. 수양벚꽃 명소.'},
+  {id:11,type:'property',name:'비사벌문화제',price:40,toll:20,emoji:'🎊',color:'#ce93d8',img:'img/bisabeol_festival.jpg',desc:'매년 10월 창녕 최대의 지역 문화 대축제.'},
   {id:12,type:'corner',name:'창녕은행',emoji:'🏦',desc:'세금/복권'},
-  {id:13,type:'property',name:'창녕양파장',price:45,toll:22,img:'img/onion_market.jpg',desc:'전국 최대 양파 주산지 창녕의 핵심 공판장.'},
-  {id:14,type:'property',name:'창녕마늘시장',price:50,toll:25,img:'img/garlic_market.jpg',desc:'전국 마늘 가격 기준이 되는 마늘 공판장.'},
+  {id:13,type:'property',name:'창녕양파장',price:45,toll:22,emoji:'🧅',color:'#ffcc80',img:'img/onion_market.jpg',desc:'전국 최대 양파 주산지 창녕의 핵심 공판장.'},
+  {id:14,type:'property',name:'창녕마늘시장',price:50,toll:25,emoji:'🧄',color:'#ffcc80',img:'img/garlic_market.jpg',desc:'전국 마늘 가격 기준이 되는 마늘 공판장.'},
   {id:15,type:'key',name:'황금열쇠',emoji:'🗝️'},
-  {id:16,type:'property',name:'산토끼노래동산',price:55,toll:27,img:'img/santokki.jpg',desc:'국민동요 "산토끼" 발상지에 만들어진 가족 테마공원.'},
-  {id:17,type:'property',name:'부곡하와이',price:60,toll:30,img:'img/bugok_hawaii.jpg',desc:'대한민국 최초의 종합 워터파크. 추억의 명소.'},
+  {id:16,type:'property',name:'산토끼노래동산',price:55,toll:27,emoji:'🐰',color:'#f48fb1',img:'img/santokki.jpg',desc:'국민동요 "산토끼" 발상지에 만들어진 가족 테마공원.'},
+  {id:17,type:'property',name:'부곡하와이',price:60,toll:30,emoji:'🌊',color:'#f48fb1',img:'img/bugok_hawaii.jpg',desc:'대한민국 최초의 종합 워터파크. 추억의 명소.'},
   {id:18,type:'corner',name:'택시정류장',emoji:'🚕',desc:'이동'},
-  {id:19,type:'property',name:'우포따오기',price:65,toll:32,img:'img/upo_ibis.jpg',desc:'멸종위기 따오기를 복원하는 생태 연구시설.'},
-  {id:20,type:'property',name:'유채꽃단지',price:70,toll:35,img:'img/rapeseed.jpg',desc:'33만 평 전국 최대 규모의 봄꽃 명소.'},
+  {id:19,type:'property',name:'우포따오기',price:65,toll:32,emoji:'🦢',color:'#80cbc4',img:'img/upo_ibis.jpg',desc:'멸종위기 따오기를 복원하는 생태 연구시설.'},
+  {id:20,type:'property',name:'유채꽃단지',price:70,toll:35,emoji:'🌼',color:'#80cbc4',img:'img/rapeseed.jpg',desc:'33만 평 전국 최대 규모의 봄꽃 명소.'},
   {id:21,type:'key',name:'황금열쇠',emoji:'🗝️'},
-  {id:22,type:'property',name:'우포생태촌',price:80,toll:40,img:'img/upo_village.jpg',desc:'우포늪 근처 자연 친화적 힐링 숙박시설.'},
-  {id:23,type:'property',name:'우포늪',price:100,toll:50,img:'img/upo_marsh.jpg',desc:'1억4천만 년 전 형성된 대한민국 최대 자연 내륙 습지.'},
+  {id:22,type:'property',name:'우포생태촌',price:80,toll:40,emoji:'🏕️',color:'#bcaaa4',img:'img/upo_village.jpg',desc:'우포늪 근처 자연 친화적 힐링 숙박시설.'},
+  {id:23,type:'property',name:'우포늪',price:100,toll:50,emoji:'🌿',color:'#bcaaa4',img:'img/upo_marsh.jpg',desc:'1억4천만 년 전 형성된 대한민국 최대 자연 내륙 습지.'},
 ];
 
 const goldenKeys=[
@@ -463,11 +469,14 @@ const goldenKeys=[
   {text:"창녕사랑상품권 당첨!\n(10만 원 획득)",action:(p)=>{p.money+=10;addLog('🎟 상품권 +10만');}}
 ];
 
+// 플레이어 말 이모지 (같은 캐릭터, 색만 다름)
+const TOKEN_LABELS=['①','②','③','④'];
 // ── 게임 상태 ──
 let players=[], turnIndex=0, bankPot=0, keyDeck=[];
 let gameMode='vs'; // 'vs' | 'online'
 let myPlayerId=null, roomRef=null, roomCode=null, isHost=false;
 let waitingRef=null;
+let isAnimating=false;
 
 // ── 모드 선택 ──
 function goVsComputer(){showScreen('name-screen');}
@@ -673,7 +682,10 @@ function buildBoard(){
 
     if(space.type==='corner')cell.className='cell corner';
     else if(space.type==='key')cell.className='cell key-cell';
-    else cell.className='cell';
+    else{
+      cell.className='cell';
+      if(space.color)cell.style.background=space.color+'55';
+    }
 
     // 소유자 색상 바
     if(space.owner!=null){
@@ -684,17 +696,22 @@ function buildBoard(){
       cell.appendChild(bar);
     }
 
-    // 사진 배경
-    if(space.img){
-      const img=document.createElement('img');
-      img.className='cell-img';img.src=space.img;img.alt='';
-      cell.appendChild(img);
-      const ov=document.createElement('div');ov.className='cell-overlay';cell.appendChild(ov);
+    // 색상 헤더 스트립 (사진 없이 색상만)
+    if(space.color&&space.type==='property'){
+      const strip=document.createElement('div');
+      strip.style.cssText=`position:absolute;top:0;left:0;right:0;height:6px;background:${space.color};`;
+      if(space.owner==null)cell.appendChild(strip);
     }
+
+    // 이모지 아이콘
+    const emojiDiv=document.createElement('div');
+    emojiDiv.className='cell-emoji';
+    emojiDiv.textContent=space.emoji||'🏠';
+    cell.appendChild(emojiDiv);
 
     const nameDiv=document.createElement('div');
     nameDiv.className='cell-name';
-    nameDiv.textContent=space.type==='key'?'🗝️':space.emoji||space.name;
+    nameDiv.textContent=space.name;
     cell.appendChild(nameDiv);
 
     if(space.price){
@@ -734,21 +751,37 @@ function updateUI(){
   // 주사위 버튼 활성/비활성
   const diceBtn=document.getElementById('dice-btn');
   const isMyTurn=(gameMode==='vs'&&!players[turnIndex].isAI)||(gameMode==='online'&&turnIndex===myPlayerId);
-  diceBtn.disabled=!isMyTurn;
+  diceBtn.disabled=!isMyTurn||isAnimating;
+  diceBtn.textContent='🎲';
   document.getElementById('dice-label').textContent=isMyTurn?'굴리기':'대기중';
 }
 
-function updateTokens(){
+function updateTokens(movingId){
   document.querySelectorAll('.player-token').forEach(e=>e.remove());
   players.forEach((p,index)=>{
     const cell=document.getElementById(`cell-${p.position}`);
     if(!cell)return;
     const token=document.createElement('div');
-    token.className='player-token';
-    token.style.backgroundColor=p.color;
-    const offsetX=(index%2)*14-7;
-    const offsetY=Math.floor(index/2)*14-7;
-    token.style.transform=`translate(${offsetX}px,${offsetY}px)`;
+    const isActive=(index===turnIndex);
+    const isMoving=(p.id===movingId);
+    token.className='player-token'+(isActive?' active-player':'')+(isMoving?' moving':'');
+
+    const offsets=[[-7,-7],[7,-7],[-7,7],[7,7]];
+    const [ox,oy]=offsets[index]||[0,0];
+    token.style.left=`calc(50% + ${ox}px)`;
+    token.style.top=`calc(50% + ${oy-4}px)`;
+    token.style.transform='translate(-50%,-50%)';
+
+    const body=document.createElement('div');
+    body.className='token-body';
+    body.style.background=p.color;
+    body.textContent=TOKEN_LABELS[index]||String(index+1);
+    token.appendChild(body);
+
+    const shadow=document.createElement('div');
+    shadow.className='token-shadow';
+    token.appendChild(shadow);
+
     cell.appendChild(token);
   });
 }
@@ -817,6 +850,7 @@ function closeModal(id){document.getElementById(id).classList.remove('show');}
 
 // ── 턴 처리 ──
 function takeTurn(){
+  if(isAnimating)return;
   const p=players[turnIndex];
   if(gameMode==='online'&&turnIndex!==myPlayerId)return;
 
@@ -846,9 +880,22 @@ function handleTaxiDestination(p){
 }
 
 function movePlayer(p,amount,isDouble){
-  p.position+=amount;
-  if(p.position>=24){p.position-=24;p.money+=10;addLog('🏁 출발 통과 월급 +10만');}
-  updateTokens();handleLanding(p,isDouble);
+  isAnimating=true;
+  document.getElementById('dice-btn').disabled=true;
+  let steps=0;
+  function step(){
+    p.position=(p.position+1)%24;
+    if(p.position===0){p.money+=10;addLog('🏁 출발 통과 월급 +10만');}
+    steps++;
+    updateTokens(p.id);
+    if(steps<amount){
+      setTimeout(step,250);
+    }else{
+      isAnimating=false;
+      handleLanding(p,isDouble);
+    }
+  }
+  setTimeout(step,80);
 }
 
 function handleLanding(p,isDouble){
@@ -986,12 +1033,16 @@ function handleLandingFixed(p,isDouble){
 window.handleLanding=handleLandingFixed;
 
 function takeTurn(){
+  if(isAnimating)return;
   const p=players[turnIndex];
   if(gameMode==='online'&&turnIndex!==myPlayerId)return;
   if(p.taxiNext){handleTaxiDestination(p);return;}
   const d1=Math.floor(Math.random()*6)+1,d2=Math.floor(Math.random()*6)+1;
   const isDouble=(d1===d2),sum=d1+d2;
-  addLog(`🎲 ${p.name}: ${d1}+${d2}=${sum}${isDouble?' <b style="color:#ffd700">더블!</b>':''}`);
+  // 주사위 애니메이션
+  const diceBtn=document.getElementById('dice-btn');
+  diceBtn.textContent='🎲';diceBtn.disabled=true;
+  addLog(`🎲 ${p.name}: ${d1}+${d2}=${sum}${isDouble?' <b style="color:#ffc107">더블!</b>':''}`);
   if(p.isTrapped){
     if(isDouble){addLog('💨 더블! 화왕산 탈출!');p.isTrapped=false;p.trapTurns=0;movePlayer(p,sum,false);}
     else{p.trapTurns--;addLog(`⛰ 탈출 실패 (남은 ${p.trapTurns}턴)`);if(p.trapTurns<=0)p.isTrapped=false;endTurn(false);}
@@ -1001,9 +1052,22 @@ function takeTurn(){
 }
 
 function movePlayer(p,amount,isDouble){
-  p.position+=amount;
-  if(p.position>=24){p.position-=24;p.money+=10;addLog('🏁 출발 통과 월급 +10만');}
-  updateTokens();handleLanding(p,isDouble);
+  isAnimating=true;
+  document.getElementById('dice-btn').disabled=true;
+  let steps=0;
+  function step(){
+    p.position=(p.position+1)%24;
+    if(p.position===0){p.money+=10;addLog('🏁 출발 통과 월급 +10만');}
+    steps++;
+    updateTokens(p.id);
+    if(steps<amount){
+      setTimeout(step,250);
+    }else{
+      isAnimating=false;
+      handleLanding(p,isDouble);
+    }
+  }
+  setTimeout(step,80);
 }
 </script>
 </body>
