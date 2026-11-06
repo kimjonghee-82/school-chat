@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>창녕 블루마블</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap');
+    body {
+        font-family: 'Noto Sans KR', sans-serif;
+        background-color: #e0e7ff;
+        margin: 0;
+        overflow: hidden;
+        user-select: none;
+    }
+    .board-container { display:flex; justify-content:center; align-items:center; height:100vh; padding:10px; }
+    .board {
+        display:grid; grid-template-columns:repeat(7,1fr); grid-template-rows:repeat(7,1fr);
+        gap:4px; background-color:#1e1b4b; border:8px solid #1e1b4b;
+        border-radius:12px; width:95vmin; height:95vmin; max-width:800px; max-height:800px;
+        box-shadow:0 20px 25px -5px rgba(0,0,0,.1),0 10px 10px -5px rgba(0,0,0,.04);
+    }
+    .cell {
+        background:#fff; border-radius:6px; display:flex; flex-direction:column;
+        align-items:center; justify-content:center; text-align:center;
+        position:relative; padding:4px; box-shadow:inset 0 0 5px rgba(0,0,0,.05);
+        cursor:pointer; transition:filter .15s;
+    }
+    .cell:hover { filter:brightness(.93); }
+    .cell-title { font-size:11px; font-weight:900; line-height:1.2; word-break:keep-all; }
+    .cell-price { font-size:10px; color:#4b5563; margin-top:2px; }
+    .corner { background-color:#ffedd5; }
+    .corner .cell-title { color:#c2410c; font-size:13px; }
+    .golden-key { background-color:#fef08a; }
+    .golden-key .cell-title { color:#854d0e; }
+    .center-area {
+        grid-column:2/7; grid-row:2/7; background:linear-gradient(135deg,#f0f9ff 0%,#dbeafe 100%);
+        border-radius:8px; padding:15px; display:flex; flex-direction:column;
+        box-shadow:inset 0 0 20px rgba(0,0,0,.05); overflow:hidden;
+    }
+    .log-container {
+        flex-grow:1; background:rgba(255,255,255,.8); border:1px solid #bfdbfe;
+        border-radius:8px; padding:10px; overflow-y:auto; font-size:12px;
+        margin-bottom:10px; display:flex; flex-direction:column; gap:4px;
+    }
+    .log-entry { animation:fadeIn .3s ease-in-out; }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:translateY(0)} }
+    .player-token {
+        width:18px; height:18px; border-radius:50%; position:absolute;
+        border:2px solid white; box-shadow:0 2px 5px rgba(0,0,0,.3);
+        transition:all .4s ease-in-out; z-index:10;
+    }
+    .modal-overlay {
+        position:fixed; top:0; left:0; width:100%; height:100%;
+        background:rgba(0,0,0,.6); display:none; justify-content:center;
+        align-items:center; z-index:100; backdrop-filter:blur(3px);
+    }
+    .modal-content {
+        background:white; padding:25px; border-radius:16px; width:90%; max-width:400px;
+        text-align:center; box-shadow:0 25px 50px -12px rgba(0,0,0,.25);
+    }
+
+    /* 권리증서 스타일 */
+    #deed-modal .modal-content {
+        max-width:420px; padding:0; overflow:hidden;
+        border:4px solid #1e1b4b;
+    }
+    .deed-header {
+        background:#1e1b4b; color:#fef08a; padding:10px 16px;
+        font-size:11px; letter-spacing:2px; text-transform:uppercase;
+        font-weight:900;
+    }
+    .deed-color-bar { height:40px; display:flex; align-items:center; justify-content:center; }
+    .deed-color-bar span { color:#fff; font-size:18px; font-weight:900; text-shadow:0 1px 3px rgba(0,0,0,.4); }
+    .deed-photo { width:100%; height:160px; object-fit:cover; display:block; }
+    .deed-photo-placeholder {
+        width:100%; height:160px; display:flex; align-items:center; justify-content:center;
+        font-size:48px; background:#f1f5f9;
+    }
+    .deed-body { padding:14px 18px 10px; }
+    .deed-name { font-size:20px; font-weight:900; color:#1e1b4b; margin-bottom:6px; }
+    .deed-desc { font-size:12px; color:#374151; line-height:1.6; margin-bottom:12px; text-align:left; }
+    .deed-table { width:100%; border-collapse:collapse; font-size:13px; margin-bottom:12px; }
+    .deed-table td { padding:5px 8px; border-bottom:1px solid #e5e7eb; }
+    .deed-table td:first-child { color:#6b7280; width:60%; }
+    .deed-table td:last-child { font-weight:700; color:#1e1b4b; text-align:right; }
+    .deed-owner-row { background:#f0f9ff; }
+    .deed-footer { padding:8px 18px 14px; display:flex; gap:8px; justify-content:center; }
+    .deed-btn {
+        flex:1; border:none; border-radius:10px; padding:10px 0; font-family:inherit;
+        font-size:15px; font-weight:700; cursor:pointer; transition:all .15s;
+    }
+    .deed-btn:active { transform:translateY(2px); }
+    .deed-btn.buy { background:#4f46e5; color:#fff; box-shadow:0 3px 0 #3730a3; }
+    .deed-btn.skip { background:#f3f4f6; color:#6b7280; box-shadow:0 3px 0 #d1d5db; }
+    .deed-btn.close { background:#e0e7ff; color:#3730a3; box-shadow:0 3px 0 #a5b4fc; }
+</style>
+</head>
+<body>
+
+<!-- 시작 화면 -->
+<div id="setup-screen" class="fixed inset-0 bg-indigo-50 flex justify-center items-center z-50">
+    <div class="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full text-center">
+        <h1 class="text-3xl font-black text-indigo-900 mb-2">창녕 블루마블</h1>
+        <p class="text-sm text-gray-500 mb-6">주사위를 굴려 창녕의 명소들을 정복하세요!</p>
+        <div class="mb-6 bg-indigo-50 p-4 rounded-lg text-sm">
+            <p class="font-bold mb-1">시작 자본금: 277만 5,000원</p>
+            <p class="text-xs text-gray-600">(50만 3장, 10만 10장, 5만 5장, 1만 5장, 5천 5장, 1천 5장)</p>
+        </div>
+        <div class="mb-6 flex justify-center items-center gap-4">
+            <label class="font-bold text-gray-700">인원수 (2~4명)</label>
+            <select id="player-count" class="border-2 border-indigo-200 rounded-lg p-2 font-bold focus:outline-none focus:border-indigo-500">
+                <option value="2">2명</option>
+                <option value="3">3명</option>
+                <option value="4" selected>4명</option>
+            </select>
+        </div>
+        <button onclick="initGame()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl transition duration-200">
+            게임 시작 및 순서 정하기
+        </button>
+    </div>
+</div>
+
+<!-- 게임 화면 -->
+<div id="game-screen" class="board-container hidden">
+    <div class="board" id="board">
+        <div class="center-area relative">
+            <div class="text-center mb-2">
+                <h2 class="text-xl font-black text-indigo-900">창녕 블루마블</h2>
+                <div id="bank-status" class="text-xs font-bold text-green-600 mt-1">은행 보관금: 0만 원</div>
+            </div>
+            <div id="current-turn-indicator" class="text-center text-lg font-bold mb-2 transition-colors duration-300">대기 중...</div>
+            <div class="log-container" id="log-box"></div>
+            <button id="roll-btn" onclick="takeTurn()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-lg transform active:scale-95 transition duration-150 flex items-center justify-center gap-2">
+                <span class="text-xl">🎲</span> 주사위 굴리기
+            </button>
+            <div class="mt-3 bg-white rounded-lg border border-gray-200 overflow-hidden">
+                <table class="w-full text-xs text-center">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="py-1 border-b">플레이어</th>
+                            <th class="py-1 border-b">자금</th>
+                            <th class="py-1 border-b">상태</th>
+                        </tr>
+                    </thead>
+                    <tbody id="player-status-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 일반 모달 -->
+<div id="global-modal" class="modal-overlay">
+    <div class="modal-content">
+        <h3 id="modal-title" class="text-xl font-bold text-gray-900 mb-4">알림</h3>
+        <div id="modal-body" class="text-gray-600 mb-6 text-sm whitespace-pre-line"></div>
+        <div id="modal-buttons" class="flex justify-center gap-3"></div>
+    </div>
+</div>
+
+<!-- 권리증서 모달 -->
+<div id="deed-modal" class="modal-overlay">
+    <div class="modal-content" style="text-align:left">
+        <div class="deed-header">🏛 창녕 블루마블 · 권리증서</div>
+        <div id="deed-color-bar" class="deed-color-bar"><span id="deed-bar-name"></span></div>
+        <div id="deed-photo-wrap"></div>
+        <div class="deed-body">
+            <div id="deed-name" class="deed-name"></div>
+            <div id="deed-desc" class="deed-desc"></div>
+            <table class="deed-table">
+                <tr><td>구매 가격</td><td id="deed-price"></td></tr>
+                <tr><td>통행료</td><td id="deed-toll"></td></tr>
+                <tr id="deed-owner-row" class="deed-owner-row" style="display:none">
+                    <td>소유자</td><td id="deed-owner"></td>
+                </tr>
+            </table>
+        </div>
+        <div class="deed-footer" id="deed-footer"></div>
+    </div>
+</div>
+
+<script>
+const INITIAL_MONEY = 277.5;
+const COLORS = ['#ef4444','#3b82f6','#10b981','#f59e0b'];
+const COLOR_BG = ['#fee2e2','#dbeafe','#d1fae5','#fef3c7'];
+
+// 보드 명소 데이터 (사진 + 설명 포함)
+const boardSpaces = [
+    { id:0, type:'corner', name:'출발/도착', desc:'월급 10만원', emoji:'🏁' },
+    { id:1, type:'property', name:'남지체육공원', price:10, toll:5,
+      img:'img/namji_park.jpg',
+      desc:'창녕군 남지읍 낙동강변에 위치한 남지체육공원은 매년 봄 황홀한 노란 유채꽃 물결이 펼쳐지는 창녕 낙동강 유채축제의 개최지이자, 탁 트인 낙동강을 바라보며 산책과 자전거 라이딩을 즐길 수 있는 대표적인 수변 공원입니다.' },
+    { id:2, type:'property', name:'창녕박물관', price:15, toll:7,
+      img:'img/museum.jpg',
+      desc:'창녕박물관은 가야 시대 비화가야의 중심지였던 창녕의 역사와 교동 및 송현동 고분군에서 출토된 유물을 한눈에 볼 수 있는 대표적인 공립 박물관입니다.' },
+    { id:3, type:'key', name:'황금열쇠', emoji:'🗝️' },
+    { id:4, type:'property', name:'만년교', price:15, toll:7,
+      img:'img/mannyeon_bridge.jpg',
+      desc:'이름처럼 "천년만년 무너지지 않는 다리"라는 뜻을 가진 창녕 영산 만년교는 경상남도 창녕군 영산면에 위치한 조선 시대의 아름다운 무지개다리(아치교)이자 대한민국의 보물입니다.' },
+    { id:5, type:'property', name:'관룡사', price:20, toll:10,
+      img:'img/gwanryongsa.jpg',
+      desc:'창녕 관룡사는 화왕산 군립공원 자락에 위치한 1,500년 역사의 천년고찰이자 불교 예술 문화재의 보고입니다.' },
+
+    { id:6, type:'corner', name:'화왕산', desc:'무인도', emoji:'⛰️' },
+
+    { id:7, type:'property', name:'창녕향교', price:25, toll:12,
+      img:'img/changneyong_hyanggyo.jpg',
+      desc:'창녕향교는 출입문인 외삼문, 공부하는 곳인 명륜당과 동·서재, 사당인 대성전과 동·서무 등의 건물이 있으며, 앞에 명륜당이 있고 뒤에 대성전이 있는 전형적인 전학후묘의 배치를 이루고 있습니다.' },
+    { id:8, type:'property', name:'교동고분군', price:30, toll:15,
+      img:'img/gyodong_tomb.jpg',
+      desc:'창녕 교동과 송현동 고분군은 가야 연맹을 구성했던 비화가야 지배 세력의 왕릉급 무덤들입니다. 봄철 흐드러지게 피어나는 수양벚꽃 명소로도 유명합니다.' },
+    { id:9, type:'key', name:'황금열쇠', emoji:'🗝️' },
+    { id:10, type:'property', name:'영산호국공원', price:35, toll:17,
+      img:'img/yeongsan_park.jpg',
+      desc:'창녕 연지못은 경상남도 창녕군 영산면에 위치한 아름다운 인공 저수지로, 봄철 흐드러지게 피어나는 수양벚꽃 명소이자 조선시대 선조들의 지혜가 담긴 역사적 치수 공간입니다.' },
+    { id:11, type:'property', name:'비사벌문화제', price:40, toll:20,
+      img:'img/bisabeol_festival.jpg',
+      desc:'창녕군의 역사와 문화를 계승하고 군민 화합을 다지기 위해 1987년부터 매년 가을(보통 10월)에 개최되는 대표적인 지역 문화 대축제입니다.' },
+
+    { id:12, type:'corner', name:'창녕은행', desc:'세금/복권', emoji:'🏦' },
+
+    { id:13, type:'property', name:'창녕양파장', price:45, toll:22,
+      img:'img/onion_market.jpg',
+      desc:'경남 창녕군의 주요 양파 및 마늘 농산물 경매가 이루어지는 핵심 공판장으로, 창녕농협 산지유통센터 공판장, 이방농협 농산물공판장, 남지농협 농산물공판장 등 총 3곳이 있습니다.' },
+    { id:14, type:'property', name:'창녕마늘시장', price:50, toll:25,
+      img:'img/garlic_market.jpg',
+      desc:'경남 창녕군의 마늘공판장은 전국 최대 마늘 주산지인 창녕의 핵심 농산물 거래소로, 매년 전국 마늘 가격 형성의 기준 역할을 합니다.' },
+    { id:15, type:'key', name:'황금열쇠', emoji:'🗝️' },
+    { id:16, type:'property', name:'산토끼노래동산', price:55, toll:27,
+      img:'img/santokki.jpg',
+      desc:'경남 창녕 산토끼 노래동산은 국민 동요 "산토끼"의 발상지인 창녕군 이방면에 조성된 가족형 친환경 체험 테마공원입니다.' },
+    { id:17, type:'property', name:'부곡하와이', price:60, toll:30,
+      img:'img/bugok_hawaii.jpg',
+      desc:'부곡하와이는 경상남도 창녕군 부곡면에 위치했던 대한민국 최초의 종합 워터파크 겸 리조트였으나, 2017년 5월 28일 경영 악화로 인해 공식 폐업했습니다.' },
+
+    { id:18, type:'corner', name:'택시 정류장', desc:'이동', emoji:'🚕' },
+
+    { id:19, type:'property', name:'우포따오기', price:65, toll:32,
+      img:'img/upo_ibis.jpg',
+      desc:'경남 창녕에 위치한 우포따오기 복원센터는 멸종 위기 야생생물인 따오기를 인공 번식하고 야생으로 방사하기 위해 설립된 생태 복원 연구시설입니다.' },
+    { id:20, type:'property', name:'유채꽃단지', price:70, toll:35,
+      img:'img/rapeseed.jpg',
+      desc:'창녕 남지 유채꽃밭은 단일 면적 110만㎡(약 33만 평)로 전국 최대 규모를 자랑하는 경상남도의 대표적인 봄꽃 명소입니다.' },
+    { id:21, type:'key', name:'황금열쇠', emoji:'🗝️' },
+    { id:22, type:'property', name:'우포생태촌', price:80, toll:40,
+      img:'img/upo_village.jpg',
+      desc:'우포생태촌 유스호스텔은 경상남도 창녕군 이방면에 위치한 자연 친화적인 힐링 숙박시설입니다.' },
+    { id:23, type:'property', name:'우포늪', price:100, toll:50,
+      img:'img/upo_marsh.jpg',
+      desc:'창녕 우포늪은 약 1억 4천만 년 전 형성된 대한민국 최대 규모의 자연 내륙 습지입니다.' },
+];
+
+const goldenKeys = [
+    { text:"땅 한 개를 팝니다.\n(가장 싼 땅 매각. 없으면 패스)", action:(p)=>{
+        let owned=boardSpaces.filter(b=>b.owner===p.id);
+        if(owned.length>0){owned.sort((a,b)=>a.price-b.price);let t=owned[0];t.owner=null;p.money+=t.price;addLog(`[황금열쇠] ${t.name}을(를) 팔고 ${t.price}만 원을 받았습니다.`);}
+        else{addLog(`[황금열쇠] 소유한 땅이 없어 넘어갑니다.`);}
+    }},
+    { text:"은행한테 10만 원을 받으세요.", action:(p)=>{p.money+=10;} },
+    { text:"유채꽃밭에서 유채꽃을 심으세요.\n(심는값: 5만원 지불)", action:(p)=>{p.money-=5;} },
+    { text:"우포늪 생태관광에 참여합니다.\n(10만 원 지불)", action:(p)=>{p.money-=10;} },
+    { text:"부곡하와이 온천욕으로 피로를 풉니다.\n(다음 1턴 쉬기)", action:(p)=>{p.trapTurns=1;p.isTrapped=true;} },
+    { text:"산토끼 노래동산 입장료를 냅니다.\n(3만 원 지불)", action:(p)=>{p.money-=3;} },
+    { text:"창녕 박물관 역사 퀴즈 1등!\n(5만 원 획득)", action:(p)=>{p.money+=5;} },
+    { text:"관룡사 불전함에 정성을 표합니다.\n(5만 원 지불)", action:(p)=>{p.money-=5;} },
+    { text:"영산 쇠머리대기 축제 상금 획득!\n(10만 원 획득)", action:(p)=>{p.money+=10;} },
+    { text:"창녕 양파, 마늘 농사 대풍년!\n(20만 원 획득)", action:(p)=>{p.money+=20;} },
+    { text:"교동 고분군 발굴 작업 지원금을 냅니다.\n(10만 원 지불)", action:(p)=>{p.money-=10;} },
+    { text:"화왕산 억새밭 환경 보전비 납부.\n(5만 원 지불)", action:(p)=>{p.money-=5;} },
+    { text:"남지 철교 보수 공사 성금.\n(5만 원 지불)", action:(p)=>{p.money-=5;} },
+    { text:"따오기 복원센터 후원금을 냅니다.\n(10만 원 지불)", action:(p)=>{p.money-=10;} },
+    { text:"출발지로 즉시 이동합니다.\n(도착 보너스 10만 원 획득)", action:(p)=>{p.position=0;p.money+=10;updateTokens();} },
+    { text:"창녕 우시장에서 건강한 송아지 구매.\n(20만 원 지불)", action:(p)=>{p.money-=20;} },
+    { text:"비사벌 문화제 경품 당첨!\n(15만 원 획득)", action:(p)=>{p.money+=15;} },
+    { text:"우포생태촌 숙박비를 결제합니다.\n(5만 원 지불)", action:(p)=>{p.money-=5;} },
+    { text:"뒤로 3칸 이동합니다.", action:(p)=>{p.position=(p.position-3+24)%24;updateTokens();return'MOVE';} },
+    { text:"창녕사랑상품권에 당첨되었습니다!\n(10만 원 획득)", action:(p)=>{p.money+=10;} }
+];
+
+let players=[], turnIndex=0, bankPot=0, keyDeck=[];
+
+function initGame(){
+    const pCount=parseInt(document.getElementById('player-count').value);
+    keyDeck=[...Array(20).keys()].sort(()=>Math.random()-.5);
+    let tempPlayers=[];
+    for(let i=0;i<pCount;i++){
+        tempPlayers.push({id:i,name:`플레이어 ${i+1}`,color:COLORS[i],colorBg:COLOR_BG[i],
+            money:INITIAL_MONEY,position:0,isTrapped:false,trapTurns:0,taxiNext:false});
+    }
+    document.getElementById('setup-screen').classList.add('hidden');
+    resolveTieBreaker(tempPlayers,(sortedPlayers)=>{
+        players=sortedPlayers;
+        document.getElementById('game-screen').classList.remove('hidden');
+        buildBoard();
+        updateUI();
+        addLog(`=== 게임 시작 ===`);
+        addLog(`순서: ${players.map(p=>`<span style="color:${p.color};font-weight:bold">${p.name}</span>`).join(' ➔ ')}`);
+        startTurn();
+    });
+}
+
+function rollSingleDice(){ return Math.floor(Math.random()*6)+1; }
+
+function resolveTieBreaker(group,callback){
+    if(group.length===1){callback(group);return;}
+    let results=[];
+    let msg=`주사위를 굴립니다:<br>`;
+    group.forEach(p=>{const r=rollSingleDice();results.push({player:p,roll:r});msg+=`<span style="color:${p.color}">${p.name}</span>: ${r}<br>`;});
+    showModal("순서 정하기",msg,[{text:"확인",action:()=>{
+        let grouped={};
+        results.forEach(x=>{if(!grouped[x.roll])grouped[x.roll]=[];grouped[x.roll].push(x.player);});
+        let sortedRolls=Object.keys(grouped).map(Number).sort((a,b)=>b-a);
+        let finalSorted=[];
+        function processGroup(idx){
+            if(idx>=sortedRolls.length){callback(finalSorted);return;}
+            let cur=grouped[sortedRolls[idx]];
+            if(cur.length>1){
+                showModal("동점자 발생",`주사위 ${sortedRolls[idx]}이(가) 중복되었습니다. 다시 굴립니다!`,[{text:"굴리기",action:()=>{
+                    resolveTieBreaker(cur,(sub)=>{finalSorted=finalSorted.concat(sub);processGroup(idx+1);});
+                }}]);
+            } else {finalSorted.push(cur[0]);processGroup(idx+1);}
+        }
+        processGroup(0);
+    }}]);
+}
+
+function buildBoard(){
+    const boardEl=document.getElementById('board');
+    boardSpaces.forEach((space,i)=>{
+        const cell=document.createElement('div');
+        cell.id=`cell-${i}`;
+        let row,col;
+        if(i>=0&&i<=6){row=7;col=7-i;}
+        else if(i>=7&&i<=11){row=7-(i-6);col=1;}
+        else if(i>=12&&i<=18){row=1;col=1+(i-12);}
+        else if(i>=19&&i<=23){row=1+(i-18);col=7;}
+        cell.style.gridRow=row;
+        cell.style.gridColumn=col;
+        let typeClass=space.type==='corner'?'corner':space.type==='key'?'golden-key':'';
+        cell.className=`cell ${typeClass}`;
+        let html=`<div class="cell-title">${space.name}</div>`;
+        if(space.price)html+=`<div class="cell-price">${space.price}만</div>`;
+        if(space.desc&&space.type==='corner')html+=`<div class="cell-price">${space.desc}</div>`;
+        cell.innerHTML=html;
+        // 클릭 시 증서 보기 (소유된 땅만)
+        if(space.type==='property'){
+            cell.addEventListener('click',()=>{ if(space.owner!=null) showDeedInfo(space); });
+        }
+        boardEl.appendChild(cell);
+    });
+}
+
+// ── 권리증서 표시 ──
+function showDeed(space, mode, onBuy, onSkip){
+    const owner = space.owner!=null ? players.find(x=>x.id===space.owner) : null;
+    const cp = players[turnIndex];
+
+    // 색상 바
+    const colorBar=document.getElementById('deed-color-bar');
+    colorBar.style.background = owner ? owner.color : cp.color;
+    document.getElementById('deed-bar-name').textContent = space.name;
+
+    // 사진
+    const photoWrap=document.getElementById('deed-photo-wrap');
+    if(space.img){
+        photoWrap.innerHTML=`<img src="${space.img}" class="deed-photo" onerror="this.parentNode.innerHTML='<div class=\\'deed-photo-placeholder\\'>🏛️</div>'">`;
+    } else {
+        photoWrap.innerHTML=`<div class="deed-photo-placeholder">🏛️</div>`;
+    }
+
+    document.getElementById('deed-name').textContent=space.name;
+    document.getElementById('deed-desc').textContent=space.desc||'';
+    document.getElementById('deed-price').textContent=`${space.price}만 원`;
+    document.getElementById('deed-toll').textContent=`${space.toll}만 원`;
+
+    const ownerRow=document.getElementById('deed-owner-row');
+    const ownerCell=document.getElementById('deed-owner');
+    if(owner){
+        ownerRow.style.display='';
+        ownerCell.innerHTML=`<span style="color:${owner.color};font-weight:900">${owner.name}</span>`;
+    } else {
+        ownerRow.style.display='none';
+    }
+
+    const footer=document.getElementById('deed-footer');
+    footer.innerHTML='';
+
+    if(mode==='buy'){
+        const buyBtn=document.createElement('button');
+        buyBtn.className='deed-btn buy';
+        buyBtn.textContent=`구매 (${space.price}만 원)`;
+        buyBtn.onclick=()=>{document.getElementById('deed-modal').style.display='none';onBuy();};
+        const skipBtn=document.createElement('button');
+        skipBtn.className='deed-btn skip';
+        skipBtn.textContent='넘어가기';
+        skipBtn.onclick=()=>{document.getElementById('deed-modal').style.display='none';onSkip();};
+        footer.appendChild(buyBtn);
+        footer.appendChild(skipBtn);
+    } else {
+        const closeBtn=document.createElement('button');
+        closeBtn.className='deed-btn close';
+        closeBtn.textContent='닫기';
+        closeBtn.onclick=()=>{document.getElementById('deed-modal').style.display='none';};
+        footer.appendChild(closeBtn);
+    }
+
+    document.getElementById('deed-modal').style.display='flex';
+}
+
+function showDeedInfo(space){
+    showDeed(space,'info',null,null);
+}
+
+function addLog(msg){
+    const logBox=document.getElementById('log-box');
+    const div=document.createElement('div');
+    div.className='log-entry';div.innerHTML=msg;
+    logBox.appendChild(div);logBox.scrollTop=logBox.scrollHeight;
+}
+
+function showModal(title,bodyText,buttons){
+    document.getElementById('modal-title').innerHTML=title;
+    document.getElementById('modal-body').innerHTML=bodyText;
+    const btnContainer=document.getElementById('modal-buttons');
+    btnContainer.innerHTML='';
+    buttons.forEach(b=>{
+        const btn=document.createElement('button');
+        btn.innerHTML=b.text;
+        btn.className=b.colorClass||"bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg transition";
+        btn.onclick=()=>{document.getElementById('global-modal').style.display='none';if(b.action)b.action();};
+        btnContainer.appendChild(btn);
+    });
+    document.getElementById('global-modal').style.display='flex';
+}
+
+function updateUI(){
+    const cp=players[turnIndex];
+    document.getElementById('current-turn-indicator').innerHTML=`<span style="color:${cp.color}">${cp.name}</span>의 턴`;
+    document.getElementById('bank-status').innerText=`은행 보관금: ${bankPot}만 원`;
+    let tbody='';
+    players.forEach((p,i)=>{
+        let activeClass=i===turnIndex?'bg-indigo-50 font-bold':'';
+        let status=p.isTrapped?`갇힘(${p.trapTurns})`:p.taxiNext?'택시 대기':'';
+        tbody+=`<tr class="${activeClass}"><td class="py-2" style="color:${p.color}">${p.name}</td><td>${p.money.toFixed(1)}만</td><td class="text-xs text-red-500">${status}</td></tr>`;
+    });
+    document.getElementById('player-status-body').innerHTML=tbody;
+    boardSpaces.forEach((s,i)=>{
+        const cell=document.getElementById(`cell-${i}`);
+        if(!cell)return;
+        if(s.owner!=null){
+            const owner=players.find(x=>x.id===s.owner);
+            cell.style.border=`4px solid ${owner.color}`;
+            cell.title=`소유자: ${owner.name} (클릭하여 증서 보기)`;
+        } else {
+            cell.style.border='none';
+            cell.title='';
+        }
+    });
+    updateTokens();
+}
+
+function updateTokens(){
+    document.querySelectorAll('.player-token').forEach(e=>e.remove());
+    players.forEach((p,index)=>{
+        const cell=document.getElementById(`cell-${p.position}`);
+        if(!cell)return;
+        const token=document.createElement('div');
+        token.className='player-token';
+        token.style.backgroundColor=p.color;
+        const offsetX=(index%2)*12-6;
+        const offsetY=Math.floor(index/2)*12-6;
+        token.style.transform=`translate(${offsetX}px,${offsetY}px)`;
+        cell.appendChild(token);
+    });
+}
+
+function startTurn(){ updateUI(); }
+
+function takeTurn(){
+    const p=players[turnIndex];
+    if(p.taxiNext){handleTaxiDestination(p);return;}
+    const d1=rollSingleDice(),d2=rollSingleDice();
+    const isDouble=(d1===d2),sum=d1+d2;
+    let rollMsg=`${p.name} 주사위: ${d1}, ${d2} = ${sum}`;
+    if(isDouble)rollMsg+=` <span class="text-red-500 font-bold">(더블!)</span>`;
+    addLog(`----------------`);addLog(rollMsg);
+    if(p.isTrapped){
+        if(isDouble){addLog(`더블이 나와 즉시 화왕산을 탈출합니다!`);p.isTrapped=false;p.trapTurns=0;movePlayer(p,sum,false);}
+        else{p.trapTurns--;addLog(`탈출 실패. (남은 턴: ${p.trapTurns})`);if(p.trapTurns<=0)p.isTrapped=false;endTurn(false);}
+        return;
+    }
+    movePlayer(p,sum,isDouble);
+}
+
+function handleTaxiDestination(p){
+    let options=`<select id="taxi-select" class="w-full border p-2 mt-2 rounded">`;
+    boardSpaces.forEach(s=>{options+=`<option value="${s.id}">${s.name}</option>`;});
+    options+=`</select>`;
+    showModal("택시 탑승",`원하는 목적지를 선택하세요.${options}`,[{text:"이동하기",action:()=>{
+        const dest=parseInt(document.getElementById('taxi-select').value);
+        p.taxiNext=false;p.position=dest;
+        addLog(`[택시] ${p.name} 님이 ${boardSpaces[dest].name}(으)로 이동했습니다!`);
+        updateTokens();handleLanding(p,false);
+    }}]);
+}
+
+function movePlayer(p,amount,isDouble){
+    p.position+=amount;
+    if(p.position>=24){p.position-=24;p.money+=10;addLog(`출발지를 지나며 월급 10만 원을 받았습니다.`);}
+    updateTokens();handleLanding(p,isDouble);
+}
+
+function handleLanding(p,isDouble){
+    const space=boardSpaces[p.position];
+    addLog(`▶ <strong>${space.name}</strong> 도착`);
+    if(space.type==='corner'){
+        if(space.id===6){p.isTrapped=true;p.trapTurns=3;addLog(`[조난] 화왕산에 고립되었습니다. (3턴 쉼)`);endTurn(false);}
+        else if(space.id===12){
+            if(bankPot>0){p.money+=10;bankPot-=10;if(bankPot<0)bankPot=0;addLog(`[은행] 모인 돈 중 10만 원을 받았습니다!`);}
+            else{p.money-=10;bankPot+=10;addLog(`[은행] 은행에 10만 원을 지불했습니다.`);}
+            endTurn(isDouble);
+        } else if(space.id===18){p.money-=10;p.taxiNext=true;addLog(`[택시] 10만 원을 지불했습니다. 다음 턴에 원하는 곳으로 이동합니다!`);endTurn(isDouble);}
+        else{endTurn(isDouble);}
+        return;
+    }
+    if(space.type==='key'){
+        const cardIdx=keyDeck.shift();
+        const card=goldenKeys[cardIdx];
+        keyDeck.push(cardIdx);
+        showModal("황금열쇠",card.text,[{text:"확인",action:()=>{
+            addLog(`[황금열쇠] ${card.text.replace('\n',' ')}`);
+            const result=card.action(p);
+            if(result==='MOVE'){handleLanding(p,isDouble);}else{endTurn(isDouble);}
+        }}]);
+        return;
+    }
+    if(space.type==='property'){
+        if(space.owner==null){
+            if(p.money>=space.price){
+                // 증서와 함께 구매 확인
+                showDeed(space,'buy',
+                    ()=>{ p.money-=space.price;space.owner=p.id;addLog(`<strong>${space.name}</strong> 구매 완료! (-${space.price}만 원)`);updateUI();endTurn(isDouble); },
+                    ()=>{ addLog(`구매를 포기했습니다.`);endTurn(isDouble); }
+                );
+            } else {
+                addLog(`자금이 부족하여 ${space.name}을(를) 살 수 없습니다.`);endTurn(isDouble);
+            }
+        } else if(space.owner!==p.id){
+            p.money-=space.toll;
+            const owner=players.find(x=>x.id===space.owner);
+            owner.money+=space.toll;
+            addLog(`[통행료] ${owner.name}에게 <strong>${space.toll}만 원</strong>을 지불했습니다.`);
+            endTurn(isDouble);
+        } else {
+            addLog(`내 땅에서 휴식을 취합니다.`);endTurn(isDouble);
+        }
+    }
+}
+
+function endTurn(isDouble){
+    if(players[turnIndex].money<0){addLog(`<strong class="text-red-500">경고: ${players[turnIndex].name}의 자금이 마이너스입니다! 파산 위기!</strong>`);}
+    if(isDouble&&!players[turnIndex].isTrapped){addLog(`<span class="text-red-500 font-bold">[더블 당첨] 주사위를 한 번 더 굴립니다!</span>`);}
+    else{turnIndex=(turnIndex+1)%players.length;}
+    startTurn();
+}
+</script>
+</body>
+</html>
