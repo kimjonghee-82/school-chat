@@ -438,6 +438,15 @@ html,body{width:100%;height:100%;overscroll-behavior:none}.screen{min-height:0;h
  .cell-content .cell-name,.cell.corner .cell-content .cell-name,.cell.key-cell .cell-content .cell-name{font-size:clamp(8px,min(27cqh,calc(64cqw / 6)),20px);line-height:1.08;word-break:keep-all;overflow-wrap:anywhere;text-wrap:balance}
 }
 
+
+.place-name-part{white-space:nowrap}
+@media (orientation:portrait) and (max-width:899px){
+ .board .cell .cell-content .cell-name{font-size:clamp(8px,21cqw,20px);line-height:1.12;white-space:nowrap;word-break:keep-all;overflow-wrap:normal;text-wrap:initial;letter-spacing:-.3px}
+ .board .cell .cell-content .cell-name.two-line-name{font-size:clamp(8px,min(22cqw,calc(88cqw / var(--longest-part))),20px);white-space:normal;line-height:1.1}
+ .board .cell .cell-content .cell-name.two-line-name .place-name-part{display:block;white-space:nowrap}
+}
+@media (orientation:landscape),(min-width:900px){.cell-content .cell-name{word-break:keep-all;overflow-wrap:normal;text-wrap:balance}.place-name-part{display:inline;white-space:nowrap}}
+
 </style>
 </head>
 <body>
@@ -651,28 +660,28 @@ const STARTING_MONEY=600;
 const COLORS=['#ef4444','#3b82f6','#10b981','#f59e0b','#8b5cf6'];
 const boardSpaces=[
   {id:0,type:'corner',name:'출발',emoji:'🏁'},
-  {id:1,type:'property',name:'남지체육공원',price:10,toll:5,emoji:'🌸',color:'#ef9a9a',img:'img/namji_park.jpg',desc:'낙동강변의 아름다운 수변 공원. 봄에는 유채꽃이 가득합니다.'},
-  {id:2,type:'property',name:'창녕박물관',price:15,toll:7,emoji:'🏛️',color:'#ef9a9a',img:'img/museum.jpg',desc:'비화가야의 역사와 유물을 한눈에 볼 수 있는 공립 박물관입니다.'},
+  {id:1,type:'property',name:'남지 체육공원',price:10,toll:5,emoji:'🌸',color:'#ef9a9a',img:'img/namji_park.jpg',desc:'낙동강변의 아름다운 수변 공원. 봄에는 유채꽃이 가득합니다.'},
+  {id:2,type:'property',name:'창녕 박물관',price:15,toll:7,emoji:'🏛️',color:'#ef9a9a',img:'img/museum.jpg',desc:'비화가야의 역사와 유물을 한눈에 볼 수 있는 공립 박물관입니다.'},
   {id:3,type:'key',name:'황금열쇠',emoji:'🃏'},
   {id:4,type:'property',name:'만년교',price:15,toll:7,emoji:'🌉',color:'#90caf9',img:'img/mannyeon_bridge.jpg',desc:'천년만년 무너지지 않는 조선시대 아치형 무지개다리, 대한민국 보물.'},
   {id:5,type:'property',name:'관룡사',price:20,toll:10,emoji:'🛕',color:'#90caf9',img:'img/gwanryongsa.jpg',desc:'화왕산 자락의 1,500년 역사를 가진 천년고찰.'},
   {id:6,type:'corner',name:'화왕산',emoji:'⛰️',desc:'무인도'},
-  {id:7,type:'property',name:'창녕향교',price:25,toll:12,emoji:'🏫',color:'#a5d6a7',img:'img/changneyong_hyanggyo.jpg',desc:'전통적인 전학후묘 배치의 아름다운 향교.'},
-  {id:8,type:'property',name:'교동고분군',price:30,toll:15,emoji:'🗿',color:'#a5d6a7',img:'img/gyodong_tomb.jpg',desc:'비화가야 왕릉급 무덤들. 봄엔 수양벚꽃이 장관.'},
+  {id:7,type:'property',name:'창녕 향교',price:25,toll:12,emoji:'🏫',color:'#a5d6a7',img:'img/changneyong_hyanggyo.jpg',desc:'전통적인 전학후묘 배치의 아름다운 향교.'},
+  {id:8,type:'property',name:'교동 고분군',price:30,toll:15,emoji:'🗿',color:'#a5d6a7',img:'img/gyodong_tomb.jpg',desc:'비화가야 왕릉급 무덤들. 봄엔 수양벚꽃이 장관.'},
   {id:9,type:'key',name:'황금열쇠',emoji:'🃏'},
-  {id:10,type:'property',name:'영산호국공원',price:35,toll:17,emoji:'🌳',color:'#ce93d8',img:'img/yeongsan_park.jpg',desc:'영산면의 아름다운 연지못. 수양벚꽃 명소.'},
-  {id:11,type:'property',name:'비사벌문화제',price:40,toll:20,emoji:'🎊',color:'#ce93d8',img:'img/bisabeol_festival.jpg',desc:'매년 10월 창녕 최대의 지역 문화 대축제.'},
+  {id:10,type:'property',name:'영산 호국공원',price:35,toll:17,emoji:'🌳',color:'#ce93d8',img:'img/yeongsan_park.jpg',desc:'영산면의 아름다운 연지못. 수양벚꽃 명소.'},
+  {id:11,type:'property',name:'비사벌 문화제',price:40,toll:20,emoji:'🎊',color:'#ce93d8',img:'img/bisabeol_festival.jpg',desc:'매년 10월 창녕 최대의 지역 문화 대축제.'},
   {id:12,type:'corner',name:'창녕 세무서',emoji:'🏦',desc:'방문 시 세금 20만원 납부'},
-  {id:13,type:'property',name:'창녕양파장',price:45,toll:22,emoji:'🧅',color:'#ffcc80',img:'img/onion_market.jpg',desc:'전국 최대 양파 주산지 창녕의 핵심 공판장.'},
-  {id:14,type:'property',name:'창녕마늘시장',price:50,toll:25,emoji:'🧄',color:'#ffcc80',img:'img/garlic_market.jpg',desc:'전국 마늘 가격 기준이 되는 마늘 공판장.'},
+  {id:13,type:'property',name:'창녕 양파장',price:45,toll:22,emoji:'🧅',color:'#ffcc80',img:'img/onion_market.jpg',desc:'전국 최대 양파 주산지 창녕의 핵심 공판장.'},
+  {id:14,type:'property',name:'창녕 마늘시장',price:50,toll:25,emoji:'🧄',color:'#ffcc80',img:'img/garlic_market.jpg',desc:'전국 마늘 가격 기준이 되는 마늘 공판장.'},
   {id:15,type:'key',name:'황금열쇠',emoji:'🃏'},
-  {id:16,type:'property',name:'산토끼노래동산',price:55,toll:27,emoji:'🐰',color:'#f48fb1',img:'img/santokki.jpg',desc:'국민동요 "산토끼" 발상지에 만들어진 가족 테마공원.'},
-  {id:17,type:'property',name:'부곡하와이',price:60,toll:30,emoji:'🌊',color:'#f48fb1',img:'img/bugok_hawaii.jpg',desc:'대한민국 최초의 종합 워터파크. 추억의 명소.'},
-  {id:18,type:'corner',name:'택시정류장',emoji:'🚕',desc:'이동'},
-  {id:19,type:'property',name:'우포따오기',price:65,toll:32,emoji:'🦢',color:'#80cbc4',img:'img/upo_ibis.jpg',desc:'멸종위기 따오기를 복원하는 생태 연구시설.'},
-  {id:20,type:'property',name:'유채꽃단지',price:70,toll:35,emoji:'🌼',color:'#80cbc4',img:'img/rapeseed.jpg',desc:'33만 평 전국 최대 규모의 봄꽃 명소.'},
+  {id:16,type:'property',name:'산토끼 노래동산',price:55,toll:27,emoji:'🐰',color:'#f48fb1',img:'img/santokki.jpg',desc:'국민동요 "산토끼" 발상지에 만들어진 가족 테마공원.'},
+  {id:17,type:'property',name:'부곡 하와이',price:60,toll:30,emoji:'🌊',color:'#f48fb1',img:'img/bugok_hawaii.jpg',desc:'대한민국 최초의 종합 워터파크. 추억의 명소.'},
+  {id:18,type:'corner',name:'택시 정류장',emoji:'🚕',desc:'이동'},
+  {id:19,type:'property',name:'우포 따오기',price:65,toll:32,emoji:'🦢',color:'#80cbc4',img:'img/upo_ibis.jpg',desc:'멸종위기 따오기를 복원하는 생태 연구시설.'},
+  {id:20,type:'property',name:'유채꽃 단지',price:70,toll:35,emoji:'🌼',color:'#80cbc4',img:'img/rapeseed.jpg',desc:'33만 평 전국 최대 규모의 봄꽃 명소.'},
   {id:21,type:'key',name:'황금열쇠',emoji:'🃏'},
-  {id:22,type:'property',name:'우포생태촌',price:80,toll:40,emoji:'🏕️',color:'#bcaaa4',img:'img/upo_village.jpg',desc:'우포늪 근처 자연 친화적 힐링 숙박시설.'},
+  {id:22,type:'property',name:'우포 생태촌',price:80,toll:40,emoji:'🏕️',color:'#bcaaa4',img:'img/upo_village.jpg',desc:'우포늪 근처 자연 친화적 힐링 숙박시설.'},
   {id:23,type:'property',name:'우포늪',price:100,toll:50,emoji:'🌿',color:'#bcaaa4',img:'img/upo_marsh.jpg',desc:'1억4천만 년 전 형성된 대한민국 최대 자연 내륙 습지.'},
 ];
 
@@ -949,8 +958,13 @@ function buildBoard(){
 
     const nameDiv=document.createElement('div');
     nameDiv.className='cell-name';
-    nameDiv.textContent=space.name;
-    nameDiv.style.setProperty('--name-chars',Math.max(space.name.replace(/s/g,'').length,4));
+    const nameParts=space.name.trim().split(/\s+/);const nameLength=space.name.replace(/\s/g,'').length;
+    nameDiv.classList.toggle('two-line-name',nameLength>=5&&nameParts.length>1);
+    if(nameLength>=5&&nameParts.length>1){nameParts.forEach((part,index)=>{if(index)nameDiv.appendChild(document.createTextNode(' '));const piece=document.createElement('span');piece.className='place-name-part';piece.textContent=part;nameDiv.appendChild(piece);});}
+    else nameDiv.textContent=space.name;
+    nameDiv.style.setProperty('--name-chars',Math.max(nameLength,4));
+    nameDiv.style.setProperty('--longest-part',Math.max(...nameParts.map(part=>part.length)));
+
     content.appendChild(nameDiv);
 
     if(space.price){
