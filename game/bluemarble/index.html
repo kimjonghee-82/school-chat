@@ -296,6 +296,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:#4caf50;min-height:100vh;o
   </div>
 
   <div class="lobby-footer">창녕군 교육청 · School Apps</div>
+  <button onclick="downloadGame()" style="position:absolute;bottom:40px;right:12px;background:rgba(255,255,255,.85);border:none;border-radius:12px;padding:7px 13px;font-family:inherit;font-size:12px;font-weight:900;color:#1b5e20;cursor:pointer;box-shadow:0 3px 8px rgba(0,0,0,.2);z-index:10">⬇️ HTML 다운로드</button>
 </div>
 
 <!-- ══════════ 이름 입력 ══════════ -->
@@ -1084,6 +1085,31 @@ function movePlayer(p,amount,isDouble){
     }
   }
   setTimeout(step,80);
+}
+
+// ── HTML 다운로드 ──
+function downloadGame(){
+  const BASE='https://kimjonghee-82.github.io/school-chat/game/bluemarble/';
+  fetch(location.href)
+    .then(r=>r.text())
+    .then(html=>{
+      // 상대 이미지 경로를 절대 URL로 변환
+      const fixed=html.replace(/(['"])img\//g,`$1${BASE}img/`);
+      const blob=new Blob([fixed],{type:'text/html;charset=utf-8'});
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download='창녕블루마블.html';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    })
+    .catch(()=>{
+      // fetch 실패 시 직접 링크로 대체
+      const a=document.createElement('a');
+      a.href=BASE+'index.html';
+      a.download='창녕블루마블.html';
+      a.target='_blank';
+      a.click();
+    });
 }
 </script>
 </body>
