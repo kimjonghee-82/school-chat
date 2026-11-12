@@ -1009,8 +1009,9 @@ function openDB() {
 function dbGetAll() {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(DB_STORE, 'readonly');
-    const req = tx.objectStore(DB_STORE).index('addedAt').getAll();
-    req.onsuccess = e => resolve(e.target.result);
+    // 인덱스 대신 전체 조회: addedAt 없이 저장된 책도 빠지지 않게
+    const req = tx.objectStore(DB_STORE).getAll();
+    req.onsuccess = e => resolve(e.target.result.sort((a, b) => (a.addedAt || a.id) - (b.addedAt || b.id)));
     req.onerror   = e => reject(e.target.error);
   });
 }
@@ -2814,7 +2815,7 @@ async function shareReceiveConnect() {
       thumbnail = thumbCanvas.toDataURL('image/jpeg', 0.7);
     } catch (_) {}
 
-    const book = { id: Date.now(), title, thumbnail, pdfData: full.buffer };
+    const book = { id: Date.now(), title, thumbnail, addedAt: Date.now(), pdfData: full.buffer };
     await dbPut(book);
     bookList.push(book);
     renderBookshelf();
