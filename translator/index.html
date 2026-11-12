@@ -2494,8 +2494,15 @@ async function liveTranslateFinal(koText) {
   if (!koText.trim()) return;
   livePendingInterim = null;
   try {
+    const norm = s => s.replace(/\s+/g, '');
+    const last = liveParas[liveParas.length - 1];
+    // 모바일 크롬은 누적된 문장을 여러 번 확정으로 보냄 → 중복이면 무시, 확장이면 교체
+    if (last && norm(last.ko).includes(norm(koText))) return;
     const result = await liveGoogleTranslate(koText);
-    liveParas.push({ ko: koText, tr: result });
+    const cur = liveParas[liveParas.length - 1];
+    if (cur && norm(koText).startsWith(norm(cur.ko))) liveParas[liveParas.length - 1] = { ko: koText, tr: result };
+    else if (cur && norm(cur.ko).includes(norm(koText))) return;
+    else liveParas.push({ ko: koText, tr: result });
     liveRenderKo(''); liveRenderTr('');
   } catch {}
 }
