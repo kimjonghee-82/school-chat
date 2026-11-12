@@ -2441,7 +2441,7 @@ function undoApply() {
 ══════════════════════════════ */
 const liveCache = new Map();
 let liveRecog = null, liveActive = false, livePendingInterim = null;
-let liveParas = [], liveCurKo = '';
+let liveParas = [], liveCurKo = '', liveInterimSeq = 0, liveInterimShown = 0;
 
 function liveSetDot(s) {
   document.getElementById('liveDot').className = 'live-dot' + (s ? ' ' + s : '');
@@ -2481,11 +2481,13 @@ async function liveGoogleTranslate(text) {
 
 async function liveTranslateInterim(text) {
   if (!text.trim()) return;
-  const token = {};
-  livePendingInterim = token;
+  // 최신 요청이 아니어도, 화면에 표시된 것보다 새 결과면 바로 표시 (말하는 중에도 번역이 계속 갱신됨)
+  const seq = ++liveInterimSeq;
+  livePendingInterim = seq;
   try {
     const result = await liveGoogleTranslate(text);
-    if (livePendingInterim !== token) return;
+    if (livePendingInterim === null || seq <= liveInterimShown) return;
+    liveInterimShown = seq;
     liveRenderTr(result);
   } catch {}
 }
@@ -2527,7 +2529,7 @@ function liveBuildRecog() {
       setTimeout(() => {
         if (!liveActive) return;
         try { r.start(); } catch (err) { console.warn('liveRecog restart failed', err); }
-      }, 300);
+      }, 50);
     }
   };
   return r;
