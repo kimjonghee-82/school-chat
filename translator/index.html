@@ -2498,20 +2498,45 @@ async function liveTranslateInterim(text) {
   } catch {}
 }
 
-async function liveTranslateFinal(koText) {
-  if (!koText.trim()) return;
+const liveNorm = s => s.replace(/[\s.,!?·~'"]/g, '');
+function liveRecentNorm() { return liveParas.slice(-6).map(p => liveNorm(p.ko)).join(''); }
+
+// 중복 판단은 await 전에 동기적으로 처리 (거의 동시에 온 확정 결과끼리 경쟁하지 않도록)
+function liveTranslateFinal(koText) {
+  let ko = koText.trim();
   livePendingInterim = null;
+  const n = liveNorm(ko);
+  if (n.length < 2) return;
+  // 1) 최근 문장들에 이미 들어있는 내용 → 무시
+  if (liveRecentNorm().includes(n)) return;
+  const last = liveParas[liveParas.length - 1];
+  // 2) 직전 문장을 이어서 늘린 결과 → 직전 문장 교체
+  if (last && n.startsWith(liveNorm(last.ko))) {
+    last.ko = ko; liveFillTr(last); return;
+  }
+  // 3) 직전 문장 끝부분과 겹쳐서 시작 → 겹친 앞부분 잘라내기
+  if (last) {
+    const lw = last.ko.split(/\s+/).map(liveNorm), kw = ko.split(/\s+/);
+    for (let k = Math.min(lw.length, kw.length); k > 0; k--) {
+      if (lw.slice(-k).join('') === kw.slice(0, k).map(liveNorm).join('')) {
+        ko = kw.slice(k).join(' ').trim(); break;
+      }
+    }
+    if (liveNorm(ko).length < 2) return;
+  }
+  const p = { ko, tr: '…' };
+  liveParas.push(p);
+  liveFillTr(p);
+}
+
+async function liveFillTr(p) {
+  const ko = p.ko;
+  liveRenderKo(''); liveRenderTr('');
   try {
-    const norm = s => s.replace(/\s+/g, '');
-    const last = liveParas[liveParas.length - 1];
-    // 모바일 크롬은 누적된 문장을 여러 번 확정으로 보냄 → 중복이면 무시, 확장이면 교체
-    if (last && norm(last.ko).includes(norm(koText))) return;
-    const result = await liveGoogleTranslate(koText);
-    const cur = liveParas[liveParas.length - 1];
-    if (cur && norm(koText).startsWith(norm(cur.ko))) liveParas[liveParas.length - 1] = { ko: koText, tr: result };
-    else if (cur && norm(cur.ko).includes(norm(koText))) return;
-    else liveParas.push({ ko: koText, tr: result });
-    liveRenderKo(''); liveRenderTr('');
+    const tr = await liveGoogleTranslate(ko);
+    if (p.ko !== ko) return; // 그 사이 문장이 교체됨
+    p.tr = tr;
+    liveRenderTr('');
   } catch {}
 }
 
@@ -2531,7 +2556,9 @@ function liveBuildRecog() {
       if (e.results[i].isFinal) finalText += t; else interim += t;
     }
     if (finalText.trim()) { liveTranslateFinal(finalText.trim()); liveRenderKo(''); }
-    if (interim) { liveRenderKo(interim); liveTranslateInterim(interim); }
+    // 중간 결과가 이미 확정된 문장의 반복이면 표시하지 않음
+    if (interim.trim() && liveRecentNorm().includes(liveNorm(interim))) interim = '';
+    if (interim.trim()) { liveRenderKo(interim); liveTranslateInterim(interim); }
   };
   r.onerror = (e) => { if (e.error === 'no-speech' || e.error === 'aborted') return; };
   r.onend = () => {
