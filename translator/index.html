@@ -585,6 +585,7 @@ body.live-on .nav-arrow.right { right: 30%; }
 .live-dot { width: 8px; height: 8px; border-radius: 50%; background: #8b949e; flex-shrink: 0; }
 .live-dot.active { background: #4caf50; animation: ldpulse .9s infinite; }
 .live-dot.paused { background: #e3b341; }
+.live-dot.error  { background: #da3633; }
 @keyframes ldpulse { 0%,100%{opacity:1} 50%{opacity:.3} }
 
 .live-section { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
@@ -2548,6 +2549,7 @@ function liveBuildRecog() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) throw new Error('이 브라우저는 음성 인식을 지원하지 않습니다. (크롬 권장)');
   const r = new SR();
+  liveLastEvent = Date.now();
   r.lang = 'ko-KR'; r.continuous = true; r.interimResults = true; r.maxAlternatives = 1;
   r.onresult = (e) => {
     let interim = '', finalText = '';
@@ -2560,17 +2562,44 @@ function liveBuildRecog() {
     if (interim.trim() && liveRecentNorm().includes(liveNorm(interim))) interim = '';
     if (interim.trim()) { liveRenderKo(interim); liveTranslateInterim(interim); }
   };
-  r.onerror = (e) => { if (e.error === 'no-speech' || e.error === 'aborted') return; };
-  r.onend = () => {
-    if (liveActive) {
-      setTimeout(() => {
-        if (!liveActive) return;
-        try { r.start(); } catch (err) { console.warn('liveRecog restart failed', err); }
-      }, 50);
+  const alive = () => { liveLastEvent = Date.now(); if (liveRecog === r) liveSetDot('active'); };
+  r.onstart = alive; r.onaudiostart = alive; r.onspeechstart = alive;
+  const origResult = r.onresult;
+  r.onresult = (e) => { alive(); origResult(e); };
+  r.onerror = (e) => {
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+      liveSetDot('error'); alert('마이크 권한이 꺼져 있습니다. 브라우저 설정에서 마이크를 허용해 주세요.');
+      livePause(); return;
     }
+    if (e.error !== 'no-speech' && e.error !== 'aborted') liveSetDot('paused');
   };
+  r.onend = () => { if (liveActive && liveRecog === r) liveRestart(50); };
   return r;
 }
+
+// 끊긴 음성 인식을 새로 만들어 다시 시작 (같은 객체 재시작이 실패해도 복구됨)
+let liveLastEvent = 0, liveRestartTimer = null;
+function liveRestart(delay) {
+  clearTimeout(liveRestartTimer);
+  liveSetDot('paused');
+  liveRestartTimer = setTimeout(() => {
+    if (!liveActive || !liveRecog) return;
+    const old = liveRecog;
+    old.onend = null; try { old.abort(); } catch {}
+    try {
+      liveRecog = liveBuildRecog();
+      liveLastEvent = Date.now();
+      liveRecog.start();
+    } catch (err) {
+      console.warn('liveRecog restart failed', err);
+      liveRestart(1000);
+    }
+  }, delay);
+}
+// 감시: 10초 넘게 아무 신호가 없으면 강제로 다시 시작
+setInterval(() => {
+  if (liveActive && liveRecog && Date.now() - liveLastEvent > 10000) liveRestart(0);
+}, 2000);
 
 function onLiveToggle(checked) {
   localStorage.setItem('live_translation', checked ? '1' : '0');
