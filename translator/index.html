@@ -1506,7 +1506,7 @@ async function handlePdf(fileOrBuf) {
 async function renderPdfSlot(idx, fitToView) {
   async function renderOne(i) {
     const slot = slots[i];
-    if (!slot || !slot.pdfRef) return;
+    if (!slot || !slot.pdfRef || slot.original) return; // 이미 그린 페이지는 재사용
     showLoading(`페이지 렌더링 중... (${slot.pageNum}/${slot.pdfRef.numPages})`);
     const pdfPage = await slot.pdfRef.getPage(slot.pageNum);
     const scale = Math.min(2, 1600 / pdfPage.getViewport({scale:1}).width);
@@ -1522,31 +1522,20 @@ async function renderPdfSlot(idx, fitToView) {
   } finally { hideLoading(); }
   renderSlot(fitToView);
   updateNav();
-  // 전체 페이지 백그라운드 렌더링 시작
-  prefetchAll();
+  // 앞뒤 몇 페이지만 조용히 미리 준비
+  prefetchNear(idx);
 }
 
 let _prefetchId = 0; // 책 전환 시 이전 prefetch 중단용
 
-async function prefetchAll() {
+// 현재 페이지 주변만 미리 그려두고, 멀리 떨어진 페이지는 메모리에서 비움 (태블릿 메모리 절약)
+async function prefetchNear(idx) {
   const myId = ++_prefetchId;
-  const total = slots.length;
-  let done = 0;
-
-  // 진행률 표시 요소 생성/재사용
-  let bar = document.getElementById('prefetchBar');
-  if (!bar) {
-    bar = document.createElement('div');
-    bar.id = 'prefetchBar';
-    bar.style.cssText = 'position:fixed;bottom:60px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.75);color:#fff;font-size:12px;padding:6px 16px;border-radius:20px;z-index:9999;pointer-events:none;transition:opacity .4s';
-    document.body.appendChild(bar);
-  }
-  bar.style.opacity = '1';
-
-  for (let i = 0; i < total; i++) {
-    if (myId !== _prefetchId) break; // 책 바꾸면 중단
-    if (!slots[i]?.pdfRef) { done++; continue; }
+  const order = [idx+1, idx+2, idx+3, idx+4, idx-1, idx-2];
+  for (const i of order) {
+    if (myId !== _prefetchId) return; // 그 사이 페이지를 또 넘김
     const slot = slots[i];
+    if (!slot || !slot.pdfRef || slot.original) continue;
     try {
       const pdfPage = await slot.pdfRef.getPage(slot.pageNum);
       const scale = Math.min(2, 1600 / pdfPage.getViewport({scale:1}).width);
@@ -1554,16 +1543,15 @@ async function prefetchAll() {
       const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
       await pdfPage.render({canvasContext: c.getContext('2d'), viewport: vp}).promise;
       const original = c.getContext('2d').getImageData(0, 0, c.width, c.height);
-      if (myId === _prefetchId) slots[i] = {original, width: c.width, height: c.height, pdfRef: slot.pdfRef, pageNum: slot.pageNum, scale};
+      // 그 사이 번역 적용 등으로 바뀐 페이지는 덮어쓰지 않음
+      if (slots[i] === slot) slots[i] = {original, width: c.width, height: c.height, pdfRef: slot.pdfRef, pageNum: slot.pageNum, scale};
     } catch(_) {}
-    done++;
-    bar.textContent = `📄 페이지 준비 중... ${done}/${total}`;
   }
-
-  if (myId === _prefetchId) {
-    bar.textContent = '✅ 모든 페이지 준비 완료!';
-    setTimeout(() => { bar.style.opacity = '0'; }, 1500);
-  }
+  if (myId !== _prefetchId) return;
+  // 번역을 적용한 페이지(pdfRef 없음)와 지금 보는 페이지 근처는 비우지 않음
+  slots.forEach((sl, i) => {
+    if (sl && sl.pdfRef && sl.original && Math.abs(i - idx) > 6 && Math.abs(i - currentSlot) > 6) slots[i] = {pdfRef: sl.pdfRef, pageNum: sl.pageNum};
+  });
 }
 
 function addImageToCurrentSlot(dataUrl) {
@@ -1837,6 +1825,7 @@ function clampView(v, page, areaW, areaH) {
 function renderCurrentPage(fitToView) {
   const page = slots[currentSlot];
   if (!page) return;
+  if (page.pdfRef && !page.original) { renderPdfSlot(currentSlot, fitToView); return; }
   const scanOn = document.getElementById('scanToggle').checked;
   const wrap   = document.getElementById('canvasWrap');
   const ww     = wrap.offsetWidth  || window.innerWidth;
@@ -1845,7 +1834,7 @@ function renderCurrentPage(fitToView) {
   selCanvas.width = ww; selCanvas.height = wh;
 
   const showTwo  = getTwoPageMode();
-  const nextPage = showTwo ? slots[currentSlot + 1] : null;
+  const nextPage = showTwo && slots[currentSlot + 1]?.original ? slots[currentSlot + 1] : null;
 
   if (showTwo && nextPage) {
     const half = Math.floor(ww / 2);
