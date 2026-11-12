@@ -841,7 +841,10 @@ body.live-on .nav-arrow.right { right: 30%; }
 <div id="livePanel">
   <div class="live-header">
     <h3>🎙 실시간 번역</h3>
-    <div class="live-dot" id="liveDot"></div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="live-dot" id="liveDot"></div>
+      <button onclick="liveStop()" title="숨기기 (설정에서 다시 켤 수 있어요)" style="background:none;border:none;color:var(--sub);font-size:1.1rem;cursor:pointer;padding:2px 6px">✕</button>
+    </div>
   </div>
   <div class="live-section">
     <div class="live-section-label" id="liveTrLabel">🌐 번역 결과</div>
@@ -852,7 +855,7 @@ body.live-on .nav-arrow.right { right: 30%; }
     <div class="live-content" id="liveKoContent"><span style="color:var(--sub);font-size:.85rem">말씀하세요...</span></div>
   </div>
   <div class="live-footer">
-    <button class="live-btn live-btn-stop"   id="liveBtnStop"   onclick="liveStop()"   style="display:none">⏹ 중지</button>
+    <button class="live-btn live-btn-stop"   id="liveBtnStop"   onclick="livePause()"   style="display:none">⏹ 중지</button>
     <button class="live-btn live-btn-resume" id="liveBtnResume" onclick="liveResume()" style="display:none">▶ 계속</button>
     <button class="live-btn live-btn-clear"  onclick="liveClear()" title="지우기">🗑</button>
   </div>
@@ -2578,6 +2581,20 @@ function liveStop() {
   localStorage.setItem('live_translation', '0');
   document.body.classList.remove('live-on');
   if (slots[currentSlot]) renderCurrentPage(true);
+}
+
+function livePause() {
+  if (liveRecog) { liveRecog.onend = null; try { liveRecog.stop(); } catch {} liveRecog = null; }
+  livePendingInterim = null;
+  liveSetDot('');
+  document.getElementById('liveBtnStop').style.display = 'none';
+  document.getElementById('liveBtnResume').style.display = '';
+}
+
+// 기본으로 켜짐 (✕로 숨기면 다음에도 꺼진 상태 유지)
+if (localStorage.getItem('live_translation') !== '0') {
+  document.getElementById('liveToggle').checked = true;
+  window.addEventListener('load', () => setTimeout(() => { if (!liveActive) enableLivePanel(); }, 500));
 }
 
 function liveResume() {
