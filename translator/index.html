@@ -2199,6 +2199,31 @@ let lastSelRect  = null;
 let lastSelSlot  = 0;
 let beforeApplyData = null;
 
+// Groq 호출: 모델이 종료·한도 초과 등으로 실패하면 다음 모델로 자동 전환
+const GROQ_MODELS = ['llama-3.3-70b-versatile', 'openai/gpt-oss-120b', 'llama-3.1-8b-instant'];
+async function groqChat(apiKey, messages, maxTokens) {
+  let lastErr;
+  for (const model of GROQ_MODELS) {
+    try {
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},
+        body:JSON.stringify({model, max_tokens:maxTokens, temperature:0, messages})
+      });
+      if (!res.ok) {
+        const e = await res.json().catch(()=>({}));
+        lastErr = new Error(`[${res.status}] ${e.error?.message||''}`);
+        if (res.status === 401) throw lastErr; // 키 문제는 다른 모델로도 해결 안 됨
+        continue;
+      }
+      const j = await res.json();
+      const text = j.choices?.[0]?.message?.content || '';
+      if (text.trim()) return text;
+    } catch (e) { lastErr = e; if (String(e.message).startsWith('[401]')) throw e; }
+  }
+  throw lastErr || new Error('Groq 응답 없음');
+}
+
 async function translateSel(rect, popClientX, popClientY) {
   const apiKey = localStorage.getItem('gemini_api_key') || document.getElementById('apiInput').value.trim();
   if (!apiKey) { openSettings(); return; }
@@ -2272,45 +2297,34 @@ RULES:
 - If 1-3 words: give up to 5 numbered meanings with part of speech in ${tLang}.
 - If 4+ words: translate naturally and completely.
 FORMAT: [TRANSLATED]your ${tLang} translation here[/TRANSLATED]`;
-    const tRes=await fetch('https://api.groq.com/openai/v1/chat/completions',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},
-      body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:1024,temperature:0,
-        messages:[
-          {role:'system',content:sysPrompt},
-          {role:'user',content:kor}
-        ]})
-    });
-    if(!tRes.ok){const e=await tRes.json().catch(()=>({}));throw new Error(`[${tRes.status}] ${e.error?.message||''}`);}
-    const tJson=await tRes.json();
-    const tText=tJson.choices?.[0]?.message?.content||'';
-    // [TRANSLATED]...[/TRANSLATED] 태그 추출, 없으면 한국어가 아닌 부분만 사용
-    let rus=(tText.match(/\[TRANSLATED\]([\s\S]*?)\[\/TRANSLATED\]/)||[])[1]?.trim()||'';
+    let rus = '';
+    try {
+      const tText = await groqChat(apiKey, [
+        {role:'system',content:sysPrompt},
+        {role:'user',content:kor}
+      ], 1024);
+      rus=(tText.match(/\[TRANSLATED\]([\s\S]*?)\[\/TRANSLATED\]/)||[])[1]?.trim()||'';
+      if(!rus){
+        rus = tText.replace(/\[TRANSLATED\]|\[\/TRANSLATED\]/g,'').trim();
+        if(rus===kor) rus='';
+      }
+    } catch(err) { console.warn('Groq 번역 실패, 구글 번역으로 전환', err); }
+    // Groq가 실패하면 구글 번역(키 불필요)으로 대체
     if(!rus){
-      // 태그 없는 경우: 원문 한국어 반복을 제거하고 나머지 사용
-      rus = tText.replace(/\[TRANSLATED\]|\[\/TRANSLATED\]/g,'').trim();
-      // 원문과 동일하면 번역 실패로 처리
-      if(rus===kor||!rus) rus='번역 실패';
+      try { rus = await liveGoogleTranslate(kor); } catch(_) {}
     }
+    if(!rus) rus='번역 실패';
 
     // 3단계: 발음
     let pronounc = '';
     if (rus && rus !== '번역 실패') {
       try {
-        const pRes=await fetch('https://api.groq.com/openai/v1/chat/completions',{
-          method:'POST',
-          headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},
-          body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:128,temperature:0,
-            messages:[
-              {role:'system',content:`Convert foreign text to Korean phonetic pronunciation (한글 발음표기). Output ONLY Korean characters.\n[Russian] а→아 б→브 в→브 г→그 д→드 е→예 з→즈 и→이 к→크 л→르 м→므 н→느 о→오 п→프 р→르 с→스 т→트 у→우 х→흐 ц→츠 ч→취 ш→쉬 э→에 ю→유 я→야\n[English] Standard Korean loanword rules`},
-              {role:'user',content:`Pronounce in Korean 한글: ${rus}`}
-            ]})
-        });
-        if(pRes.ok){
-          const pj=await pRes.json();
-          pronounc=(pj.choices?.[0]?.message?.content||'').trim();
-          if(/[^가-힣ㄱ-ㆎ\s.,!?·~\-]/.test(pronounc)) pronounc='';
-        }
+        const pText = await groqChat(apiKey, [
+          {role:'system',content:`Convert foreign text to Korean phonetic pronunciation (한글 발음표기). Output ONLY Korean characters.\n[Russian] а→아 б→브 в→브 г→그 д→드 е→예 з→즈 и→이 к→크 л→르 м→므 н→느 о→오 п→프 р→르 с→스 т→트 у→우 х→흐 ц→츠 ч→취 ш→쉬 э→에 ю→유 я→야\n[English] Standard Korean loanword rules`},
+          {role:'user',content:`Pronounce in Korean 한글: ${rus}`}
+        ], 256);
+        pronounc = pText.trim();
+        if(/[^가-힣ㄱ-ㆎ\s.,!?·~\-]/.test(pronounc)) pronounc='';
       } catch(_) {}
     }
     document.getElementById('popKor').textContent=kor;
