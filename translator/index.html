@@ -2515,6 +2515,10 @@ async function liveTranslateFinal(koText) {
   } catch {}
 }
 
+// 비속어가 들어간 어절은 통째로 제거 (교과서에 나올 수 있는 '미친다', '새끼(동물)', '불이 꺼져' 등은 제외)
+const LIVE_BADWORDS = /\S*(지랄|씨발|씨빨|시발(?!점)|씨팔|시팔|씹새|씹할|씹년|씹창|좆|좇|존나|존니|개새|새꺄|병신|븅신|빙신|염병|썅|쌍놈|썅년|니미|니애미|느금|닥쳐|엿먹|개같|개년|미친놈|미친년|또라이|ㅅㅂ|ㅂㅅ|ㅈㄹ|ㅈㄴ|ㄱㅅㄲ)\S*/g;
+function liveFilter(t) { return t.replace(LIVE_BADWORDS, '').replace(/\s{2,}/g, ' ').trim(); }
+
 function liveBuildRecog() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) throw new Error('이 브라우저는 음성 인식을 지원하지 않습니다. (크롬 권장)');
@@ -2523,7 +2527,7 @@ function liveBuildRecog() {
   r.onresult = (e) => {
     let interim = '', finalText = '';
     for (let i = e.resultIndex; i < e.results.length; i++) {
-      const t = e.results[i][0].transcript;
+      const t = liveFilter(e.results[i][0].transcript) + ' ';
       if (e.results[i].isFinal) finalText += t; else interim += t;
     }
     if (finalText.trim()) { liveTranslateFinal(finalText.trim()); liveRenderKo(''); }
