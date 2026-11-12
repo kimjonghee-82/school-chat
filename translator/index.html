@@ -992,37 +992,60 @@ const DB_NAME = 'BookshelfDB';
 const DB_STORE = 'books';
 let db = null;
 
+const META_STORE = 'meta'; // 서재 표시용 가벼운 정보(제목·표지)만 따로 저장
+
 function openDB() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 1);
+    const req = indexedDB.open(DB_NAME, 2);
     req.onupgradeneeded = e => {
       const d = e.target.result;
       if (!d.objectStoreNames.contains(DB_STORE)) {
         const store = d.createObjectStore(DB_STORE, {keyPath: 'id'});
         store.createIndex('addedAt', 'addedAt', {unique: false});
       }
+      if (!d.objectStoreNames.contains(META_STORE)) d.createObjectStore(META_STORE, {keyPath: 'id'});
     };
     req.onsuccess = e => { db = e.target.result; resolve(db); };
     req.onerror   = e => reject(e.target.error);
   });
 }
 
+const bookMeta = b => ({ id: b.id, title: b.title, thumbnail: b.thumbnail, addedAt: b.addedAt || b.id });
+const sortBooks = arr => arr.sort((a, b) => (a.addedAt || a.id) - (b.addedAt || b.id));
+const idbReq = r => new Promise((res, rej) => { r.onsuccess = e => res(e.target.result); r.onerror = e => rej(e.target.error); });
+
+// 서재 목록: PDF 본문은 읽지 않고 제목·표지만 불러옴 (앱 시작이 빨라짐)
+async function dbGetMeta() {
+  const tx = db.transaction([DB_STORE, META_STORE], 'readonly');
+  const [metaAll, bookCount] = await Promise.all([
+    idbReq(tx.objectStore(META_STORE).getAll()),
+    idbReq(tx.objectStore(DB_STORE).count())
+  ]);
+  if (metaAll.length >= bookCount) return sortBooks(metaAll);
+  // 처음 한 번만: 기존 책들의 정보를 meta 저장소로 옮김
+  const all = await dbGetAll();
+  const wtx = db.transaction(META_STORE, 'readwrite');
+  const metas = all.map(bookMeta);
+  metas.forEach(m => wtx.objectStore(META_STORE).put(m));
+  return sortBooks(metas);
+}
+
 function dbGetAll() {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(DB_STORE, 'readonly');
-    // 인덱스 대신 전체 조회: addedAt 없이 저장된 책도 빠지지 않게
     const req = tx.objectStore(DB_STORE).getAll();
-    req.onsuccess = e => resolve(e.target.result.sort((a, b) => (a.addedAt || a.id) - (b.addedAt || b.id)));
+    req.onsuccess = e => resolve(sortBooks(e.target.result));
     req.onerror   = e => reject(e.target.error);
   });
 }
 
 function dbPut(book) {
   return new Promise((resolve, reject) => {
-    const tx = db.transaction(DB_STORE, 'readwrite');
-    const req = tx.objectStore(DB_STORE).put(book);
-    req.onsuccess = () => resolve();
-    req.onerror   = e => reject(e.target.error);
+    const tx = db.transaction([DB_STORE, META_STORE], 'readwrite');
+    tx.objectStore(DB_STORE).put(book);
+    tx.objectStore(META_STORE).put(bookMeta(book));
+    tx.oncomplete = () => resolve();
+    tx.onerror    = e => reject(e.target.error);
   });
 }
 
@@ -1037,10 +1060,11 @@ function dbGet(id) {
 
 function dbDelete(id) {
   return new Promise((resolve, reject) => {
-    const tx = db.transaction(DB_STORE, 'readwrite');
-    const req = tx.objectStore(DB_STORE).delete(id);
-    req.onsuccess = () => resolve();
-    req.onerror   = e => reject(e.target.error);
+    const tx = db.transaction([DB_STORE, META_STORE], 'readwrite');
+    tx.objectStore(DB_STORE).delete(id);
+    tx.objectStore(META_STORE).delete(id);
+    tx.oncomplete = () => resolve();
+    tx.onerror    = e => reject(e.target.error);
   });
 }
 
@@ -1055,7 +1079,7 @@ const BOOKS_PER_SHELF = 7;
 async function initLibrary() {
   try {
     await openDB();
-    bookList = await dbGetAll();
+    bookList = await dbGetMeta();
   } catch(e) {
     console.error('DB 오류:', e);
     bookList = [];
@@ -1265,7 +1289,7 @@ async function handleLibraryPdf(file) {
       addedAt: Date.now()
     };
     await dbPut(book);
-    bookList.push(book);
+    bookList.push(bookMeta(book));
     renderBookshelf();
   } catch(e) {
     alert('PDF 추가 오류: ' + e.message);
@@ -2770,17 +2794,19 @@ function onShareFileSelect(input) {
 
 /* ─── 선생님: 전송 열기 ─── */
 async function openShareSend() {
-  const all = await dbGetAll();
+  const all = await dbGetMeta();
   const list = document.getElementById('shareSendBookList');
   list.innerHTML = all.length ? all.map(b => `
     <label style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;border:1px solid var(--border);cursor:pointer;background:var(--card)">
       <input type="radio" name="shareBook" value="${b.id}" style="width:18px;height:18px">
-      ${b.cover ? `<img src="${b.cover}" style="width:36px;height:48px;object-fit:cover;border-radius:4px">` : '<div style="width:36px;height:48px;background:var(--border);border-radius:4px"></div>'}
+      ${b.thumbnail ? `<img src="${b.thumbnail}" style="width:36px;height:48px;object-fit:cover;border-radius:4px">` : '<div style="width:36px;height:48px;background:var(--border);border-radius:4px"></div>'}
       <span style="font-size:.88rem">${b.title}</span>
     </label>`).join('') : '<p style="font-size:.85rem;color:var(--sub)">서재에 책이 없습니다. 아래에서 파일을 직접 선택하세요.</p>';
-  list.querySelectorAll('input[type=radio]').forEach(r => r.addEventListener('change', () => {
-    shareSendBook = all.find(b => b.id == r.value);
-    document.getElementById('shareSendNextBtn').disabled = false;
+  list.querySelectorAll('input[type=radio]').forEach(r => r.addEventListener('change', async () => {
+    const m = all.find(b => b.id == r.value);
+    document.getElementById('shareSendNextBtn').disabled = true;
+    shareSendBook = m ? await dbGet(m.id) : null;
+    document.getElementById('shareSendNextBtn').disabled = !shareSendBook;
     document.getElementById('shareSendFileInput').value = '';
     document.getElementById('shareSendFileLabel').textContent = '컴퓨터에서 PDF 파일 선택...';
   }));
@@ -2894,7 +2920,7 @@ async function shareReceiveConnect() {
 
     const book = { id: Date.now(), title, thumbnail, addedAt: Date.now(), pdfData: full.buffer };
     await dbPut(book);
-    bookList.push(book);
+    bookList.push(bookMeta(book));
     renderBookshelf();
     document.getElementById('shareReceiveBar').style.width = '100%';
     document.getElementById('shareReceiveStatus').textContent = `✅ "${title}" 서재에 추가되었습니다!`;
