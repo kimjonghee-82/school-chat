@@ -2237,7 +2237,11 @@ async function translateSel(rect, popClientX, popClientY) {
   const popup=document.getElementById('transPopup');
   const pw=300, ph=220;
   let px=popClientX+14, py=popClientY+14;
-  if(px+pw > window.innerWidth-8)  px=popClientX-pw-14;
+  // 실시간 번역 패널이 켜져 있으면 그 왼쪽까지만 사용
+  const lp = document.getElementById('livePanel');
+  const rightEdge = document.body.classList.contains('live-on') ? lp.getBoundingClientRect().left : window.innerWidth;
+  if(px+pw > rightEdge-8)  px=popClientX-pw-14;
+  if(px+pw > rightEdge-8)  px=rightEdge-pw-8;
   if(py+ph > window.innerHeight-8) py=popClientY-ph-14;
   px=Math.max(8,px); py=Math.max(60,py);
   popup.style.left=px+'px'; popup.style.top=py+'px';
