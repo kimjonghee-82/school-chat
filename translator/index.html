@@ -2226,7 +2226,6 @@ async function groqChat(apiKey, messages, maxTokens) {
 
 async function translateSel(rect, popClientX, popClientY) {
   const apiKey = localStorage.getItem('gemini_api_key') || document.getElementById('apiInput').value.trim();
-  if (!apiKey) { openSettings(); return; }
   lastSelSlot = (getTwoPageMode() && activePane===1) ? currentSlot+1 : currentSlot;
   const page = slots[lastSelSlot]; if (!page) return;
 
@@ -2298,7 +2297,7 @@ RULES:
 - If 4+ words: translate naturally and completely.
 FORMAT: [TRANSLATED]your ${tLang} translation here[/TRANSLATED]`;
     let rus = '';
-    try {
+    if (apiKey) try {
       const tText = await groqChat(apiKey, [
         {role:'system',content:sysPrompt},
         {role:'user',content:kor}
@@ -2317,7 +2316,7 @@ FORMAT: [TRANSLATED]your ${tLang} translation here[/TRANSLATED]`;
 
     // 3단계: 발음
     let pronounc = '';
-    if (rus && rus !== '번역 실패') {
+    if (apiKey && rus && rus !== '번역 실패') {
       try {
         const pText = await groqChat(apiKey, [
           {role:'system',content:`Convert foreign text to Korean phonetic pronunciation (한글 발음표기). Output ONLY Korean characters.\n[Russian] а→아 б→브 в→브 г→그 д→드 е→예 з→즈 и→이 к→크 л→르 м→므 н→느 о→오 п→프 р→르 с→스 т→트 у→우 х→흐 ц→츠 ч→취 ш→쉬 э→에 ю→유 я→야\n[English] Standard Korean loanword rules`},
