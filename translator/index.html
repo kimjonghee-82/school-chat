@@ -485,7 +485,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
 
 /* Translation popup */
 .trans-popup {
-  display: none; position: fixed; z-index: 400;
+  display: none; position: fixed; z-index: 5000;
   background: var(--card); border: 1px solid var(--primary);
   border-radius: 16px; padding: 18px 20px 16px; max-width: 500px; min-width: 300px;
   box-shadow: 0 8px 36px rgba(0,0,0,.55);
@@ -1640,20 +1640,22 @@ function setTtsIcon(on) {
   btn.textContent = on ? '⏹' : '🔊';
 }
 
-/* 팝업 드래그 이동 */
+/* 팝업 드래그 이동 (마우스·손가락·펜 모두) */
 (function() {
   let dragging = false, ox = 0, oy = 0;
   document.addEventListener('DOMContentLoaded', () => {
     const popup = document.getElementById('transPopup');
     const header = popup.querySelector('.pop-header');
-    header.addEventListener('mousedown', (e) => {
+    header.style.touchAction = 'none';
+    header.addEventListener('pointerdown', (e) => {
       if (e.target.closest('button')) return;
       dragging = true;
-      ox = e.clientX - popup.getBoundingClientRect().left;
-      oy = e.clientY - popup.getBoundingClientRect().top;
-      e.preventDefault();
+      const r = popup.getBoundingClientRect();
+      ox = e.clientX - r.left; oy = e.clientY - r.top;
+      header.setPointerCapture(e.pointerId);
+      e.preventDefault(); e.stopPropagation();
     });
-    document.addEventListener('mousemove', (e) => {
+    header.addEventListener('pointermove', (e) => {
       if (!dragging) return;
       let nx = e.clientX - ox, ny = e.clientY - oy;
       nx = Math.max(0, Math.min(nx, window.innerWidth - popup.offsetWidth));
@@ -1661,7 +1663,9 @@ function setTtsIcon(on) {
       popup.style.left = nx + 'px';
       popup.style.top  = ny + 'px';
     });
-    document.addEventListener('mouseup', () => { dragging = false; });
+    const end = () => { dragging = false; };
+    header.addEventListener('pointerup', end);
+    header.addEventListener('pointercancel', end);
   });
 })();
 
@@ -2225,6 +2229,9 @@ let beforeApplyData = null;
 
 // Groq 호출: 모델이 종료·한도 초과 등으로 실패하면 다음 모델로 자동 전환
 const GROQ_MODELS = ['llama-3.3-70b-versatile', 'openai/gpt-oss-120b', 'llama-3.1-8b-instant'];
+// 번역 창을 body 바로 아래로 옮겨 어떤 패널보다도 위에 표시
+(function(){ const tp = document.getElementById('transPopup'); if (tp && tp.parentElement !== document.body) document.body.appendChild(tp); })();
+
 async function groqChat(apiKey, messages, maxTokens) {
   let lastErr;
   for (const model of GROQ_MODELS) {
