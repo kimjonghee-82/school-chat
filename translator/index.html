@@ -2528,6 +2528,30 @@ async function liveGoogleTranslate(text) {
   return result;
 }
 
+// 실시간 번역용: 구글 → (막히면) Groq → MyMemory 순서로 시도
+let liveGoogleBlockedUntil = 0;
+async function liveTranslateAny(text, interim) {
+  if (Date.now() > liveGoogleBlockedUntil) {
+    try { return await liveGoogleTranslate(text); }
+    catch (e) { liveGoogleBlockedUntil = Date.now() + 60000; } // 1분간 구글 건너뜀
+  }
+  if (interim) throw new Error('skip'); // 말하는 중 번역은 Groq 사용량 아끼려고 생략
+  const lc = GTRANSLATE_CODES[targetLang] || 'en';
+  const key = lc + '|' + text;
+  if (liveCache.has(key)) return liveCache.get(key);
+  const apiKey = localStorage.getItem('gemini_api_key') || document.getElementById('apiInput').value.trim();
+  if (apiKey) {
+    try {
+      const t = (await groqChat(apiKey, [
+        {role:'system', content:`Translate the Korean text into ${LANG_FULL[targetLang] || 'English'}. Output ONLY the translation, nothing else.`},
+        {role:'user', content:text}
+      ], 512)).trim();
+      if (t) { liveCache.set(key, t); return t; }
+    } catch (_) {}
+  }
+  return await myMemoryTranslate(text);
+}
+
 // 구글이 막혔을 때 쓰는 두 번째 무료 번역 (MyMemory)
 async function myMemoryTranslate(text) {
   const lc = GTRANSLATE_CODES[targetLang] || 'en';
@@ -2553,7 +2577,7 @@ function liveTranslateInterim(text) {
     const seq = ++liveInterimSeq;
     livePendingInterim = seq;
     try {
-      const result = await liveGoogleTranslate(t);
+      const result = await liveTranslateAny(t, true);
       if (livePendingInterim === null || seq <= liveInterimShown) return;
       liveInterimShown = seq;
       liveRenderTr(result);
@@ -2596,11 +2620,13 @@ async function liveFillTr(p) {
   const ko = p.ko;
   liveRenderKo(''); liveRenderTr('');
   try {
-    const tr = await liveGoogleTranslate(ko);
+    const tr = await liveTranslateAny(ko, false);
     if (p.ko !== ko) return; // 그 사이 문장이 교체됨
     p.tr = tr;
     liveRenderTr('');
-  } catch {}
+  } catch (e) {
+    if (p.ko === ko) { p.tr = '(번역 실패: 인터넷 연결 또는 Groq 키를 확인해 주세요)'; liveRenderTr(''); }
+  }
 }
 
 // 비속어가 들어간 어절은 통째로 제거 (교과서에 나올 수 있는 '미친다', '새끼(동물)', '불이 꺼져' 등은 제외)
