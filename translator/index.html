@@ -517,7 +517,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
 .pop-tts:hover { color: var(--accent); background: rgba(124,131,224,.12); transform: scale(1.15); }
 .pop-tts.speaking { color: #81c784; animation: pulse .6s ease infinite alternate; }
 @keyframes pulse { from { opacity: 1; } to { opacity: .4; } }
-.trans-popup .pop-rus { font-size: .95rem; color: var(--accent); font-weight: 600; line-height: 1.7; margin-bottom: 12px; }
+.trans-popup .pop-rus { white-space: pre-line; font-size: .95rem; color: var(--accent); font-weight: 600; line-height: 1.7; margin-bottom: 12px; }
 .pop-loading { font-size: .82rem; color: var(--sub); text-align: center; padding: 8px 0; }
 .pop-apply {
   width: 100%; padding: 10px; background: var(--primary); color: white;
@@ -2321,6 +2321,7 @@ RULES:
 - If 4+ words: translate naturally and completely.
 FORMAT: [TRANSLATED]your ${tLang} translation here[/TRANSLATED]`;
     let rus = '';
+    const fails = [];
     if (apiKey) try {
       const tText = await groqChat(apiKey, [
         {role:'system',content:sysPrompt},
@@ -2331,16 +2332,19 @@ FORMAT: [TRANSLATED]your ${tLang} translation here[/TRANSLATED]`;
         rus = tText.replace(/\[TRANSLATED\]|\[\/TRANSLATED\]/g,'').trim();
         if(rus===kor) rus='';
       }
-    } catch(err) { console.warn('Groq 번역 실패, 구글 번역으로 전환', err); }
+    } catch(err) { fails.push('Groq ' + err.message); }
     // Groq가 실패하면 구글 번역(키 불필요)으로 대체
     if(!rus){
-      try { rus = await liveGoogleTranslate(kor); } catch(_) {}
+      try { rus = await liveGoogleTranslate(kor); } catch(e) { fails.push(e.message); }
     }
-    if(!rus) rus='번역 실패';
+    if(!rus){
+      try { rus = await myMemoryTranslate(kor); } catch(e) { fails.push(e.message); }
+    }
+    if(!rus) rus = '번역 실패' + (apiKey ? '' : ' — ⚙️ 설정에 Groq 키를 넣어 주세요') + (fails.length ? `\n(${fails.join(' / ')})` : '');
 
     // 3단계: 발음
     let pronounc = '';
-    if (apiKey && rus && rus !== '번역 실패') {
+    if (apiKey && rus && !rus.startsWith('번역 실패')) {
       try {
         const pText = await groqChat(apiKey, [
           {role:'system',content:`Convert foreign text to Korean phonetic pronunciation (한글 발음표기). Output ONLY Korean characters.\n[Russian] а→아 б→브 в→브 г→그 д→드 е→예 з→즈 и→이 к→크 л→르 м→므 н→느 о→오 п→프 р→르 с→스 т→트 у→우 х→흐 ц→츠 ч→취 ш→쉬 э→에 ю→유 я→야\n[English] Standard Korean loanword rules`},
@@ -2368,7 +2372,7 @@ FORMAT: [TRANSLATED]your ${tLang} translation here[/TRANSLATED]`;
 function applyTranslationToImage() {
   const page = slots[lastSelSlot]; if (!page || !lastSelRect) return;
   const rus  = document.getElementById('popRus').textContent;
-  if (!rus || rus === '번역 실패') return;
+  if (!rus || rus.startsWith('번역 실패')) return;
 
   const cx=Math.max(0,Math.round(lastSelRect.x)), cy=Math.max(0,Math.round(lastSelRect.y));
   const cw=Math.min(Math.round(lastSelRect.w), page.width-cx);
@@ -2517,23 +2521,44 @@ async function liveGoogleTranslate(text) {
   if (liveCache.has(key)) return liveCache.get(key);
   const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=ko&tl=${lc}&dt=t&q=${encodeURIComponent(text)}`;
   const r = await fetch(url);
+  if (!r.ok) throw new Error('구글 ' + r.status + (r.status === 429 ? ' (요청 과다로 잠시 차단)' : ''));
   const d = await r.json();
   const result = d[0].map(s => s[0]).join('');
   liveCache.set(key, result);
   return result;
 }
 
-async function liveTranslateInterim(text) {
+// 구글이 막혔을 때 쓰는 두 번째 무료 번역 (MyMemory)
+async function myMemoryTranslate(text) {
+  const lc = GTRANSLATE_CODES[targetLang] || 'en';
+  const r = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text.slice(0, 480))}&langpair=ko|${lc}`);
+  if (!r.ok) throw new Error('MyMemory ' + r.status);
+  const d = await r.json();
+  const t = d.responseData?.translatedText;
+  if (!t || d.responseStatus != 200) throw new Error('MyMemory ' + (d.responseDetails || d.responseStatus));
+  return t;
+}
+
+// 말하는 중 번역은 0.7초에 한 번만 요청 (요청이 너무 많으면 구글이 학교 인터넷을 잠시 차단함)
+let liveInterimText = '', liveInterimTimer = null, liveInterimLast = 0;
+function liveTranslateInterim(text) {
   if (!text.trim()) return;
-  // 최신 요청이 아니어도, 화면에 표시된 것보다 새 결과면 바로 표시 (말하는 중에도 번역이 계속 갱신됨)
-  const seq = ++liveInterimSeq;
-  livePendingInterim = seq;
-  try {
-    const result = await liveGoogleTranslate(text);
-    if (livePendingInterim === null || seq <= liveInterimShown) return;
-    liveInterimShown = seq;
-    liveRenderTr(result);
-  } catch {}
+  liveInterimText = text;
+  if (liveInterimTimer) return;
+  const wait = Math.max(0, 700 - (Date.now() - liveInterimLast));
+  liveInterimTimer = setTimeout(async () => {
+    liveInterimTimer = null;
+    liveInterimLast = Date.now();
+    const t = liveInterimText;
+    const seq = ++liveInterimSeq;
+    livePendingInterim = seq;
+    try {
+      const result = await liveGoogleTranslate(t);
+      if (livePendingInterim === null || seq <= liveInterimShown) return;
+      liveInterimShown = seq;
+      liveRenderTr(result);
+    } catch {}
+  }, wait);
 }
 
 const liveNorm = s => s.replace(/[\s.,!?·~'"]/g, '');
